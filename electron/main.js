@@ -1,24 +1,56 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const http = require('http');
+const process = require('process');
 
 let win;
 
-function createWindow() {
+async function waitForFrontend(url, timeout = 15000) {
+  const interval = 500; // 檢查間隔
+  let elapsedTime = 0;
+
+  return new Promise((resolve, reject) => {
+    const checkFrontend = () => {
+      http.get(url, () => {
+        resolve(); // 等待前端啟動
+      }).on('error', () => {
+        elapsedTime += interval;
+        if (elapsedTime >= timeout) {
+          reject(new Error(`Frontend did not start within ${timeout / 1000} seconds.`));
+        } else {
+          setTimeout(checkFrontend, interval);
+        }
+      });
+    };
+
+    checkFrontend();
+  });
+}
+
+async function createWindow() {
   win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1920,
+    height: 1080,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),  // 設置預加載腳本
-      contextIsolation: true,  // 確保 Context Isolation，安全性較高
-      enableRemoteModule: false,  // 禁止 remote 模組，提高安全性
-      nodeIntegration: false  // 禁止直接使用 Node.js API，防止安全風險
+      preload: path.join(__dirname, 'preload.js'),  // 載入 preload script
+      contextIsolation: true,
+      enableRemoteModule: false,
+      nodeIntegration: false
     },
+    show: false, // 隱藏窗口直到前端準備好
   });
 
-  // 在開發階段加載 React 的開發伺服器
-  win.loadURL('http://localhost:3000');
+  try {
+    // 等待前端启动
+    await waitForFrontend('http://localhost:3000');
+    win.loadURL('http://localhost:3000');
+    win.show(); // 前端啟動後顯示窗口
+  } catch (error) {
+    console.error(error.message);
+    win.loadFile('error.html'); // 前端未啟動時顯示錯誤頁面
+    win.show();
+  }
 
-  // 窗口關閉時清理引用
   win.on('closed', function () {
     win = null;
   });
@@ -28,7 +60,6 @@ app.whenReady().then(() => {
   console.log("Electron is ready");
   createWindow();
 
-  // 在 macOS 上，當應用程式被點擊且沒有窗口時重新創建窗口
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -36,21 +67,21 @@ app.whenReady().then(() => {
   });
 });
 
-// 在所有窗口都被關閉時退出應用
+// 關閉所有窗口時退出應用
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    app.quit();
+    process.exit(0);
   }
 });
 
-// IPC 事件：處理資料夾選擇請求
+// 選擇文件夾對話框
 ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog(win, {
     properties: ['openDirectory']
   });
 
   if (!result.canceled) {
-    return result.filePaths[0];  // 返回所選資料夾的絕對路徑
+    return result.filePaths[0]; // 返回選擇的文件夾路徑
   }
   return null;
 });

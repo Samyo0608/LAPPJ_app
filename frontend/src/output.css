@@ -1953,11 +1953,6 @@ video {
   border-color: rgb(219 39 119 / var(--tw-border-opacity, 1));
 }
 
-.border-purple-300 {
-  --tw-border-opacity: 1;
-  border-color: rgb(216 180 254 / var(--tw-border-opacity, 1));
-}
-
 .border-purple-500 {
   --tw-border-opacity: 1;
   border-color: rgb(168 85 247 / var(--tw-border-opacity, 1));
