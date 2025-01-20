@@ -1,0 +1,6 @@
+/* 隱藏 Chrome, Safari, Edge, Opera 瀏覽器中的數字上下選擇器 */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
