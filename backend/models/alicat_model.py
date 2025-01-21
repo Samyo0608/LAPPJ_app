@@ -13,7 +13,7 @@ class FlowControllerModel:
         self.mix_compositions = {}
 
     def check_device_connection(self) -> bool:
-        """檢查設備連接狀態的防呆函式"""
+        # """檢查設備連接狀態的防呆函式"""
         try:
             print(f"正在嘗試連接 {self.port}...")
             with serial.Serial(
@@ -50,7 +50,7 @@ class FlowControllerModel:
             return False
 
     async def connect(self):
-        """建立與流量控制器的連線"""
+        # """建立與流量控制器的連線"""
         if not self.check_device_connection():
             raise Exception(f"無法連接到設備 {self.port}")
             
@@ -63,7 +63,7 @@ class FlowControllerModel:
             raise Exception(f"連接設備時發生錯誤: {e}")
 
     async def disconnect(self):
-        """關閉與流量控制器的連線"""
+        # """關閉與流量控制器的連線"""
         try:
             if self.flow_controller:
                 await self.flow_controller.__aexit__(None, None, None)
@@ -74,7 +74,7 @@ class FlowControllerModel:
             raise Exception(f"斷開連接時發生錯誤: {e}")
 
     async def read_status(self):
-        """讀取設備狀態"""
+        # """讀取設備狀態"""
         try:
             if not self.flow_controller:
                 raise Exception("設備未連接")
@@ -85,7 +85,7 @@ class FlowControllerModel:
             raise
 
     def format_status_data(self, data: dict) -> dict:
-        """格式化狀態數據"""
+        # """格式化狀態數據"""
         try:
             return {
                 "pressure": data.get("pressure", "N/A"),
@@ -101,37 +101,37 @@ class FlowControllerModel:
             return {"error": str(e)}
 
     async def set_flow_rate(self, flow_rate):
-        """設定流量"""
+        # """設定流量"""
         if not self.flow_controller:
             raise Exception("Device not connected")
         await self.flow_controller.set_flow_rate(flow_rate)
 
     async def set_pressure(self, pressure):
-        """設定壓力"""
+        # """設定壓力"""
         if not self.flow_controller:
             raise Exception("Device not connected")
         await self.flow_controller.set_pressure(pressure)
 
     async def set_gas(self, gas):
-        """設定氣體"""
+        # """設定氣體"""
         if not self.flow_controller:
             raise Exception("Device not connected")
         await self.flow_controller.set_gas(gas)
 
     async def create_mix(self, mix_no, name, gases):
-        """建立混合氣"""
+        # """建立混合氣"""
         if not self.flow_controller:
             raise Exception("Device not connected")
         await self.flow_controller.create_mix(mix_no, name, gases)
 
     async def delete_mix(self, mix_no):
-        """刪除混合氣"""
+        # """刪除混合氣"""
         if not self.flow_controller:
             raise Exception("Device not connected")
         await self.flow_controller.delete_mix(mix_no)
     
     async def get_available_gas_mixes(self):
-        """獲取所有已設定的混合氣體"""
+        # """獲取所有已設定的混合氣體"""
         try:
             if not self.flow_controller:
                 raise Exception("設備未連接")
@@ -158,7 +158,7 @@ class FlowControllerModel:
             return {}
 
     async def get_all_gases(self, search_term: str = None):
-        """獲取所有氣體資訊，包括標準氣體和混合氣體"""
+        # """獲取所有氣體資訊，包括標準氣體和混合氣體"""
         try:
             if not self.flow_controller:
                 raise Exception("設備未連接")
@@ -200,8 +200,8 @@ class FlowControllerModel:
                     "custom_mixtures": custom_mixtures
                 }
 
-            # 恢復原本的氣體設定
-            await self.flow_controller.set_gas(current_gas)
+            # 結束後設定成Argon
+            await self.flow_controller.set_gas('Ar')
             return result
 
         except Exception as e:

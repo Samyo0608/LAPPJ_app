@@ -14,7 +14,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # 設置 JSON 編碼，確保中文正常顯示
 app.json.ensure_ascii = False
 
-app.register_blueprint(alicat_bp)
+app.register_blueprint(alicat_bp, url_prefix='/api/alicat_api')
 
 # 會從前端接收一個物件，裡面包含initial_file_path、group_number、file_number、max_spectrum和min_spectrum
 # 這個物件會被傳遞給txt_to_transmittance函數

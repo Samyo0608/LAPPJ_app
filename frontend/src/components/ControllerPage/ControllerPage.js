@@ -1,17 +1,65 @@
 import React, { useState } from 'react';
+import { getApi } from '../../utils/getApi';
+import AlertComponent from '../ComponentTools/Alert';
 import LineChartComponent from '../Chart/Chart';
+import { useAlicatContext } from '../../Contexts/AlicatContext';
 
 const useHooks = () => {
+  const { isCarrierGasOpenState } = useAlicatContext();
+  const [carrierGasDetail, setCarrierGasDetail] = useState({});
+  const [alertDetail, setAlertDetail] = React.useState({});
   const [laserPWM, setLaserPWM] = useState(0);
   const [temperature, setTemperature] = useState(35);
 
+  // 取得載氣資料
+  const getCarrierGasDataApi = async () => {
+    const response = await getApi('/alicat_api/status', 'GET');
+    console.log(response);
+    if (response?.data?.status === 'success') {
+      setCarrierGasDetail(response.data.data);
+    } else {
+      console.error(response?.data?.status);
+    }
+  };
+
+  // 關閉Alert
+  const onAlertClose = () => {
+    setAlertDetail({
+      show: false
+    });
+  };
+  
+  // Button Component
   const ButtonComponent = ({ label, otherCss }) => (
     <button className={`${otherCss} bg-gray-100 text-sm p-1 border rounded`}>
       {label}
     </button>
   );
 
+  React.useEffect(() => {
+    let intervalId;
+  
+    if (isCarrierGasOpenState) {
+      intervalId = setInterval(() => {
+        getCarrierGasDataApi();
+      }, 2000);
+      console.log("Starting interval");
+    }
+  
+    // 清理函數
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        console.log("Clearing interval");
+      }
+    };
+  }, [isCarrierGasOpenState]);
+
   return {
+    isCarrierGasOpenState,
+    carrierGasDetail,
+    alertDetail,
+    onAlertClose,
     laserPWM,
     setLaserPWM,
     temperature,
@@ -21,14 +69,23 @@ const useHooks = () => {
 };
 
 const ControllerPage = () => {
-  const { laserPWM, setLaserPWM, temperature, setTemperature, ButtonComponent } = useHooks();
+  const { isCarrierGasOpenState, carrierGasDetail, alertDetail,
+    onAlertClose,
+    laserPWM, setLaserPWM, temperature, setTemperature, ButtonComponent
+  } = useHooks();
 
   return (
     <div className="min-h-allView p-4 bg-gray-200">
+      <AlertComponent
+        show={alertDetail.show}
+        message={alertDetail.message}
+        onClose={onAlertClose}
+        type={alertDetail.type}
+      />
       {/* Header Section */}
-      <div className="grid grid-cols-4 gap-4 p-2 bg-white shadow mb-4 rounded">
+      <div className="grid grid-cols-3 gap-4 p-2 bg-white shadow mb-4 rounded">
         <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-green-500 rounded-full"></span>
+          <span className={`${isCarrierGasOpenState ? 'bg-green-500' : 'bg-red-500'} w-4 h-4 bg-green-500 rounded-full`} />
           <span className="text-sm">Mass Flow Controller - Main Gas</span>
         </div>
         <div className="flex items-center gap-2">
@@ -59,7 +116,7 @@ const ControllerPage = () => {
         <div className="bg-white p-4 rounded shadow">
           <div className="space-y-4">
           <h3 className="font-bold mb-2">流量控制</h3>
-            <div>
+            <div className="border p-4 border-green-300 rounded shadow">
               <div className="mb-2">
                 <span className="text-sm">主氣流量 (Main Gas Flow)</span>
                 <input
@@ -70,50 +127,61 @@ const ControllerPage = () => {
                 />
               </div>
               <div className="flex justify-between items-center gap-2">
-                <span className="text-sm">流量設定 (Main Gas Setting)</span>
+                <span className="text-sm w-48">流量設定 (Main Gas Setting)</span>
                 <input
                   type="number"
                   value="0"
-                  className="min-w-24 p-1 border rounded"
+                  className="w-full p-1 border rounded"
                   readOnly
                 />
               </div>
               <div className="flex justify-between items-center gap-2">
-                <span className="text-sm">目前氣體種類 (Gas Type)</span>
+                <span className="text-sm w-48">目前氣體種類 (Gas Type)</span>
                 <input
                   type="text"
                   value="N2"
                   readOnly
-                  className="min-w-24 p-1 border rounded bg-gray-50"
+                  className="w-full p-1 border rounded bg-gray-50"
                 />
               </div>
             </div>
-            <div>
+            <div className="border p-4 border-blue-300 rounded shadow">
               <div className="mb-2">
                 <span className="text-sm">載氣流量 (Carrier Gas Flow)</span>
                 <input
-                  type="text"
-                  value="實際數值"
+                  type="number"
+                  value={Number(carrierGasDetail?.mass_flow || 0).toFixed(2)}
+                  step="0.01"
+                  readOnly
+                  className="w-full p-1 border rounded bg-gray-50 mt-2"
+                />
+              </div>
+              <div className="mb-2">
+                <span className="text-sm">MFC溫度 (Carrier Gas Temp.)</span>
+                <input
+                  type="number"
+                  value={Number(carrierGasDetail?.temperature || 0).toFixed(2)}
+                  step="0.01"
                   readOnly
                   className="w-full p-1 border rounded bg-gray-50 mt-2"
                 />
               </div>
               <div className="flex justify-between items-center gap-2">
-                <span className="text-sm">流量設定 (Carrier Gas Setting)</span>
+                <span className="text-sm w-48">流量設定 (Carrier Gas Setting)</span>
                 <input
                   type="number"
                   value="0"
-                  readOnly
-                  className="min-w-24 p-1 border rounded"
+                  readOnly={!isCarrierGasOpenState}
+                  className={`${!isCarrierGasOpenState && "bg-gray-50"} w-full p-1 border rounded`}
                 />
               </div>
               <div className="flex justify-between items-center gap-2">
-                <span className="text-sm">目前氣體種類 (Gas Type)</span>
+                <span className="text-sm w-48">目前氣體種類 (Gas Type)</span>
                 <input
                   type="text"
-                  value="Ar"
+                  value={carrierGasDetail?.gas || 'None'}
                   readOnly
-                  className="min-w-24 p-1 border rounded bg-gray-50"
+                  className="w-full p-1 border rounded bg-gray-50"
                 />
               </div>
             </div>
@@ -133,7 +201,7 @@ const ControllerPage = () => {
                   value={laserPWM}
                   onChange={(e) => setLaserPWM(e.target.value)}
                   placeholder="0"
-                  className="w-20 p-1 border rounded"
+                  className="w-full p-1 border rounded"
                 />
               </div>
               <span className="mb-2">詳細數值</span>

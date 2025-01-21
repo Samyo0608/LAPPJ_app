@@ -7,9 +7,9 @@ import serial
 alicat_bp = Blueprint('alicat', __name__)
 flow_controller = None  # 全局流量控制器實例
 
-@alicat_bp.route('/api/connect', methods=['POST'])
+@alicat_bp.route('/connect', methods=['POST'])
 def connect():
-    """連接設備"""
+    # """連接設備"""
     global flow_controller
     data = request.get_json()
     port = data.get('port')
@@ -41,9 +41,10 @@ def connect():
         formatted_status = asyncio.run(async_connect())
         
         return jsonify({
-            "status": "success", 
             "message": f"已連接到端口 {port}",
-            "initial_status": formatted_status
+            "port": port,
+            "address": address,
+            "status": "success"
         }), 200
 
     except Exception as e:
@@ -60,7 +61,7 @@ def connect():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 def is_port_available(port):
-    """檢查指定的端口是否有效"""
+    # """檢查指定的端口是否有效"""
     import serial
     try:
         with serial.Serial(port, baudrate=19200, timeout=1) as ser:
@@ -68,9 +69,9 @@ def is_port_available(port):
     except serial.SerialException:
         return False
 
-@alicat_bp.route('/api/disconnect', methods=['POST'])
+@alicat_bp.route('/disconnect', methods=['POST'])
 def disconnect():
-    """斷開設備連接"""
+    # """斷開設備連接"""
     global flow_controller
     if not flow_controller:
         return jsonify({"status": "error", "message": "Device not connected"}), 400
@@ -84,9 +85,9 @@ def disconnect():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@alicat_bp.route('/api/status', methods=['GET'])
+@alicat_bp.route('/status', methods=['GET'])
 def get_status():
-    """獲取設備狀態"""
+    # """獲取設備狀態"""
     if not flow_controller:
         return jsonify({"status": "error", "message": "設備未連接"}), 400
 
@@ -101,9 +102,9 @@ def get_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@alicat_bp.route('/api/set_flow_rate', methods=['POST'])
+@alicat_bp.route('/set_flow_rate', methods=['POST'])
 def set_flow_rate():
-    """設定流量"""
+    # """設定流量"""
     if not flow_controller:
         return jsonify({"status": "error", "message": "Device not connected"}), 400
 
@@ -121,9 +122,9 @@ def set_flow_rate():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@alicat_bp.route('/api/gases', methods=['GET'])
+@alicat_bp.route('/gases', methods=['GET'])
 def get_all_gases():
-    """獲取所有氣體資訊（標準氣體和混合氣體）"""
+    # """獲取所有氣體資訊（標準氣體和混合氣體）"""
     if not flow_controller:
         return jsonify({"status": "error", "message": "設備未連接"}), 400
 
@@ -142,3 +143,25 @@ def get_all_gases():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@alicat_bp.route('/set_gas', methods=['POST'])
+def set_gas():
+    # """設定氣體"""
+    if not flow_controller:
+        return jsonify({"status": "error", "message": "Device not connected"}), 400
+
+    data = request.get_json()
+    gas = data.get('gas')
+
+    if gas is None:
+        return jsonify({"status": "error", "message": "Gas is required"}), 400
+
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        # 如果給編號，則需要轉換成數字，如果是字串，則不需要轉換
+        if isinstance(gas, str) and gas.isdigit():
+            gas = int(gas)
+        loop.run_until_complete(flow_controller.set_gas(gas))
+        return jsonify({"status": "success", "message": f"Gas set to {gas}"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
