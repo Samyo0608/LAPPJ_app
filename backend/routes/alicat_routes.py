@@ -165,3 +165,25 @@ def set_gas():
         return jsonify({"status": "success", "message": f"Gas set to {gas}"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+    
+@alicat_bp.route('/create_mix', methods=['POST'])
+def create_mix():
+    # """建立混合氣"""
+    if not flow_controller:
+        return jsonify({"status": "error", "message": "Device not connected"}), 400
+
+    data = request.get_json()
+    mix_no = data.get('mix_no')
+    name = data.get('name')
+    gases = data.get('gases')
+
+    if not mix_no or not name or not gases:
+        return jsonify({"status": "error", "message": "Missing required parameters"}), 400
+
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(flow_controller.create_mix(mix_no, name, gases))
+        return jsonify({"status": "success", "message": f"Mix {mix_no} created with {gases}"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

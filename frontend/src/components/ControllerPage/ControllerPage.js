@@ -278,96 +278,91 @@ const ControllerPage = () => {
       {/* 這邊為下一層的內容 */}
       <div className="grid grid-cols-3 gap-4 mt-4">
         <div className="col-span-2 bg-white p-4 rounded-lg shadow-md">
-          <h3 className="font-bold mb-2">流量 / 電壓監測 (Air Flow / Voltage monitor)</h3>
-          <LineChartComponent />
+          <h3 className="font-bold mb-2">流量 / 電壓監測 (Flow / Voltage / Pressure monitor)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-4">
+            <LineChartComponent 
+              title="載氣流量監測"
+              data={carrierGasDetail?.mass_flow || 0}
+              label="Carrier Gas flow"
+              yAxisLabel="Flow Rate (sccm)"
+              yAxisMax={300}
+              yAxisMin={0}
+              yAxisStep={10}
+              lineColor="rgb(192, 108, 75)"
+              backgroundColor="rgba(192, 79, 75, 0.2)"
+            />
+            <LineChartComponent 
+              title="載氣溫度監測"
+              data={carrierGasDetail?.temperature || 0}
+              label="Carrier Gas Temperature"
+              yAxisLabel="Temperature (°C)"
+              yAxisMax={50}
+              yAxisMin={0}
+              yAxisStep={5}
+              lineColor="rgb(75, 192, 75)"
+              backgroundColor="rgba(75, 192, 75, 0.2)"
+            />
+            <LineChartComponent 
+              title="載氣壓力監測"
+              data={carrierGasDetail?.pressure || 0}
+              label="Carrier Gas Pressure"
+              yAxisLabel="Pressure (PSI)"
+              yAxisMax={20}
+              yAxisMin={0}
+              yAxisStep={2}
+              lineColor="rgb(75, 75, 192)"
+              backgroundColor="rgba(75, 75, 192, 0.2)"
+            />
+          </div>
         </div>
         {/* Recipe 調整 */}
-        <div className="bg-blue-200 p-4 rounded shadow">
+        <div className="bg-blue-200 p-4 rounded shadow w-full">
           <div className="space-y-4">
-              <div className="space-y-3 flex flex-col justify-between items-center gap-2">
-                <div className="flex flex-col gap-2">
-                  <h3 className="font-bold mb-2 text-red-400">參數選擇 (Recipe Setting)</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">Recipe: </span>
-                    <select className="w-full p-1 border rounded">
-                      <option>Recipe 1</option>
-                      <option>Recipe 2</option>
-                      <option>Recipe 3</option>
-                    </select>
-                  </div>
-                  <div className='flex justify-between items-center gap-2'>
-                    <span>主氣:</span>
-                    <input
-                      type="text"
-                      value="100"
-                      readOnly
-                      className="min-min-w-24 p-1 border rounded bg-gray-50"
-                    />
-                    <span className='w-8'>
-                      SLM
-                    </span>
-                  </div>
-                  <div className='flex justify-between items-center gap-2'>
-                    <span>載氣:</span>
-                    <input
-                      type="text"
-                      value="100"
-                      readOnly
-                      className="min-w-24 p-1 border rounded bg-gray-50"
-                    />
-                    <span className='w-8'>
-                      SCCM
-                    </span>
-                  </div>
-                  <div className='flex justify-between items-center gap-2'>
-                    <span>雷射:</span>
-                    <input
-                      type="text"
-                      value="100"
-                      readOnly
-                      className="min-w-24 p-1 border rounded bg-gray-50"
-                    />
-                    <span className='w-8'>
-                      %
-                    </span>
-                  </div>
-                  <div className='flex justify-between items-center gap-2'>
-                    <span>溫度:</span>
-                    <input
-                      type="text"
-                      value="80"
-                      readOnly
-                      className="min-w-24 p-1 border rounded bg-gray-50"
-                    />
-                    <span className='w-8'>
-                      °C
-                    </span>
-                  </div>
-                  <div className='flex justify-between items-center gap-2'>
-                    <span>電壓:</span>
-                    <input
-                      type="text"
-                      value="270"
-                      readOnly
-                      className="min-w-24 p-1 border rounded bg-gray-50"
-                    />
-                    <span className='w-8'>
-                      V
-                    </span>
-                  </div>
-                  <div className='flex justify-between items-center gap-2'>
-                    <span>震盪:</span>
-                    <input
-                      type="text"
-                      value="ON"
-                      readOnly
-                      className="min-w-24 p-1 border rounded bg-gray-50"
-                    />
-                    <span className='w-8' />
-                  </div>
+            <div className="space-y-3 flex flex-col justify-between items-stretch gap-2 w-full">
+              <div className="flex flex-col gap-2 w-full">
+                <h3 className="font-bold mb-2 text-red-400 text-center">參數選擇 (Recipe Setting)</h3>
+                
+                {/* Recipe 選擇 */}
+                <div className="flex items-center gap-2 w-full">
+                  <span className="text-sm whitespace-nowrap">Recipe: </span>
+                  <select className="w-full p-1 border rounded">
+                    <option>Recipe 1</option>
+                    <option>Recipe 2</option>
+                    <option>Recipe 3</option>
+                  </select>
                 </div>
-                <ButtonComponent label="套用 (Setting)" otherCss={"max-w-96"} />
+
+                {/* 參數輸入區 */}
+                <div className="w-full space-y-2">
+                  {[
+                    { label: '主氣', value: '100', unit: 'SLM' },
+                    { label: '載氣', value: '100', unit: 'SCCM' },
+                    { label: '雷射', value: '100', unit: '%' },
+                    { label: '溫度', value: '80', unit: '°C' },
+                    { label: '電壓', value: '270', unit: 'V' },
+                    { label: '震盪', value: 'ON', unit: '' }
+                  ].map((item, index) => (
+                    <div key={index} className='flex items-center gap-2 w-full'>
+                      <span className="w-16 whitespace-nowrap">{item.label}:</span>
+                      <input
+                        type="text"
+                        value={item.value}
+                        readOnly
+                        className="flex-1 p-1 border rounded bg-gray-50 min-w-0"
+                      />
+                      <span className='w-12 text-right'>
+                        {item.unit}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              {/* 套用按鈕 */}
+              <div className="w-full flex justify-center">
+                <ButtonComponent label="套用 (Setting)" otherCss="w-full max-w-md" />
+              </div>
+            </div>
           </div>
         </div>
       </div>

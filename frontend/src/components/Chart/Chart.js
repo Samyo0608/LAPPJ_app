@@ -22,121 +22,123 @@ ChartJS.register(
   Legend
 );
 
-const LineChartComponent = () => {
-  // Initialize chart data and labels
+const LineChartComponent = ({ 
+  title,             // 圖表標題
+  data,              // 要顯示的數據
+  label,             // 數據的標籤名稱
+  yAxisLabel,        // Y軸標籤
+  yAxisMax,          // Y軸最大值
+  yAxisMin,          // Y軸最小值
+  yAxisStep,         // Y軸刻度間隔
+  lineColor = 'rgba(75, 192, 192, 1)',  // 線條顏色
+  backgroundColor = 'rgba(75, 192, 192, 0.2)'  // 背景顏色
+}) => {
   const [chartData, setChartData] = useState({
-    labels: [], // Time labels
+    labels: [],
     datasets: [
       {
-        label: 'Main Gas Flow', // Chart title
-        data: [], // Data points
-        borderColor: 'rgba(75, 192, 192, 1)', // Line color
-        backgroundColor: 'rgba(75, 192, 192, 0.2)', // Fill color
-        tension: 0.3, // Smoothness
-        yAxisID: 'y', // Left Y-axis
-      },
-      {
-        label: 'Carrier Gas Flow', // Chart title
-        data: [], // Data points
-        borderColor: 'rgb(192, 108, 75)', // Line color
-        backgroundColor: 'rgba(192, 79, 75, 0.2)', // Fill color
-        tension: 0.3, // Smoothness
-        yAxisID: 'y', // Left Y-axis
-      },
-      {
-        label: 'Voltage', // Chart title
-        data: [], // Data points
-        borderColor: 'rgb(93, 75, 192)', // Line color
-        backgroundColor: 'rgba(2, 6, 231, 0.2)', // Fill color
-        tension: 0.3, // Smoothness
-        yAxisID: 'y1', // Right Y-axis
-      },
+        label: label,
+        data: [],
+        borderColor: lineColor,
+        backgroundColor: backgroundColor,
+        tension: 0.3,
+        yAxisID: 'y',
+      }
     ],
   });
 
-  // Chart options
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'bottom',
+        labels: {
+          // 調整圖例文字大小
+          font: {
+            size: 12  // 圖例字體大小
+          },
+          padding: 10  // 圖例間距
+        }
       },
       title: {
         display: true,
-        text: '流量及電壓即時監測',
+        text: title,
+        font: {
+          size: 16,  // 標題字體大小
+          weight: 'bold'  // 標題字體粗細
+        },
+        padding: 10  // 標題間距
       },
     },
     scales: {
       x: {
         title: {
           display: true,
-          text: 'Time (s)', // X-axis label
+          text: 'Time (s)',
+          font: {
+            size: 14  // X 軸標題字體大小
+          }
         },
+        ticks: {
+          font: {
+            size: 12  // X 軸刻度字體大小
+          }
+        }
       },
       y: {
         type: 'linear',
         position: 'left',
         title: {
           display: true,
-          text: 'Flow Rate (sccm)', // Left Y-axis label
+          text: yAxisLabel,
+          font: {
+            size: 14
+          }
         },
         ticks: {
-          stepSize: 10, // Interval for ticks
-          max: 50, // Max value
-          min: 0, // Min value
+          stepSize: yAxisStep,
+          max: yAxisMax,
+          min: yAxisMin,
         },
-      },
-      y1: {
-        type: 'linear',
-        position: 'right',
-        title: {
-          display: true,
-          text: 'Voltage (V)', // Right Y-axis label
-        },
-        ticks: {
-          stepSize: 50, // Interval for ticks
-          max: 300, // Max value
-          min: 0, // Min value
-        },
+        // 添加這些設置來固定 Y 軸範圍
+        grace: '0%',  // 不允許數據超出範圍
+        beginAtZero: true,  // 從 0 開始
+        suggestedMax: yAxisMax,  // 建議最大值
+        suggestedMin: yAxisMin,  // 建議最小值
+        bounds: 'ticks',  // 確保刻度在範圍內
+        // 禁用自動縮放
+        min: yAxisMin,
+        max: yAxisMax,
         grid: {
-          drawOnChartArea: false, // Disable gridlines for right Y-axis
-        },
+          drawBorder: true,
+          color: '#E2E8F0'
+        }
       },
     },
+    // 可選：調整整體佈局
+    layout: {
+      padding: {
+        top: 10,
+        right: 15,
+        bottom: 10,
+        left: 15
+      }
+    }
   };
 
   useEffect(() => {
     const interval = setInterval(() => {
-      // Get current time as HH:mm:ss
-      const currentTime = new Date().toLocaleTimeString();
+      const currentTime = new Date().toLocaleTimeString('en-GB');
 
-      // Generate random value for data
-      const randomValue = Math.floor(Math.random() * 100) + 1;
-      const randomValue2 = Math.floor(Math.random() * 100) + 1;
-      const randomValue3 = Math.floor(Math.random() * 300) + 3;
-
-      // Update chart data and labels
       setChartData((prevData) => {
         const updatedLabels = [...prevData.labels, currentTime];
-        const updatedData = [
-          ...prevData.datasets[0].data,
-          randomValue,
-        ];
-        const updatedData2 = [
-          ...prevData.datasets[1].data,
-          randomValue2,
-        ];
-        const updatedData3 = [
-          ...prevData.datasets[2].data,
-          randomValue3,
-        ];
+        const updatedData = [...prevData.datasets[0].data, data];
 
-        // Limit the number of labels and data points (e.g., max 10 points)
+        // 限制顯示的數據點數量
         if (updatedLabels.length > 10) {
-          updatedLabels.shift(); // Remove the oldest label
-          updatedData.shift(); // Remove the oldest data point
-          updatedData2.shift(); // Remove the oldest data point
-          updatedData3.shift(); // Remove the oldest data point
+          updatedLabels.shift();
+          updatedData.shift();
         }
 
         return {
@@ -146,24 +148,16 @@ const LineChartComponent = () => {
               ...prevData.datasets[0],
               data: updatedData,
             },
-            {
-              ...prevData.datasets[1],
-              data: updatedData2,
-            },
-            {
-              ...prevData.datasets[2],
-              data: updatedData3,
-            },
           ],
         };
       });
-    }, 3000); // Update every second
+    }, 3000);
 
-    return () => clearInterval(interval); // Cleanup interval on unmount
-  }, []);
+    return () => clearInterval(interval);
+  }, [data]);
 
   return (
-    <div className="w-full min-h-40vh">
+    <div className="w-full min-h-40vh h-[300px]">
       <Line data={chartData} options={options} />
     </div>
   );

@@ -2,6 +2,7 @@ import React from 'react'
 import AlertComponent from '../ComponentTools/Alert';
 import CommonLoading from '../Loading/CommonLoading';
 import { getApi } from '../../utils/getApi';
+import { parseGasMixture } from '../../utils/mixGasUtil';
 import { useAlicatContext } from '../../Contexts/AlicatContext';
 
 // 將 SingleConnectComponent 改為獨立的函數組件
@@ -68,21 +69,21 @@ const SingleConnectComponent = React.memo(({ title, company, deviceId, onClick, 
 });
 
 const useHooks = () => {
-  const { isCarrierGasOpenState, setIsCarrierOpenState, setCarrierGasPortandAddressState, carrierGasPortandAddressState } = useAlicatContext();
+  const { isCarrierGasOpenState, setIsCarrierOpenState, setCarrierGasPortandAddressState, carrierGasPortandAddressState, carrierGasTypeState, setCarrierGasTypeState } = useAlicatContext();
   // 單獨連線的項目整合
   const deviceList = [{
-    title: '載氣流量控制器 - Carrier Gas',
-    company: 'Alicat',
-    deviceId: 'carrierGas',
-    port: '',
-    address: ''
-  }, {
     title: '主氣流量控制器 - Main Gas',
     company: 'Azbil',
     deviceId: 'mainGas',
     port: '',
     address: ''
   }, {
+    title: '載氣流量控制器 - Carrier Gas',
+    company: 'Alicat',
+    deviceId: 'carrierGas',
+    port: '',
+    address: ''
+  } ,{
     title: '雷射控制器 - Laser',
     company: 'CO2 Laser',
     deviceId: 'laser',
@@ -104,10 +105,18 @@ const useHooks = () => {
     }, {});
   });
   const [carrierGasDetail, setCarrierGasDetail] = React.useState({});
-  const [carrierGasTypeList, setCarrierGasTypeList] = React.useState({});
+  const [carrierGasTypeList, setCarrierGasTypeList] = React.useState(isCarrierGasOpenState && carrierGasTypeState?.length > 0 ? carrierGasTypeState : []);
   const [carrierGasTypeListLoading, setCarrierGasTypeListLoading] = React.useState(false);
-  const [carrierGasTypeSetting, setCarrierGasTypeSetting] = React.useState({});
+  const [carrierGasTypeSetting, setCarrierGasTypeSetting] = React.useState("");
+  const [carrierGasMixGas, setCarrierGasMixGas] = React.useState("");
+  const [carrierGasCreateMixGas, setCarrierGasCreateMixGas] = React.useState({
+    number: 0,
+    name: "",
+    gases: ""
+  });
   const [alertDetail, setAlertDetail] = React.useState({});
+
+  console.log("carrierGasCreateMixGas", carrierGasCreateMixGas);
 
   // -----------------------------api function--------------------------------
   // 取得載氣資料
@@ -152,6 +161,7 @@ const useHooks = () => {
       const gasList = processGasesData(response.data);
       setCarrierGasTypeList(gasList);
       setCarrierGasTypeListLoading(false);
+      setCarrierGasTypeState(gasList);
 
       setAlertDetail({
         show: true,
@@ -218,6 +228,52 @@ const useHooks = () => {
       });
 
       setCarrierGasTypeListLoading(false);
+
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+    }
+  };
+
+  // 新增載氣混合氣體api
+  const addCarrierGasGasTypeApi = async () => {
+    try {
+      const gasData = {
+        mix_no: carrierGasCreateMixGas?.number,
+        name: carrierGasCreateMixGas?.name,
+        gases: parseGasMixture(carrierGasCreateMixGas?.gases)
+      };
+      const response = await getApi('/alicat_api/create_mix', 'POST', gasData);
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '載氣氣體新增成功',
+          type: 'success'
+        });
+
+        // 成功後重新取得所有氣體種類
+        getCarrierGasAllGasTypeApi();
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '載氣氣體新增失敗',
+          type: 'failure'
+        });
+      }
+
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: '新增過程發生錯誤',
+        type: 'failure'
+      });
 
       setTimeout(() => {
         setAlertDetail({ show: false });
@@ -484,7 +540,24 @@ const useHooks = () => {
   // 按下修改氣體種類的Click事件
   const onSetCarrierGasGasTypeClick = (data) => {
     setCarrierGasTypeSetting(data);
-    console.log(data);
+  };
+
+  // 選擇混合氣體的Click事件
+    const onCarrierGasMixGasClick = (data) => {
+      setCarrierGasMixGas(data);
+    };
+
+  // 新增載氣混合氣體的input change事件
+  const onCarrierGasCreateMixGasChange = (value, flag) => {
+    setCarrierGasCreateMixGas(prev => ({
+      ...prev,
+      [flag]: value
+    }));
+  };
+
+  // 新增載氣混合氣體的Click事件
+  const onCarrierGasCreateMixGasClick = () => {
+    addCarrierGasGasTypeApi();
   };
 
   // 從 localStorage 取得載氣是否開啟，如果開啟則取得載氣資料
@@ -499,6 +572,15 @@ const useHooks = () => {
       }));
 
       getCarrierGasDataApi();
+
+    } else {
+      setDevices(prev => ({
+        ...prev,
+        carrierGas: {
+          ...prev.carrierGas,
+          connected: false
+        }
+      }));
     }
   }, [isCarrierGasOpenState]);
 
@@ -523,18 +605,23 @@ const useHooks = () => {
     deviceList,
     carrierGasTypeListLoading,
     carrierGasTypeList,
+    carrierGasCreateMixGas,
     onAlertClose,
     onConnectPortChange,
     onConnectAddressChange,
     onConnectClick,
     onGetCarrierGasTypeClick,
-    onSetCarrierGasGasTypeClick
+    onSetCarrierGasGasTypeClick,
+    onCarrierGasMixGasClick,
+    onCarrierGasCreateMixGasChange,
+    onCarrierGasCreateMixGasClick
   };
 };
 
 const MfcLaserSetting = () => {
-  const { devices, carrierGasDetail, alertDetail, deviceList, carrierGasTypeListLoading, carrierGasTypeList,
-    onAlertClose, onConnectPortChange, onConnectAddressChange, onConnectClick, onGetCarrierGasTypeClick, onSetCarrierGasGasTypeClick
+  const { devices, carrierGasDetail, alertDetail, deviceList, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas,
+    onAlertClose, onConnectPortChange, onConnectAddressChange, onConnectClick, onGetCarrierGasTypeClick, onSetCarrierGasGasTypeClick,
+    onCarrierGasMixGasClick, onCarrierGasCreateMixGasChange, onCarrierGasCreateMixGasClick
   } = useHooks();
 
   return (
@@ -555,7 +642,7 @@ const MfcLaserSetting = () => {
           <h2 className="text-lg font-semibold mb-3">(尚未有設備)</h2>
           <div className="space-y-4">
             <div>
-              <label className="block font-medium">壓力 (Pressure)</label>
+              <label className="block font-medium mb-2">壓力 (Pressure)</label>
               <input
                 type="number"
                 className="w-full border rounded-md p-2"
@@ -563,7 +650,7 @@ const MfcLaserSetting = () => {
               />
             </div>
             <div>
-              <label className="block font-medium">建立混合氣體種類 (Create mix gas)</label>
+              <label className="block font-medium mb-2">建立混合氣體種類 (Create mix gas)</label>
               <div className='flex justify-between items-center mb-2'>
                 <span className='w-48'>設定編號</span>
                 <input
@@ -596,7 +683,7 @@ const MfcLaserSetting = () => {
               </button>
             </div>
             <div>
-              <label className="block font-medium">氣體類型 (Gas Type)</label>
+              <label className="block font-medium mb-2">氣體類型 (Gas Type)</label>
               <select className="w-full border rounded-md p-2">
                 <option value="N2">N2</option>
                 <option value="O2">O2</option>
@@ -623,39 +710,37 @@ const MfcLaserSetting = () => {
           <div className="space-y-4">
             <div>
               <div>
-                <label className="block font-medium">目前壓力 (Pressure)</label>
+                <label className="block font-medium mb-2">目前壓力 (Pressure)</label>
                 <input
                   type="number"
-                  className="w-full border rounded-md p-2 bg-gray-50"
+                  className="w-full border rounded-md p-2 bg-gray-50 mb-2"
                   placeholder="目前壓力數值"
                   value={Number(carrierGasDetail?.pressure || 0).toFixed(2)}
                   readOnly
                 />
               </div>
-              <div>
-                <label className="block font-medium">壓力設定 (Pressure Setting)</label>
-                <input
-                  type="number"
-                  className="w-full border rounded-md p-2"
-                  placeholder="輸入設定壓力，非必要不要調整"
-                />
-              </div>
             </div>
-            <div>
-              <label className="block font-medium">建立混合氣體種類 (Create mix gas)</label>
+            <div className='border rounded-md p-2 border-blue-300'>
+              <label className="block font-medium mb-2">建立混合氣體種類 (Create mix gas)</label>
               <div className='flex justify-between items-center mb-2'>
                 <span className='w-48'>設定編號</span>
                 <input
                   type="number"
+                  min={236}
+                  max={256}
                   className="w-full border rounded-md p-2"
                   placeholder="從236開始，請避免重複使用編號"
+                  onChange={(e) => onCarrierGasCreateMixGasChange(Number(e.target.value), 'number')}
+                  value={carrierGasCreateMixGas?.number || 0}
                 />
               </div><div className='flex justify-between items-center mb-2'>
                 <span className='w-48'>設定名稱</span>
                 <input
                   type="text"
                   className="w-full border rounded-md p-2"
-                  placeholder="英文，8個字母內"
+                  placeholder="英文數字，6個字母內"
+                  onChange={(e) => onCarrierGasCreateMixGasChange(e.target.value, 'name')}
+                  value={carrierGasCreateMixGas?.name || ""}
                 />
               </div>
               <div className='flex justify-between items-center mb-2'>
@@ -664,18 +749,58 @@ const MfcLaserSetting = () => {
                   type="text"
                   className="w-full border rounded-md p-2"
                   placeholder="總和為100, 請輸入ex: N2: 50, H2: 30, Ar: 20"
+                  onChange={(e) => onCarrierGasCreateMixGasChange(e.target.value, 'gases')}
+                  value={carrierGasCreateMixGas?.gases || ""}
                 />
               </div>
+              <div className='flex justify-center items-center mb-2'>              
+                <button
+                  className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                  onClick={onCarrierGasCreateMixGasClick}
+                >
+                  新增混合氣體 (Create mix gas)
+                </button>
+              </div>
             </div>
-            <div className='flex justify-center items-center mb-2'>              
-              <button className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300">
-                新增混合氣 (Create mix gas)
-              </button>
+            <div className='border rounded-md p-2 border-red-300'>
+              <label className="block font-medium mb-2">氣體類型 (Gas Type)</label>
+              <div>
+                {/* 混和氣體select */}
+                <select
+                  className="w-full border rounded-md p-2"
+                  onChange={(e) => onCarrierGasMixGasClick(e.target.value)}
+                >
+                  {carrierGasTypeList?.length > 0 ? (
+                    carrierGasTypeList.map(option => {
+                      const labelSplit = option.label.split('_');
+
+                      if (labelSplit.length > 1) {
+                        return (
+                          <option
+                            key={option.value}
+                            value={option.value}
+                          >
+                            {option.label}
+                          </option>
+                        );
+                      }
+                      return null;
+                    })) : (
+                      <option value="">No data</option>
+                    )
+                  }
+                </select>
+              </div>
+              <div className='flex justify-center items-center mb-2 mt-2'>
+                <button className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300">
+                  刪除混合氣體 (Delete mix gas)
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="block font-medium">氣體類型 (Gas Type)</label>
+            <div className='border rounded-md p-2 border-blue-300'>
+              <label className="block font-medium mb-2">氣體類型 (Gas Type)</label>
               <select
-                className="w-full border rounded-md p-2"
+                className="w-full border rounded-md p-2 mb-2"
                 onChange={(e) => onSetCarrierGasGasTypeClick(e.target.value)}
               >
                 {carrierGasTypeList?.length > 0 ? (
@@ -691,20 +816,20 @@ const MfcLaserSetting = () => {
                   )
                 }
               </select>
-            </div>
-            <div className='flex justify-center items-center mb-2'>
-              <button
-                className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
-                onClick={onGetCarrierGasTypeClick}
-              >
-                {
-                  carrierGasTypeListLoading ? (
-                    <CommonLoading />
-                  ) : (
-                    carrierGasTypeList?.length > 0 ? '氣體調整 (Gas Setting)' : '取得所有氣體種類 (Get all gas type)'
-                  )
-                }
-              </button>
+              <div className='flex justify-center items-center mb-2'>
+                <button
+                  className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                  onClick={onGetCarrierGasTypeClick}
+                >
+                  {
+                    carrierGasTypeListLoading ? (
+                      <CommonLoading />
+                    ) : (
+                      carrierGasTypeList?.length > 0 ? '氣體調整 (Gas Setting)' : '取得所有氣體種類 (Get all gas type)'
+                    )
+                  }
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -727,11 +852,11 @@ const MfcLaserSetting = () => {
           </div>
         </div>
         {/* 單獨連線 */}
-        <div className="bg-white shadow-md rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">單獨連線 (Connect Port - One device)</h2>
-          {deviceList.map((device) => (
+        {deviceList.map((device) => (
+          <div key={device.deviceId} className="bg-white shadow-md rounded-lg p-4">
+            <h2 className="text-lg font-semibold mb-1">One Device Connect:</h2>
+            <h2 className="text-lg font-semibold mb-3 text-blue-500">{device.title}</h2>
             <SingleConnectComponent
-              key={device.deviceId}
               title={device.title}
               company={device.company}
               deviceId={device.deviceId}
@@ -740,8 +865,8 @@ const MfcLaserSetting = () => {
               onConnectAddressChange={onConnectAddressChange}
               devicesData={devices}
             />
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );
