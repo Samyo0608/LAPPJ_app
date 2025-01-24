@@ -3,6 +3,7 @@ from flask_cors import CORS # type: ignore
 from txt_to_transmittance_data import txt_to_transmittance
 from transmittance_to_figure import plot_data, plot_data_filter
 from routes.alicat_routes import alicat_bp
+from routes.recipe_routes import recipe_bp
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
@@ -15,6 +16,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 app.json.ensure_ascii = False
 
 app.register_blueprint(alicat_bp, url_prefix='/api/alicat_api')
+app.register_blueprint(recipe_bp, url_prefix='/api/recipe_api')
 
 # 會從前端接收一個物件，裡面包含initial_file_path、group_number、file_number、max_spectrum和min_spectrum
 # 這個物件會被傳遞給txt_to_transmittance函數

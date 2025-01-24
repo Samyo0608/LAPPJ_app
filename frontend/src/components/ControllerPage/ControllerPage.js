@@ -111,7 +111,7 @@ const ControllerPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-3 gap-4">
         {/* Left Column - MPC */}
         <div className="bg-white p-4 rounded shadow">
           <div className="space-y-4">
@@ -276,8 +276,8 @@ const ControllerPage = () => {
         </div>
       </div>
       {/* 這邊為下一層的內容 */}
-      <div className="grid grid-cols-3 gap-4 mt-4">
-        <div className="col-span-2 bg-white p-4 rounded-lg shadow-md">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+        <div className="col-span-1 lg:col-span-2 md:col-span-2 bg-white p-4 rounded-lg shadow-md">
           <h3 className="font-bold mb-2">流量 / 電壓監測 (Flow / Voltage / Pressure monitor)</h3>
           <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-4">
             <LineChartComponent 
@@ -316,7 +316,7 @@ const ControllerPage = () => {
           </div>
         </div>
         {/* Recipe 調整 */}
-        <div className="bg-blue-200 p-4 rounded shadow w-full">
+        <div className="col-span-1 bg-blue-200 p-4 rounded shadow w-full">
           <div className="space-y-4">
             <div className="space-y-3 flex flex-col justify-between items-stretch gap-2 w-full">
               <div className="flex flex-col gap-2 w-full">

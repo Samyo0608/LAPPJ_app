@@ -82,6 +82,10 @@ const Navbar = () => {
                   title="MFC及Laser設定"
                 />
                 <LinkContainer
+                  href="/recipePage"
+                  title="參數管理"
+                />
+                <LinkContainer
                   href="/transmittancePage"
                   title="穿透度量測"
                 />
@@ -126,6 +130,10 @@ const Navbar = () => {
         <LinkContainerForMobile
           href="/mfcLaserSetting"
           title="MFC及Laser設定"
+        />
+        <LinkContainerForMobile
+          href="/recipePage"
+          title="參數管理"
         />
         <LinkContainerForMobile
           href="/transmittancePage"

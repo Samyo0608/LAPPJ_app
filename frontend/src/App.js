@@ -7,6 +7,7 @@ import ControllerPage from './components/ControllerPage/ControllerPage';
 import MfcLaserSetting from './components/MfcLaserSetting/MfcLaserSetting';
 import ReproducibilityPage from './components/ReproducibilityPage/ReproducibilityPage';
 import TransmittancePage from './components/TransmittancePage/TransmittancePage';
+import RecipePage from './components/RecipePage/RecipePage';
 
 const App = () => {
   return (
@@ -19,6 +20,7 @@ const App = () => {
             <Route path='/mfcLaserSetting' element={<MfcLaserSetting />} />
             <Route path='/transmittancePage' element={<TransmittancePage />} />
             <Route path='/reproducibilityPage' element={<ReproducibilityPage />} />
+            <Route path='/recipePage' element={<RecipePage />} />
             {/* <Route path='*' element={<NoMatch />} /> */}
         </Routes>
       </AlicatProvider>

@@ -6,7 +6,7 @@ import { parseGasMixture } from '../../utils/mixGasUtil';
 import { useAlicatContext } from '../../Contexts/AlicatContext';
 
 // 將 SingleConnectComponent 改為獨立的函數組件
-const SingleConnectComponent = React.memo(({ title, company, deviceId, onClick, onConnectPortChange, onConnectAddressChange, devicesData }) => {
+const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConnectPortChange, onConnectAddressChange, devicesData }) => {
   // 使用 local state 管理輸入值
   const [localPort, setLocalPort] = React.useState('');
   const [localAddress, setLocalAddress] = React.useState('');
@@ -20,16 +20,17 @@ const SingleConnectComponent = React.memo(({ title, company, deviceId, onClick, 
   };
 
   const handlePortBlur = (deviceId, value) => {
+    if (devicesData[deviceId]?.connected) return;
     onConnectPortChange(deviceId, value);
   };
 
   const handleAddressBlur = (deviceId, value) => {
+    if (devicesData[deviceId]?.connected) return;
     onConnectAddressChange(deviceId, value);
   };
 
   return (
     <div className='border rounded-md p-2 border-green-300 mb-2'>
-      <h3 className="font-semibold mb-3">{title}</h3>
       <h3 className="font-semibold mb-3">廠牌: {company}</h3>
       <label className="block font-medium">Port</label>
       <input
@@ -115,8 +116,6 @@ const useHooks = () => {
     gases: ""
   });
   const [alertDetail, setAlertDetail] = React.useState({});
-
-  console.log("carrierGasCreateMixGas", carrierGasCreateMixGas);
 
   // -----------------------------api function--------------------------------
   // 取得載氣資料
@@ -272,6 +271,49 @@ const useHooks = () => {
       setAlertDetail({
         show: true,
         message: '新增過程發生錯誤',
+        type: 'failure'
+      });
+
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+    }
+  };
+
+  // 刪除載氣混合氣體api
+  const deleteCarrierGasGasTypeApi = async (number) => {
+    try {
+      const response = await getApi('/alicat_api/delete_mix', 'POST', {
+        mix_no: number
+      });
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '載氣氣體刪除成功',
+          type: 'success'
+        });
+
+        // 成功後重新取得所有氣體種類
+        getCarrierGasAllGasTypeApi();
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '載氣氣體刪除失敗',
+          type: 'failure'
+        });
+      }
+
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: '刪除過程發生錯誤',
         type: 'failure'
       });
 
@@ -459,7 +501,7 @@ const useHooks = () => {
     });
   };
 
-  // 單獨連線的function (onChange, onClick)---------------------------------
+  // ----------------單獨連線的function (onChange, onClick)---------------------------------
   const onConnectPortChange = (deviceId, value) => {
     const newDevices = { ...devices };
     newDevices[deviceId] = {
@@ -526,6 +568,7 @@ const useHooks = () => {
   };
   // -----------------------------------------------------------------------
 
+  // ----------------------------載氣設定的function----------------------------
   // 取得載氣氣體種類的Click事件
   const onGetCarrierGasTypeClick = () => {
     if (carrierGasTypeListLoading) return;
@@ -543,9 +586,14 @@ const useHooks = () => {
   };
 
   // 選擇混合氣體的Click事件
-    const onCarrierGasMixGasClick = (data) => {
+  const onCarrierGasMixGasClick = (data) => {
       setCarrierGasMixGas(data);
     };
+
+  // 刪除載氣混合氣體的Click事件
+  const onDeleteCarrierGasGasTypeClick = (number) => {
+    deleteCarrierGasGasTypeApi(number);
+  };
 
   // 新增載氣混合氣體的input change事件
   const onCarrierGasCreateMixGasChange = (value, flag) => {
@@ -598,6 +646,8 @@ const useHooks = () => {
     }
   }, [carrierGasPortandAddressState]);
 
+  // ----------------------------載氣設定的function----------------------------
+
   return {
     devices,
     carrierGasDetail,
@@ -606,6 +656,8 @@ const useHooks = () => {
     carrierGasTypeListLoading,
     carrierGasTypeList,
     carrierGasCreateMixGas,
+    carrierGasTypeSetting,
+    carrierGasMixGas,
     onAlertClose,
     onConnectPortChange,
     onConnectAddressChange,
@@ -614,14 +666,16 @@ const useHooks = () => {
     onSetCarrierGasGasTypeClick,
     onCarrierGasMixGasClick,
     onCarrierGasCreateMixGasChange,
-    onCarrierGasCreateMixGasClick
+    onCarrierGasCreateMixGasClick,
+    onDeleteCarrierGasGasTypeClick
   };
 };
 
 const MfcLaserSetting = () => {
   const { devices, carrierGasDetail, alertDetail, deviceList, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas,
+    carrierGasTypeSetting, carrierGasMixGas,
     onAlertClose, onConnectPortChange, onConnectAddressChange, onConnectClick, onGetCarrierGasTypeClick, onSetCarrierGasGasTypeClick,
-    onCarrierGasMixGasClick, onCarrierGasCreateMixGasChange, onCarrierGasCreateMixGasClick
+    onCarrierGasMixGasClick, onCarrierGasCreateMixGasChange, onCarrierGasCreateMixGasClick, onDeleteCarrierGasGasTypeClick
   } = useHooks();
 
   return (
@@ -763,12 +817,13 @@ const MfcLaserSetting = () => {
               </div>
             </div>
             <div className='border rounded-md p-2 border-red-300'>
-              <label className="block font-medium mb-2">氣體類型 (Gas Type)</label>
+              <label className="block font-medium mb-2">混合氣體類型 (Mix Gas Type)</label>
               <div>
                 {/* 混和氣體select */}
                 <select
                   className="w-full border rounded-md p-2"
-                  onChange={(e) => onCarrierGasMixGasClick(e.target.value)}
+                  onChange={(e) => onCarrierGasMixGasClick(Number(e.target.value))}
+                  value={carrierGasMixGas}
                 >
                   {carrierGasTypeList?.length > 0 ? (
                     carrierGasTypeList.map(option => {
@@ -792,16 +847,31 @@ const MfcLaserSetting = () => {
                 </select>
               </div>
               <div className='flex justify-center items-center mb-2 mt-2'>
-                <button className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300">
-                  刪除混合氣體 (Delete mix gas)
+                <button
+                  className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                  onClick={() => onDeleteCarrierGasGasTypeClick(carrierGasMixGas)}
+                >
+                  {
+                    carrierGasTypeListLoading ? (
+                      <CommonLoading />
+                    ) : (
+                      '刪除混合氣體 (Delete mix gas)'
+                    )
+                  }
                 </button>
               </div>
+              <p
+                className="text-sm text-red-500"
+              >
+                如果沒有選項，請先按下方的取得氣體種類(Get Gas type)，再選擇混合氣體
+              </p>
             </div>
             <div className='border rounded-md p-2 border-blue-300'>
-              <label className="block font-medium mb-2">氣體類型 (Gas Type)</label>
+              <label className="block font-medium mb-2">全部氣體類型 (Gas Type)</label>
               <select
                 className="w-full border rounded-md p-2 mb-2"
                 onChange={(e) => onSetCarrierGasGasTypeClick(e.target.value)}
+                value={carrierGasTypeSetting} 
               >
                 {carrierGasTypeList?.length > 0 ? (
                   carrierGasTypeList.map(option => (
@@ -825,7 +895,7 @@ const MfcLaserSetting = () => {
                     carrierGasTypeListLoading ? (
                       <CommonLoading />
                     ) : (
-                      carrierGasTypeList?.length > 0 ? '氣體調整 (Gas Setting)' : '取得所有氣體種類 (Get all gas type)'
+                      carrierGasTypeList?.length > 0 ? '氣體調整 (Gas Setting)' : '取得氣體種類 (Get gas type)'
                     )
                   }
                 </button>
@@ -857,7 +927,6 @@ const MfcLaserSetting = () => {
             <h2 className="text-lg font-semibold mb-1">One Device Connect:</h2>
             <h2 className="text-lg font-semibold mb-3 text-blue-500">{device.title}</h2>
             <SingleConnectComponent
-              title={device.title}
               company={device.company}
               deviceId={device.deviceId}
               onClick={onConnectClick}

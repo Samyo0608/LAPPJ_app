@@ -6,7 +6,7 @@ const process = require('process');
 let win;
 
 // 等待前端伺服器啟動的函數
-async function waitForFrontend(url, timeout = 15000) {
+async function waitForFrontend(url, timeout = 20000) {
   const interval = 500; // 每 500 毫秒檢查一次
   let elapsedTime = 0;
 
@@ -49,7 +49,14 @@ async function createWindow() {
     win.show(); // 顯示視窗
   } catch (error) {
     console.error("錯誤：", error.message);
-    await win.loadFile('error.html'); // 如果前端未啟動，載入錯誤頁面
+
+    // 確認錯誤頁面存在
+    const errorPagePath = path.join(__dirname, 'error.html');
+    if (fs.existsSync(errorPagePath)) {
+      await win.loadFile(errorPagePath); // 如果前端未啟動，載入錯誤頁面
+    } else {
+      console.error("錯誤頁面未找到：", errorPagePath);
+    }
     win.show(); // 顯示錯誤頁面
   }
 
@@ -75,8 +82,13 @@ app.whenReady().then(() => {
 // 當所有視窗關閉時退出應用程式
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    process.exit(0); // 完全退出應用程式
+    app.quit(); // 完全退出應用程式
   }
+});
+
+// 捕捉未捕捉的 Promise Rejection
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('未捕捉的 Promise Rejection:', reason);
 });
 
 // IPC 處理：處理資料夾選擇的對話框
