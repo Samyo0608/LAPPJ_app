@@ -7,11 +7,14 @@ import { useAlicatContext } from '../../Contexts/AlicatContext';
 const useHooks = () => {
   const { isCarrierGasOpenState } = useAlicatContext();
   const [carrierGasDetail, setCarrierGasDetail] = useState({});
+  const [recipeDetail, setRecipeDetail] = useState([]);
+  const [recipeSelected, setRecipeSelected] = useState('');
+  const [recipeSelectedDetail, setRecipeSelectedDetail] = useState({});
   const [alertDetail, setAlertDetail] = React.useState({});
   const [laserPWM, setLaserPWM] = useState(0);
   const [temperature, setTemperature] = useState(35);
 
-  // 取得載氣資料
+  // 取得載氣資料 API
   const getCarrierGasDataApi = async () => {
     const response = await getApi('/alicat_api/status', 'GET');
     console.log(response);
@@ -22,11 +25,30 @@ const useHooks = () => {
     }
   };
 
+  // 取得Recipe資料 API
+  const getRecipeDataApi = async () => {
+    const response = await getApi('/recipe_api/get_recipes', 'GET');
+    console.log(response);
+    if (response?.data?.status === 'success') {
+      setRecipeDetail(response.data.data);
+      setRecipeSelectedDetail(response.data.data[0] || {});
+    } else {
+      console.error(response?.data?.status);
+    }
+  };
+
   // 關閉Alert
   const onAlertClose = () => {
     setAlertDetail({
       show: false
     });
+  };
+
+  // 選擇recipe的Select option
+  const onRecipeSelect = (key) => {
+    setRecipeSelected(key);
+    const selectedRecipe = recipeDetail.find((recipe) => recipe.id === key);
+    setRecipeSelectedDetail(selectedRecipe);
   };
   
   // Button Component
@@ -55,22 +77,30 @@ const useHooks = () => {
     };
   }, [isCarrierGasOpenState]);
 
+  React.useEffect(() => {
+    getRecipeDataApi();
+  }, []);
+
   return {
     isCarrierGasOpenState,
     carrierGasDetail,
+    recipeDetail,
+    recipeSelected,
+    recipeSelectedDetail,
     alertDetail,
     onAlertClose,
     laserPWM,
     setLaserPWM,
     temperature,
     setTemperature,
-    ButtonComponent
+    ButtonComponent,
+    onRecipeSelect
   };
 };
 
 const ControllerPage = () => {
-  const { isCarrierGasOpenState, carrierGasDetail, alertDetail,
-    onAlertClose,
+  const { isCarrierGasOpenState, carrierGasDetail, alertDetail, recipeDetail, recipeSelected, recipeSelectedDetail,
+    onAlertClose, onRecipeSelect,
     laserPWM, setLaserPWM, temperature, setTemperature, ButtonComponent
   } = useHooks();
 
@@ -316,7 +346,7 @@ const ControllerPage = () => {
           </div>
         </div>
         {/* Recipe 調整 */}
-        <div className="col-span-1 bg-blue-200 p-4 rounded shadow w-full">
+        <div className="col-span-1 bg-gray-300 p-4 rounded shadow w-full">
           <div className="space-y-4">
             <div className="space-y-3 flex flex-col justify-between items-stretch gap-2 w-full">
               <div className="flex flex-col gap-2 w-full">
@@ -324,26 +354,36 @@ const ControllerPage = () => {
                 
                 {/* Recipe 選擇 */}
                 <div className="flex items-center gap-2 w-full">
-                  <span className="text-sm whitespace-nowrap">Recipe: </span>
-                  <select className="w-full p-1 border rounded">
-                    <option>Recipe 1</option>
-                    <option>Recipe 2</option>
-                    <option>Recipe 3</option>
+                  <span className="text-sm whitespace-nowrap w-16 font-bold">Recipe: </span>
+                  <select
+                    className="flex-1 p-1 border rounded min-w-0"
+                    value={recipeSelected}
+                    onChange={(e) => onRecipeSelect(e.target.value)}
+                  >
+                    {recipeDetail?.length > 0 ? recipeDetail.map((recipe) => (
+                      <option key={recipe.id} value={recipe.id}>{recipe.parameter_name}</option>
+                    )) : (
+                      <option>None Recipe</option>
+                    )}
                   </select>
+                  <span className='w-12' />
                 </div>
 
                 {/* 參數輸入區 */}
                 <div className="w-full space-y-2">
                   {[
-                    { label: '主氣', value: '100', unit: 'SLM' },
-                    { label: '載氣', value: '100', unit: 'SCCM' },
-                    { label: '雷射', value: '100', unit: '%' },
-                    { label: '溫度', value: '80', unit: '°C' },
-                    { label: '電壓', value: '270', unit: 'V' },
-                    { label: '震盪', value: 'ON', unit: '' }
+                    { label: '主氣', value: recipeSelectedDetail.main_gas_flow || 0, unit: 'SLM' },
+                    {label: '主氣氣體', value: recipeSelectedDetail.main_gas || 'None', unit: ''},
+                    { label: '載氣', value: recipeSelectedDetail.carrier_gas_flow || 0, unit: 'SCCM' },
+                    { label: '載氣氣體', value: recipeSelectedDetail.carrier_gas || 'None', unit: '' },
+                    { label: '雷射功率', value: recipeSelectedDetail.laser_power || 0, unit: '%' },
+                    { label: '溫度', value: recipeSelectedDetail.temperature || 0, unit: '°C' },
+                    { label: '電壓', value: recipeSelectedDetail.voltage || 0, unit: 'V' },
+                    { label: '建立時間', value: recipeSelectedDetail.created_time || '- -', unit: '' },
+                    { label: '建立者', value: recipeSelectedDetail.created_by || '- -', unit: '' }
                   ].map((item, index) => (
                     <div key={index} className='flex items-center gap-2 w-full'>
-                      <span className="w-16 whitespace-nowrap">{item.label}:</span>
+                      <span className="w-16 whitespace-nowrap font-bold">{item.label}:</span>
                       <input
                         type="text"
                         value={item.value}

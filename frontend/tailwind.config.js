@@ -10,7 +10,7 @@ module.exports = {
   theme: {
     extend: {
       minHeight: {
-        allView: "calc(100vh - 4rem)",
+        allView: "calc(100vh - 6rem)",
         halfVh: "50vh",
         "40vh": "40vh"
       },

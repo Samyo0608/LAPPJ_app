@@ -686,8 +686,6 @@ const MfcLaserSetting = () => {
         onClose={onAlertClose}
         type={alertDetail.type}
       />
-      {/* {alertDetail?.show && (
-      )} */}
       <h1 className="text-2xl font-bold text-center mb-5">MFC及雷射細部控制介面</h1>
       {/* 主氣 (Alicat) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

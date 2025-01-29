@@ -1,22 +1,62 @@
 from flask import Flask, jsonify, send_file, request # type: ignore
 from flask_cors import CORS # type: ignore
+from flask_sqlalchemy import SQLAlchemy
+from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate
+from config import Config
 from txt_to_transmittance_data import txt_to_transmittance
 from transmittance_to_figure import plot_data, plot_data_filter
 from routes.alicat_routes import alicat_bp
 from routes.recipe_routes import recipe_bp
+from routes.auth_routes import auth_bp
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
 import os
+from database import db, jwt
 
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+def create_app():
+    app = Flask(__name__)
+    CORS(app, resources={r"/*": {"origins": "*"}})
+    app.config.from_object(Config)
 
-# 設置 JSON 編碼，確保中文正常顯示
-app.json.ensure_ascii = False
+    migrate = Migrate(app, db)
+    # SQLite 資料庫設定
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["JWT_SECRET_KEY"] = "supersecretjwt"
 
-app.register_blueprint(alicat_bp, url_prefix='/api/alicat_api')
-app.register_blueprint(recipe_bp, url_prefix='/api/recipe_api')
+    # 初始化擴展
+    db.init_app(app)
+    jwt.init_app(app)
+
+    # 確保資料庫表格存在
+    with app.app_context():
+        if not os.path.exists("database.db"):
+            db.create_all()
+            print("✅ 資料庫已建立！")
+        else:
+            print("📂 資料庫已存在，跳過建立步驟")
+
+    # 註冊 Blueprints
+    app.register_blueprint(alicat_bp, url_prefix='/api/alicat_api')
+    app.register_blueprint(recipe_bp, url_prefix='/api/recipe_api')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+
+    return app
+
+# 創建應用程式實例
+app = create_app()
+
+@app.errorhandler(404)
+def not_found(error):
+    """處理 404 錯誤"""
+    return jsonify({"error": "API 找不到"}), 404
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    """處理 500 內部伺服器錯誤"""
+    return jsonify({"error": "伺服器錯誤"}), 500
 
 # 會從前端接收一個物件，裡面包含initial_file_path、group_number、file_number、max_spectrum和min_spectrum
 # 這個物件會被傳遞給txt_to_transmittance函數

@@ -39,6 +39,17 @@ async function createWindow() {
       nodeIntegration: false // 禁用 Node.js API，提升安全性
     },
     show: false, // 隱藏視窗，直到前端準備完成
+    // 更改 icon
+    icon: path.join(__dirname, process.platform === 'win32' 
+      ? 'microchip-solid.ico' 
+      : 'microchip-solid.png'),
+    title: 'LAPPJ 控制系統',
+  });
+
+  win.setTitle('LAPPJ 控制系統'); // 設定視窗標題
+  
+  win.once('ready-to-show', () => {
+    win.setTitle('LAPPJ 控制系統');
   });
 
   try {

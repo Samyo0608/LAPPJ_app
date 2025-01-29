@@ -18,7 +18,7 @@ class RecipeService:
             "carrier_gas_flow", "carrier_gas", "laser_power", 
             "temperature", "voltage", "created_time", "created_by",
             "last_modified", "modified_by", "is_active", 
-            "description", "notes", "version"
+            "description", "notes", "version", "id"
         ]
         df = pd.DataFrame(columns=columns)
         df.to_excel(self.excel_path, index=False)
@@ -32,6 +32,8 @@ class RecipeService:
             # 用 Recipe Model 驗證並轉型（若有欄位不合，會在這裡報錯）
             recipe_obj = Recipe(**row)
             converted_records.append(recipe_obj.dict())
+            # 將 created_time 轉成 YYYY-MM-DD HH:mm:ss 格式
+            converted_records[-1]["created_time"] = recipe_obj.created_time.strftime("%Y-%m-%d %H:%M:%S")
         
         return converted_records
 
@@ -42,13 +44,13 @@ class RecipeService:
         # """
         # 先做資料驗證
         recipe = Recipe(**recipe_data)
-        recipe.validate_gas_types()   # 檢查 main_gas 與 carrier_gas 是否在允許範圍
         row_dict = recipe.to_dict()
 
         # 讀取 excel，再 append
         df = pd.read_excel(self.excel_path)
         # append 在新版 pandas 已較不建議，可用 concat
         df = pd.concat([df, pd.DataFrame([row_dict])], ignore_index=True)
+        #　create_time 為當下時間
         df.to_excel(self.excel_path, index=False)
 
         return row_dict
@@ -71,9 +73,6 @@ class RecipeService:
         old_recipe.update(recipe_data)    # 這會更新 last_modified
         # 假如要更新 modified_by，可在外面傳入
         # old_recipe.modified_by = recipe_data.get('modified_by', 'system')
-
-        # 驗證氣體類型
-        old_recipe.validate_gas_types()
 
         # 將新的資料寫回 dataframe
         updated_row = old_recipe.to_dict()

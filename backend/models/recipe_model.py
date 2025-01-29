@@ -2,13 +2,14 @@ import math
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
+from uuid import UUID, uuid4
 
 class Recipe(BaseModel):
     """
     Pydantic 2.x 版的 Recipe Model
     """
 
-    id: Optional[int] = Field(default=None)
+    id: Optional[UUID] = Field(default_factory=uuid4)
     parameter_name: str = Field(..., min_length=1, max_length=50)
     main_gas_flow: float = Field(..., ge=0)
     main_gas: str = Field(..., min_length=1)
@@ -61,13 +62,6 @@ class Recipe(BaseModel):
         if isinstance(v, str) and v.strip().lower() == "nan":
             return None
         return v
-
-    def validate_gas_types(self):
-        valid_gases = ["N2", "O2", "Ar", "He", "mix_01"]
-        if self.main_gas not in valid_gases:
-            raise ValueError(f"Invalid main gas type: {self.main_gas}")
-        if self.carrier_gas not in valid_gases:
-            raise ValueError(f"Invalid carrier gas type: {self.carrier_gas}")
 
     def update(self, data: dict):
         for key, value in data.items():
