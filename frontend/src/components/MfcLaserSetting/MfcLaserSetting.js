@@ -118,17 +118,16 @@ const useHooks = () => {
   const [alertDetail, setAlertDetail] = React.useState({});
 
   // -----------------------------api function--------------------------------
-  // 取得載氣資料
-  const getCarrierGasDataApi = async () => {
+  // 取得載氣資料，使用 useCallback 避免無限迴圈
+  const getCarrierGasDataApi = React.useCallback(async () => {
     const response = await getApi('/alicat_api/status', 'GET');
     if (response?.data?.status === 'success') {
       setCarrierGasDetail(response.data.data);
     } else {
-      // 如果isCarrierGasOpenState為true，但是取得資料失敗，則強制將isCarrierGasOpenState設為false
       setIsCarrierOpenState(false);
       console.error(response?.data?.status);
     }
-  };
+  }, [setIsCarrierOpenState]);
 
   // 取得所有氣體種類
   const getCarrierGasAllGasTypeApi = async () => {
@@ -618,9 +617,9 @@ const useHooks = () => {
           connected: true
         }
       }));
-
+  
       getCarrierGasDataApi();
-
+  
     } else {
       setDevices(prev => ({
         ...prev,
@@ -630,7 +629,7 @@ const useHooks = () => {
         }
       }));
     }
-  }, [isCarrierGasOpenState]);
+  }, [isCarrierGasOpenState, getCarrierGasDataApi]);
 
   // 從 localStorage 取得載氣的Port及Address
   React.useEffect(() => {
