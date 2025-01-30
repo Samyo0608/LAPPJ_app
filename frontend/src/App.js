@@ -6,7 +6,7 @@ import { AlicatProvider } from './Contexts/AlicatContext';
 import { AuthProvider } from './Contexts/AuthContext';
 import ControllerPage from './components/ControllerPage/ControllerPage';
 import MfcLaserSetting from './components/MfcLaserSetting/MfcLaserSetting';
-import ReproducibilityPage from './components/ReproducibilityPage/ReproducibilityPage';
+import LabWeb from './components/LabWeb/LabWeb';
 import TransmittancePage from './components/TransmittancePage/TransmittancePage';
 import RecipePage from './components/RecipePage/RecipePage';
 
@@ -21,7 +21,7 @@ const App = () => {
               <Route path='/controllerPage' element={<ControllerPage />} />
               <Route path='/mfcLaserSetting' element={<MfcLaserSetting />} />
               <Route path='/transmittancePage' element={<TransmittancePage />} />
-              <Route path='/reproducibilityPage' element={<ReproducibilityPage />} />
+              <Route path='/LabWeb' element={<LabWeb />} />
               <Route path='/recipePage' element={<RecipePage />} />
               {/* <Route path='*' element={<NoMatch />} /> */}
           </Routes>

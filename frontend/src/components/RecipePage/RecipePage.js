@@ -2,6 +2,7 @@ import React from 'react';
 import { getApi } from '../../utils/getApi';
 import { Table } from "flowbite-react";
 import AlertComponent from '../ComponentTools/Alert';
+import { useAuthContext } from '../../Contexts/AuthContext';
 
 // common input component
 const AddRecipeInput = ({ type, name, value, onChange }) => (
@@ -21,6 +22,7 @@ const ErrorMessage = ({ flag, message }) => {
 };
 
 const useHooks = () => {
+  const { authDetail, isAuth } = useAuthContext();
   const [alertDetail, setAlertDetail] = React.useState({
     show: false,
     message: "",
@@ -36,7 +38,7 @@ const useHooks = () => {
     laser_power: 0,
     temperature: 0,
     voltage: 0,
-    created_by: "尚祐"
+    created_by: authDetail.username || "- -"
   });
   const [inputErrorMessages, setInputErrorMessages] = React.useState({
     parameter_name: "",
@@ -113,6 +115,20 @@ const useHooks = () => {
       temperature: "",
       voltage: ""
     };
+
+    if (!isAuth) {
+      setAlertDetail({
+        show: true,
+        message: "請先登入",
+        type: "failure"
+      });
+
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+
+      return;
+    }
 
     if (!newRecipe.parameter_name) {
       errorMessages.parameter_name = "參數名稱為必填欄位";
@@ -388,7 +404,7 @@ const RecipePage = () => {
                 <Table.HeadCell className="min-w-[100px]">建立者</Table.HeadCell>
               </Table.Head>
               <Table.Body className="divide-y">
-                {recipes.map((recipe, index) => (
+                {recipes?.length > 0 ? recipes?.map((recipe, index) => (
                   <Table.Row key={index} className="bg-white dark:border-gray-700 dark:bg-gray-800">
                     <Table.Cell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">{recipe?.parameter_name || "- -"}</Table.Cell>
                     <Table.Cell>{recipe?.main_gas_flow || 0}</Table.Cell>
@@ -401,7 +417,11 @@ const RecipePage = () => {
                     <Table.Cell>{recipe?.created_time || "- -"}</Table.Cell>
                     <Table.Cell>{recipe?.created_by || "- -"}</Table.Cell>
                   </Table.Row>
-                ))}
+                )) : (
+                  <Table.Row>
+                    <Table.Cell colSpan={10} className="text-center text-gray-500 dark:text-white bg-gray-600">無資料</Table.Cell>
+                  </Table.Row>
+                )}
               </Table.Body>
             </Table>
           </div>

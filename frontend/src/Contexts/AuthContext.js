@@ -14,27 +14,39 @@ export const AuthProvider = ({ children }) => {
     username: "",
     id: ""
   });
-  const [authDetail, setAuthDetail] = useState({
-    email: "",
-    username: "",
-    id: "",
-    photo: "",
-    token: ""
+  const [authDetail, setAuthDetail] = useState(() => {
+    const storedAuthDetail = localStorage.getItem("authDetail");
+    return storedAuthDetail ? JSON.parse(storedAuthDetail) : {
+      email: "",
+      username: "",
+      id: "",
+      photo_path: "",
+      token: ""
+    };
   });
 
+  // 監聽 localStorage 變更，確保 `authDetail` 更新
   useEffect(() => {
-    // 將localstorage的authDetail轉成物件，並存入state，若無則為空物件
-    const localAuthDetail = localStorage.getItem("authDetail");
-    if (localAuthDetail) {
-      setAuthDetail(JSON.parse(localAuthDetail));
-    } else {
-      setAuthDetail({});
-    }
+    const handleStorageChange = () => {
+      const updatedAuthDetail = localStorage.getItem("authDetail");
+      if (updatedAuthDetail) {
+        setAuthDetail(JSON.parse(updatedAuthDetail));
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   useEffect(() => {
-    // 從 localStorage 讀取數據時需要解析 JSON，轉成布林值
-    setIsAuth(localStorageAuth === "true");
+    if (localStorageAuth) {
+      setIsAuth(localStorageAuth === "true");
+    } else {
+      setIsAuth(false);
+    }
   }, [localStorageAuth]);
 
   return (

@@ -5,7 +5,7 @@ from datetime import datetime
 from models.recipe_model import Recipe
 
 class RecipeService:
-    def __init__(self, excel_path='recipes.xlsx'):
+    def __init__(self, excel_path='../recipes.xlsx'):
         self.excel_path = excel_path
         # 如果檔案不存在，建立一個新的
         if not os.path.exists(self.excel_path):

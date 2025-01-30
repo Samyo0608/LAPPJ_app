@@ -36,7 +36,8 @@ async function createWindow() {
       preload: path.join(__dirname, 'preload.js'), // 載入 preload 腳本
       contextIsolation: true, // 啟用上下文隔離，提升安全性
       enableRemoteModule: false, // 禁用 remote 模組
-      nodeIntegration: false // 禁用 Node.js API，提升安全性
+      nodeIntegration: false, // 禁用 Node.js API，提升安全性
+      webviewTag: true
     },
     show: false, // 隱藏視窗，直到前端準備完成
     // 更改 icon
@@ -47,12 +48,15 @@ async function createWindow() {
   });
 
   win.setTitle('LAPPJ 控制系統'); // 設定視窗標題
+
+  win.maximize(); // 最大化視窗
   
   win.once('ready-to-show', () => {
     win.setTitle('LAPPJ 控制系統');
   });
 
   try {
+    app.commandLine.appendSwitch("disable-http-cache");
     // 等待前端伺服器啟動
     await waitForFrontend('http://localhost:3000');
     console.log("前端伺服器已啟動，正在載入...");

@@ -3,6 +3,7 @@ import { getApi } from '../../utils/getApi';
 import AlertComponent from '../ComponentTools/Alert';
 import LineChartComponent from '../Chart/Chart';
 import { useAlicatContext } from '../../Contexts/AlicatContext';
+import { Button } from 'flowbite-react';
 
 const useHooks = () => {
   const { isCarrierGasOpenState } = useAlicatContext();
@@ -53,9 +54,13 @@ const useHooks = () => {
   
   // Button Component
   const ButtonComponent = ({ label, otherCss }) => (
-    <button className={`${otherCss} bg-gray-100 text-sm p-1 border rounded`}>
+    <Button
+      className={`${otherCss} text-sm border rounded`}
+      color="blue"
+      size="sm"
+    >
       {label}
-    </button>
+    </Button>
   );
 
   React.useEffect(() => {
@@ -290,16 +295,45 @@ const ControllerPage = () => {
 
             {/* Plasma Section */}
             <div className="border p-4 border-green-300 rounded shadow">
-              <h3 className="font-bold mb-2">Plasma</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  'DO ON', 'DO OFF',
-                  'FAN ON', 'FAN OFF',
-                  'RY2 ON', 'RY2 OFF',
-                  'RY3 ON', 'RY3 OFF'
-                ].map((label) => (
-                  <ButtonComponent key={label} label={label} />
-                ))}
+              <h3 className="font-bold mb-2">Power supply</h3>
+              <div
+                className="flex items-center gap-2 mb-2"
+              >
+                <span className="text-sm w-24">Voltage</span>
+                <input
+                  type="number"
+                  value="0"
+                  readOnly
+                  className="w-full p-1 border rounded bg-gray-50"
+                />
+              </div>
+              <div
+                className="flex items-center gap-2 mb-2"
+              >
+                <span className="text-sm w-24">詳細數值</span>
+                <input
+                  type="number"
+                  value="0"
+                  readOnly
+                  className="w-full p-1 border rounded bg-gray-50"
+                />
+              </div>
+              <div
+                className="flex items-center gap-2 mb-2"
+              >
+                <span className="text-sm w-24">電流 (Current)</span>
+                <input
+                  type="number"
+                  value="0"
+                  readOnly
+                  className="w-full p-1 border rounded bg-gray-50"
+                />
+              </div>
+              <div
+                className="grid grid-cols-2 gap-2"
+              >
+                <ButtonComponent label="ON" />
+                <ButtonComponent label="OFF" />
               </div>
             </div>
           </div>

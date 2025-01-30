@@ -9,7 +9,7 @@ flow_controller = None  # 全局流量控制器實例
 
 @alicat_bp.route('/connect', methods=['POST'])
 def connect():
-    # """連接設備"""
+    """連接設備"""
     global flow_controller
     data = request.get_json()
     port = data.get('port')
@@ -61,7 +61,7 @@ def connect():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 def is_port_available(port):
-    # """檢查指定的端口是否有效"""
+    """檢查指定的端口是否有效"""
     import serial
     try:
         with serial.Serial(port, baudrate=19200, timeout=1) as ser:
@@ -71,7 +71,7 @@ def is_port_available(port):
 
 @alicat_bp.route('/disconnect', methods=['POST'])
 def disconnect():
-    # """斷開設備連接"""
+    """斷開設備連接"""
     global flow_controller
     if not flow_controller:
         return jsonify({"status": "error", "message": "Device not connected"}), 400
@@ -87,7 +87,7 @@ def disconnect():
 
 @alicat_bp.route('/status', methods=['GET'])
 def get_status():
-    # """獲取設備狀態"""
+    """獲取設備狀態"""
     if not flow_controller:
         return jsonify({"status": "error", "message": "設備未連接"}), 400
 
@@ -104,7 +104,7 @@ def get_status():
 
 @alicat_bp.route('/set_flow_rate', methods=['POST'])
 def set_flow_rate():
-    # """設定流量"""
+    """設定流量"""
     if not flow_controller:
         return jsonify({"status": "error", "message": "Device not connected"}), 400
 
@@ -115,16 +115,20 @@ def set_flow_rate():
         return jsonify({"status": "error", "message": "Flow rate is required"}), 400
 
     try:
+        flow_rate = float(flow_rate)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(flow_controller.set_flow_rate(flow_rate))
-        return jsonify({"status": "success", "message": f"Flow rate set to {flow_rate} slpm"}), 200
+        return jsonify({"status": "success", "message": f"Flow rate set to {flow_rate:.3f} slm"}), 200
+    except ValueError:
+        return jsonify({"status": "error", "message": "Invalid flow rate format"}), 400
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
 @alicat_bp.route('/gases', methods=['GET'])
 def get_all_gases():
-    # """獲取所有氣體資訊（標準氣體和混合氣體）"""
+    """獲取所有氣體資訊（標準氣體和混合氣體）"""
     if not flow_controller:
         return jsonify({"status": "error", "message": "設備未連接"}), 400
 
@@ -145,7 +149,7 @@ def get_all_gases():
 
 @alicat_bp.route('/set_gas', methods=['POST'])
 def set_gas():
-    # """設定氣體"""
+    """設定氣體"""
     if not flow_controller:
         return jsonify({"status": "error", "message": "Device not connected"}), 400
 
@@ -168,7 +172,7 @@ def set_gas():
     
 @alicat_bp.route('/create_mix', methods=['POST'])
 def create_mix():
-    # """建立混合氣"""
+    """建立混合氣"""
     if not flow_controller:
         return jsonify({"status": "error", "message": "Device not connected"}), 400
 
@@ -190,7 +194,7 @@ def create_mix():
 
 @alicat_bp.route('/delete_mix', methods=['POST'])
 def delete_mix():
-    # """刪除混合氣"""
+    """刪除混合氣"""
     if not flow_controller:
         return jsonify({"status": "error", "message": "Device not connected"}), 400
 

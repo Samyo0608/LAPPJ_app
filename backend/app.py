@@ -16,15 +16,17 @@ import os
 from database import db, jwt
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, instance_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
     CORS(app, resources={r"/*": {"origins": "*"}})
     app.config.from_object(Config)
 
-    migrate = Migrate(app, db)
+    migrate = Migrate(app, db, directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'migrations'))
+    
     # SQLite 資料庫設定
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = "supersecretjwt"
+    app.config["JWT_VERIFY_SUB"]=False
 
     # 初始化擴展
     db.init_app(app)

@@ -13,11 +13,12 @@ const useHooks = ({ onClose }) => {
     password: '',
     confirmPassword: ''
   });
+  const [loginFail, setLoginFail] = useState(false);
+  const [registerFailMessage, setRegisterFailMessage] = useState('');
 
   // 註冊api
   const registerApi = async (data) => {
     const response = await getApi('/auth/register', 'POST', data);
-    console.log(response);
     if (response?.status === 'success') {
       setAlertDetail({
         type: 'success',
@@ -34,10 +35,12 @@ const useHooks = ({ onClose }) => {
       }, 3000);
     } else {
       setAlertDetail({
-        type: 'failture',
-        message: response?.message,
+        type: 'failure',
+        message: response?.data?.message,
         show: true
       });
+
+      setRegisterFailMessage(response?.data?.message);
 
       setTimeout(() => {
         setAlertDetail({
@@ -51,7 +54,6 @@ const useHooks = ({ onClose }) => {
   // 登入api  
   const loginApi = async (data) => {
     const response = await getApi('/auth/login', 'POST', data);
-    console.log(response);
     if (response?.status === 'success') {
       setAlertDetail({
         type: 'success',
@@ -59,10 +61,12 @@ const useHooks = ({ onClose }) => {
         show: true
       });
 
-      localStorage.setItem('isAuth', true);
       const data = response?.data;
-      setAuthDetail(data);
+      localStorage.setItem('isAuth', true);
       localStorage.setItem('authDetail', JSON.stringify(data));
+      localStorage.setItem('refresh_token', response.data.refresh_token);
+  
+      setAuthDetail(data);
       setIsAuth(true);
 
       setTimeout(() => {
@@ -78,10 +82,12 @@ const useHooks = ({ onClose }) => {
       
     } else {
       setAlertDetail({
-        type: 'failture',
+        type: 'failure',
         message: response?.data?.message,
         show: true
       });
+
+      setLoginFail(true);
 
       setTimeout(() => {
         setAlertDetail({
@@ -110,14 +116,12 @@ const useHooks = ({ onClose }) => {
   // 登入按鈕
   const handleLogin = async (e) => {
     e.preventDefault();
-    console.log('Login:', formData);
     await loginApi(formData);
   };
 
   // 註冊按鈕
   const handleRegister = async (e) => {
     e.preventDefault();
-    console.log('Register:', formData);
     await registerApi(formData);
   };
 
@@ -127,6 +131,8 @@ const useHooks = ({ onClose }) => {
     activeTab,
     setActiveTab,
     formData,
+    loginFail,
+    registerFailMessage,
     setFormData,
     registerApi,
     loginApi,
@@ -139,7 +145,7 @@ const useHooks = ({ onClose }) => {
 
 const AuthModal = ({ isOpen, onClose }) => {
   const {
-    alertDetail, activeTab, setActiveTab, formData,
+    alertDetail, activeTab, setActiveTab, formData, loginFail, registerFailMessage,
     onAlertClose, handleChange, handleLogin, handleRegister
   } = useHooks({
     onClose
@@ -205,8 +211,8 @@ const AuthModal = ({ isOpen, onClose }) => {
                           type="text"
                           name="username"
                           id="username"
-                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                          placeholder="Kevin"
+                          className={`${loginFail ? "border-red-300" : ""} bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5`}
+                          placeholder="ex: Kevin"
                           required
                           value={formData.username}
                           onChange={handleChange}
@@ -220,12 +226,20 @@ const AuthModal = ({ isOpen, onClose }) => {
                           type="password"
                           name="password"
                           id="password"
-                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                          className={`${loginFail ? "border-red-300" : ""} bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5`}
                           required
+                          placeholder='********'
                           value={formData.password}
                           onChange={handleChange}
                         />
                       </div>
+                      {
+                        loginFail && (
+                          <div className="text-red-500 text-sm font-medium">
+                            登入失敗，請確認您的帳號密碼
+                          </div>
+                        )
+                      }
                       <button
                         type="submit"
                         className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
@@ -237,7 +251,7 @@ const AuthModal = ({ isOpen, onClose }) => {
                     <form onSubmit={handleRegister} className="space-y-6">
                       <div>
                         <label htmlFor="register-email" className="block mb-2 text-sm font-medium text-gray-900">
-                          電子郵件
+                          Email
                         </label>
                         <input
                           type="email"
@@ -292,6 +306,13 @@ const AuthModal = ({ isOpen, onClose }) => {
                           onChange={handleChange}
                         />
                       </div>
+                      {
+                        registerFailMessage && (
+                          <div className="text-red-500 text-sm font-medium">
+                            {registerFailMessage}
+                          </div>
+                        )
+                      }
                       <button
                         type="submit"
                         className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"

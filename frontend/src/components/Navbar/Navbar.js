@@ -12,6 +12,7 @@ const useHooks = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [userPhoto, setUserPhoto] = useState("");
 
   // 開啟或關閉手機版選單
   const onMobileMenuClick = () => {
@@ -35,7 +36,10 @@ const useHooks = () => {
   // 登出按鈕的Click事件
   const onSignOutClick = () => {
     setIsAuth(false);
+    localStorage.setItem("isAuth", false);
     setAuthDetail({});
+    localStorage.removeItem("authDetail");
+    localStorage.removeItem('refresh_token');
     window.location.reload();
   };
 
@@ -77,12 +81,22 @@ const useHooks = () => {
     }
   }, [dafaultLocation]);
 
+  useEffect(() => {
+    if (authDetail?.photo_path) {
+      const path = authDetail.photo_path.split('\\\\').join('/');
+      const pathArray = path.split('\\');
+      const finalPath = pathArray.slice(2).join('/');
+      setUserPhoto(finalPath);
+    }
+  }, [authDetail]);
+
   return {
     isMobileMenuOpen,
     isAuthModalOpen,
     isAuth,
     authDetail,
     isSettingsModalOpen,
+    userPhoto,
     LinkContainer,
     onMobileMenuClick,
     LinkContainerForMobile,
@@ -94,7 +108,7 @@ const useHooks = () => {
 };
 
 const Navbar = () => {
-  const { isMobileMenuOpen, isAuthModalOpen, isAuth, authDetail, isSettingsModalOpen,
+  const { isMobileMenuOpen, isAuthModalOpen, isAuth, authDetail, isSettingsModalOpen, userPhoto,
     LinkContainer, onMobileMenuClick, LinkContainerForMobile, onAuthModalClick, onSignOutClick, onCloseSettingsModal, handleSettingsClick
   } = useHooks();
 
@@ -112,7 +126,7 @@ const Navbar = () => {
         <UserSettingsModal
           isOpen={isSettingsModalOpen}
           onClose={onCloseSettingsModal}
-          user={authDetail} // 傳入當前用戶資料
+          user={authDetail}
         />
         <div className="relative flex h-16 items-center justify-between">
           <div className="flex items-center">
@@ -159,8 +173,8 @@ const Navbar = () => {
                   title="穿透度量測"
                 />
                 <LinkContainer
-                  href="/reproducibilityPage"
-                  title="再現性繪製"
+                  href="/LabWeb"
+                  title="Lab web"
                 />
               </div>
             </div>
@@ -183,10 +197,19 @@ const Navbar = () => {
                     aria-haspopup="true"
                     onClick={handleSettingsClick}
                   >
-                    <svg className="w-[36px] h-[36px] text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w
-                    3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
-                      <path fillRule="evenodd" d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-2 9a4 4 0 0 0-4 4v1a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1a4 4 0 0 0-4-4h-4Z" clipRule="evenodd"/>
-                    </svg>
+                    {
+                      authDetail?.photo_path ? (
+                        <img
+                          className="h-8 w-8 rounded-full"
+                          src={userPhoto}
+                          alt="User avatar"
+                        />
+                      ) : (
+                        <svg className="h-8 w-8 rounded-full text-gray-800 dark:text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                        </svg>
+                      )
+                    }
                   </button>
                   <div
                     className="ml-3 text-white hover:bg-gray-700 bg-gray-800 px-4 py-2 rounded-md text-sm font-medium transition-colors"
@@ -237,8 +260,8 @@ const Navbar = () => {
           title="穿透度量測"
         />
         <LinkContainerForMobile
-          href="/reproducibilityPage"
-          title="再現性繪製"
+          href="/LabWeb"
+          title="Lab web"
         />
         </div>
       </div>
