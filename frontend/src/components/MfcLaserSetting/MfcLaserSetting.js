@@ -1,9 +1,11 @@
 import React from 'react'
+import { ToggleSwitch } from "flowbite-react";
 import AlertComponent from '../ComponentTools/Alert';
 import CommonLoading from '../Loading/CommonLoading';
 import { getApi } from '../../utils/getApi';
 import { parseGasMixture } from '../../utils/mixGasUtil';
 import { useAlicatContext } from '../../Contexts/AlicatContext';
+import { useCo2LaserContext } from '../../Contexts/Co2LaserContext';
 
 // 將 SingleConnectComponent 改為獨立的函數組件
 const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConnectPortChange, onConnectAddressChange, devicesData }) => {
@@ -42,16 +44,22 @@ const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConne
         readOnly={devicesData[deviceId]?.connected}
         onBlur={() => handlePortBlur(deviceId, localPort)}
       />
-      <label className="block font-medium">Address</label>
-      <input
-        type="text"
-        className={`${devicesData[deviceId]?.connected ? 'bg-gray-200' : 'bg-white'} w-full border rounded-md p-2`}
-        placeholder="輸入Address, ex: A"
-        value={localAddress || devicesData[deviceId]?.address}
-        onChange={handleAddressChange}
-        readOnly={devicesData[deviceId]?.connected}
-        onBlur={() => handleAddressBlur(deviceId, localAddress)}
-      />
+      {
+        (deviceId !== 'laser') && (
+          <>
+            <label className="block font-medium">Address</label>
+            <input
+              type="text"
+              className={`${devicesData[deviceId]?.connected ? 'bg-gray-200' : 'bg-white'} w-full border rounded-md p-2`}
+              placeholder="輸入Address, ex: A"
+              value={localAddress || devicesData[deviceId]?.address}
+              onChange={handleAddressChange}
+              readOnly={devicesData[deviceId]?.connected}
+              onBlur={() => handleAddressBlur(deviceId, localAddress)}
+            />
+          </>
+        )
+      }
       <div className='flex justify-center items-center mb-2'>       
         <button
           className={`${devicesData[deviceId]?.connected ? 'bg-green-600 hover:bg-green-300 text-white' : 'bg-gray-600 hover:bg-gray-300 text-white'} py-2 px-4 rounded-md mt-2 w-48`}
@@ -71,6 +79,7 @@ const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConne
 
 const useHooks = () => {
   const { isCarrierGasOpenState, setIsCarrierOpenState, setCarrierGasPortandAddressState, carrierGasPortandAddressState, carrierGasTypeState, setCarrierGasTypeState } = useAlicatContext();
+  const { setCo2LaserDetailState, isCo2LaserOpenState, setIsCo2LaserOpenState, co2LaserPortState, setCo2LaserPortState } = useCo2LaserContext();
   // 單獨連線的項目整合
   const deviceList = [{
     title: '主氣流量控制器 - Main Gas',
@@ -105,6 +114,7 @@ const useHooks = () => {
       };
     }, {});
   });
+  // 載氣設定相關
   const [carrierGasDetail, setCarrierGasDetail] = React.useState({});
   const [carrierGasTypeList, setCarrierGasTypeList] = React.useState(isCarrierGasOpenState && carrierGasTypeState?.length > 0 ? carrierGasTypeState : []);
   const [carrierGasTypeListLoading, setCarrierGasTypeListLoading] = React.useState(false);
@@ -115,6 +125,17 @@ const useHooks = () => {
     name: "",
     gases: ""
   });
+  // CO2雷射設定相關
+  const [co2LaserDetail, setCo2LaserDetail] = React.useState({});
+  const [co2SelectOrChangeList, setCo2SelectOrChangeList] = React.useState({
+    mode: "remote",
+    pwmFreq: 0,
+    maxPwm: false,
+    laserOnPowerUp: false,
+    gatePullUp: false
+  });
+  const [isCo2LaserLoading, setIsCo2LaserLoading] = React.useState(false);
+  // Alert相關
   const [alertDetail, setAlertDetail] = React.useState({});
 
   // -----------------------------api function--------------------------------
@@ -493,6 +514,250 @@ const useHooks = () => {
   };
   // -----------------------------------------------------------------------
 
+  // -------------------------co2 laser api function-----------------------------
+  // 取得雷射設備資料
+  const getCo2LaserDataApi = React.useCallback(async () => {
+    const response = await getApi('/uc2000/status', 'GET');
+    if (response?.data?.status === 'success') {
+      setCo2LaserDetail(response.data.data);
+      localStorage.setItem('co2LaserDetailState', JSON.stringify(response.data.data));
+      setCo2LaserDetailState(response.data.data);
+    } else {
+      setIsCo2LaserOpenState(false);
+      console.error(response?.data?.status);
+
+      setCo2LaserDetailState({
+        "gate_pull_up": false,
+        "lase_on_powerup": false,
+        "laser_on": false,
+        "max_pwm_95": false,
+        "mode": 0,
+        "mode_name": "",
+        "power_percentage": 0,
+        "pwm_freq": 0,
+        "pwm_percentage": 0,
+        "remote_control": false,
+        "version": 0
+      });
+
+      setAlertDetail({
+        show: true,
+        message: '取得Co2雷射資料失敗',
+        type: 'failure'
+    });
+
+    setTimeout(() => {
+      setAlertDetail({ show: false });
+    }, 3000);
+    }
+  }, [setIsCo2LaserOpenState, setCo2LaserDetailState]);
+
+  // 連線CO2雷射設備api
+  const connectCo2LaserApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        laser: {
+          ...prev.laser,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/uc2000/connect', 'POST', data);
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '連線成功',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          laser: {
+            ...prev.laser,
+            connected: true,
+            loading: false
+          }
+        }));
+
+        setCo2LaserPortState({
+          port: data.port
+        });
+
+        setIsCo2LaserOpenState(true);
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '連線失敗',
+          type: 'failure'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          laser: {
+            ...prev.laser,
+            loading: false
+          }
+        }));
+      }
+
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+
+    } catch (error) {
+      console.error(error);
+      setDevices(prev => ({
+        ...prev,
+        laser: {
+          ...prev.laser,
+          loading: false
+        }
+      }));
+
+      setAlertDetail({
+        show: true,
+        message: '連線過程發生錯誤',
+        type: 'failure'
+      });
+
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+    }
+  };
+
+  // disconnect co2 laser
+  const disconnectCo2LaserApi = async () => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        laser: {
+          ...prev.laser,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/uc2000/disconnect', 'POST');
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '已取消連線',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          laser: {
+            ...prev.laser,
+            connected: false,
+            loading: false
+          }
+        }));
+
+        setIsCo2LaserOpenState(false);
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '取消連線失敗',
+          type: 'failure'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          laser: {
+            ...prev.laser,
+            loading: false
+          }
+        }));
+      }
+
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+
+    } catch (error) {
+      console.error(error);
+      setDevices(prev => ({
+        ...prev,
+        laser: {
+          ...prev.laser,
+          loading: false
+        }
+      }));
+
+      setAlertDetail({
+        show: true,
+        message: '取消連線過程發生錯誤',
+        type: 'failure'
+      });
+
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+    }
+  };
+
+  const onCo2LaserSettingClick = async () => {
+    if (!isCo2LaserOpenState) {
+      setAlertDetail({
+        show: true,
+        message: '請先連接雷射設備',
+        type: 'failure'
+      });
+      return;
+    }
+  
+    setIsCo2LaserLoading(true);
+    try {
+      // 準備所有設定
+      const settings = {
+        mode: co2SelectOrChangeList.mode,
+        pwm_freq: co2SelectOrChangeList.pwmFreq,
+        max_pwm_95: co2SelectOrChangeList.maxPwm,
+        lase_on_powerup: co2SelectOrChangeList.laserOnPowerUp,
+        gate_pull_up: co2SelectOrChangeList.gatePullUp
+      };
+  
+      // 調用新的 API
+      const response = await getApi('/uc2000/update_settings', 'POST', settings);
+  
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '設定更新成功',
+          type: 'success'
+        });
+        
+        // 更新狀態
+        const statusResponse = await getApi('/uc2000/status', 'GET');
+        if (statusResponse?.data?.status === 'success') {
+          setCo2LaserDetail(statusResponse.data.data);
+          setCo2LaserDetailState(statusResponse.data.data);
+        }
+      } else {
+        throw new Error(response?.data?.message || '設定更新失敗');
+      }
+    } catch (error) {
+      console.error('設定更新失敗:', error);
+      setAlertDetail({
+        show: true,
+        message: error.message || '設定更新失敗',
+        type: 'failure'
+      });
+    } finally {
+      setIsCo2LaserLoading(false);
+      setTimeout(() => {
+        setAlertDetail({ show: false });
+      }, 3000);
+    }
+  };
+  // -------------------------co2 laser api function-----------------------------
+
   // 關閉Alert
   const onAlertClose = () => {
     setAlertDetail({
@@ -523,8 +788,16 @@ const useHooks = () => {
     if (devices[deviceId]?.loading) return;
     
     if (devices[deviceId]?.connected) {
-      await disconnectDeviceApi(devices[deviceId], deviceId);
-
+      switch (deviceId) {
+        case 'carrierGas':
+          await disconnectDeviceApi(devices[deviceId], deviceId);
+          break;
+        case 'laser':
+          await disconnectCo2LaserApi();
+          break;
+        default:
+          break;
+      };
       return;
     };
 
@@ -548,22 +821,51 @@ const useHooks = () => {
       address: devices[deviceId].address
     };
 
-    if (!data.port || !data.address) {
-      setAlertDetail({
-        show: true,
-        message: 'Port或Address尚未輸入',
-        type: 'failure'
-      });
-
-      setTimeout(() => {
-        setAlertDetail({
-          show: false
-        });
-      }, 3000);
-      return;
+    switch (deviceId) {
+      case 'laser':
+        if (!data.port) {
+          setAlertDetail({
+            show: true,
+            message: 'Port尚未輸入',
+            type: 'failure'
+          });
+  
+          setTimeout(() => {
+            setAlertDetail({
+              show: false
+            });
+          }, 3000);
+          return;
+        }
+        break;
+      default:
+        if (!data.port || !data.address) {
+          setAlertDetail({
+            show: true,
+            message: 'Port或Address尚未輸入',
+            type: 'failure'
+          });
+    
+          setTimeout(() => {
+            setAlertDetail({
+              show: false
+            });
+          }, 3000);
+          return;
+        }
+        break;
     }
 
-    await connectDeviceApi(data, deviceId);
+    switch (deviceId) {
+      case 'carrierGas':
+        await connectDeviceApi(data, deviceId);
+        break;
+      case 'laser':
+        await connectCo2LaserApi(data);
+        break;
+      default:
+        break;
+    }
   };
   // -----------------------------------------------------------------------
 
@@ -646,6 +948,62 @@ const useHooks = () => {
   }, [carrierGasPortandAddressState]);
 
   // ----------------------------載氣設定的function----------------------------
+  
+  // ---------------------------------co2 laser function---------------------------------
+  // onchange co2 laser select or change
+  const onChangeCo2SelectOrChange = (value, flag) => {
+    setCo2SelectOrChangeList(prev => ({
+      ...prev,
+      [flag]: value
+    }));
+  };
+
+  // 更新onchange co2 laser select or change
+  React.useEffect(() => {
+    if (co2LaserDetail) {
+      setCo2SelectOrChangeList({
+        mode: "remote",
+        pwmFreq: co2LaserDetail.pwm_freq || 0,
+        maxPwm: co2LaserDetail.max_pwm_95 || false,
+        laserOnPowerUp: co2LaserDetail.lase_on_powerup || false,
+        gatePullUp: co2LaserDetail.gate_pull_up || false
+      });
+    }
+  }, [co2LaserDetail]);
+  
+  // 從 localStorage 取得co2的port
+  React.useEffect(() => {
+    if (co2LaserPortState?.port) {
+      setDevices(prev => ({
+        ...prev,
+        laser: {
+          ...prev.laser,
+          port: co2LaserPortState.port
+        }
+      }));
+    }
+
+    if (isCo2LaserOpenState) {
+      setDevices(prev => ({
+        ...prev,
+        laser: {
+          ...prev.laser,
+          connected: true
+        }
+      }));
+
+      getCo2LaserDataApi();
+    } else {
+      setDevices(prev => ({
+        ...prev,
+        laser: {
+          ...prev.laser,
+          connected: false
+        }
+      }));
+    }
+  }, [co2LaserPortState, isCo2LaserOpenState, getCo2LaserDataApi]);
+  // ---------------------------------co2 laser function---------------------------------
 
   return {
     devices,
@@ -657,6 +1015,10 @@ const useHooks = () => {
     carrierGasCreateMixGas,
     carrierGasTypeSetting,
     carrierGasMixGas,
+    co2SelectOrChangeList,
+    co2LaserDetail,
+    isCo2LaserOpenState,
+    isCo2LaserLoading,
     onAlertClose,
     onConnectPortChange,
     onConnectAddressChange,
@@ -666,15 +1028,18 @@ const useHooks = () => {
     onCarrierGasMixGasClick,
     onCarrierGasCreateMixGasChange,
     onCarrierGasCreateMixGasClick,
-    onDeleteCarrierGasGasTypeClick
+    onDeleteCarrierGasGasTypeClick,
+    onChangeCo2SelectOrChange,
+    onCo2LaserSettingClick
   };
 };
 
 const MfcLaserSetting = () => {
   const { devices, carrierGasDetail, alertDetail, deviceList, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas,
-    carrierGasTypeSetting, carrierGasMixGas,
+    carrierGasTypeSetting, carrierGasMixGas, co2SelectOrChangeList, co2LaserDetail, isCo2LaserOpenState, isCo2LaserLoading,
     onAlertClose, onConnectPortChange, onConnectAddressChange, onConnectClick, onGetCarrierGasTypeClick, onSetCarrierGasGasTypeClick,
-    onCarrierGasMixGasClick, onCarrierGasCreateMixGasChange, onCarrierGasCreateMixGasClick, onDeleteCarrierGasGasTypeClick
+    onCarrierGasMixGasClick, onCarrierGasCreateMixGasChange, onCarrierGasCreateMixGasClick, onDeleteCarrierGasGasTypeClick, onChangeCo2SelectOrChange,
+    onCo2LaserSettingClick
   } = useHooks();
 
   return (
@@ -900,22 +1265,92 @@ const MfcLaserSetting = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white shadow-md rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">雷射控制 (Laser Control)</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block font-medium">脈寬調變 PWM (kHz)</label>
-              <select className="w-full border rounded-md p-2">
-                <option value="5">5</option>
-                <option value="10">10</option>
-                <option value="20">20</option>
-              </select>
+        <div className="bg-white shadow-md rounded-lg p-4 flex flex-col justify-between">
+          <div>
+            <h2 className="text-lg font-semibold mb-3">雷射控制 (Laser Control)</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block font-medium">控制模式</label>
+                <select
+                  className="w-full border rounded-md p-2"
+                  value="remote"
+                  readOnly
+                >
+                  {
+                    !isCo2LaserOpenState && (
+                      <option value="">None</option>
+                    )
+                  }
+                  <option value="manual">Manual</option>
+                  <option value="anc">ANC (Analog Current)</option>
+                  <option value="anv">ANV (Analog Voltage)</option>
+                  <option value="manual_closed">Manual Closed (Can not Remote)</option>
+                  <option value="anv_closed">ANV Closed</option>
+                  <option value="remote">Remote</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-medium">頻率 PWM (kHz)</label>
+                <select
+                  className="w-full border rounded-md p-2"
+                  onChange={(e) => onChangeCo2SelectOrChange(Number(e.target.value), 'pwmFreq')}
+                  value={co2SelectOrChangeList?.pwmFreq}
+                >
+                  {
+                    !isCo2LaserOpenState && (
+                      <option value={0}>None</option>
+                    )
+                  }
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-medium">控制器版本</label>
+                <input
+                  type="text"
+                  className="w-full border rounded-md p-2 bg-gray-50"
+                  placeholder="控制器版本"
+                  readOnly
+                  value={co2LaserDetail?.version || 0}
+                />
+              </div>
+              <div
+                className="grid grid-cols-2 gap-4 mt-2 md:grid-cols-1"
+              >
+                <ToggleSwitch
+                  className='mr-2'
+                  label="PWM最高百分比限制 (開啟: 95% / 關閉: 99%)"
+                  onChange={(e) => onChangeCo2SelectOrChange(e, 'maxPwm')}
+                  checked={co2SelectOrChangeList?.maxPwm}
+                />
+                <ToggleSwitch
+                  className='mr-2'
+                  label="開啟時自動開啟雷射"
+                  onChange={(e) => onChangeCo2SelectOrChange(e, 'laserOnPowerUp')}
+                  checked={co2SelectOrChangeList?.laserOnPowerUp}
+                />
+                <ToggleSwitch
+                  label="電位開啟(Gate Pull up)"
+                  onChange={(e) => onChangeCo2SelectOrChange(e, 'gatePullUp')}
+                  checked={co2SelectOrChangeList?.gatePullUp}
+                />
+              </div>
             </div>
-            <div className='flex justify-center items-center mb-2'>
-              <button className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300">
-                設定 (Setting)
-              </button>
-            </div>
+          </div>
+          <div className='flex justify-center items-center mb-2 mt-2'>
+            <button 
+              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-400"
+              onClick={onCo2LaserSettingClick}
+              disabled={isCo2LaserLoading || !isCo2LaserOpenState}
+            >
+              {isCo2LaserLoading ? (
+                <CommonLoading />
+              ) : (
+                '設定 (Setting)'
+              )}
+            </button>
           </div>
         </div>
         {/* 單獨連線 */}

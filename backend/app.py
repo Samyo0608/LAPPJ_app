@@ -9,6 +9,7 @@ from transmittance_to_figure import plot_data, plot_data_filter
 from routes.alicat_routes import alicat_bp
 from routes.recipe_routes import recipe_bp
 from routes.auth_routes import auth_bp
+from routes.co2_laser_routes import uc2000_bp
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
@@ -44,6 +45,7 @@ def create_app():
     app.register_blueprint(alicat_bp, url_prefix='/api/alicat_api')
     app.register_blueprint(recipe_bp, url_prefix='/api/recipe_api')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(uc2000_bp, url_prefix='/api/uc2000')
 
     return app
 

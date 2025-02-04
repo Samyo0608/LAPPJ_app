@@ -24,7 +24,8 @@ ChartJS.register(
 
 const LineChartComponent = ({ 
   title,             // 圖表標題
-  data,              // 要顯示的數據
+  dataHistory,       // 要顯示的數據
+  timeLabels,        // 時間標籤
   label,             // 數據的標籤名稱
   yAxisLabel,        // Y軸標籤
   yAxisMax,          // Y軸最大值
@@ -34,11 +35,11 @@ const LineChartComponent = ({
   backgroundColor = 'rgba(75, 192, 192, 0.2)'  // 背景顏色
 }) => {
   const [chartData, setChartData] = useState({
-    labels: [],
+    labels: timeLabels,
     datasets: [
       {
         label: label,
-        data: [],
+        data: dataHistory,
         borderColor: lineColor,
         backgroundColor: backgroundColor,
         tension: 0.3,
@@ -128,33 +129,20 @@ const LineChartComponent = ({
   };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const currentTime = new Date().toLocaleTimeString('en-GB');
-
-      setChartData((prevData) => {
-        const updatedLabels = [...prevData.labels, currentTime];
-        const updatedData = [...prevData.datasets[0].data, data];
-
-        // 限制顯示的數據點數量
-        if (updatedLabels.length > 10) {
-          updatedLabels.shift();
-          updatedData.shift();
+    setChartData({
+      labels: timeLabels,
+      datasets: [
+        {
+          label: label,
+          data: dataHistory,
+          borderColor: lineColor,
+          backgroundColor: backgroundColor,
+          tension: 0.3,
+          yAxisID: 'y',
         }
-
-        return {
-          labels: updatedLabels,
-          datasets: [
-            {
-              ...prevData.datasets[0],
-              data: updatedData,
-            },
-          ],
-        };
-      });
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [data]);
+      ],
+    });
+  }, [timeLabels, dataHistory, label, lineColor, backgroundColor]);
 
   return (
     <div className="w-full min-h-40vh h-[300px]">

@@ -130,6 +130,24 @@ const useHooks = () => {
       return;
     }
 
+    if (newRecipe.created_by === "- -") {
+      if (!authDetail.username) {
+        setAlertDetail({
+          show: true,
+          message: "建立者為必填欄位",
+          type: "failure"
+        });
+
+        setTimeout(() => {
+          setAlertDetail({ show: false });
+        }, 3000);
+
+        return;
+      } else {
+        newRecipe.created_by = authDetail.username;
+      }
+    }
+
     if (!newRecipe.parameter_name) {
       errorMessages.parameter_name = "參數名稱為必填欄位";
     }
@@ -171,8 +189,8 @@ const useHooks = () => {
     }
 
     // 如果雷射功率範圍不為0~90，且不是0.5的倍數，則顯示錯誤訊息
-    if (Number(newRecipe.laser_power) < 0 || Number(newRecipe.laser_power) > 90) {
-      errorMessages.laser_power = "雷射功率需介於0~90之間";
+    if (Number(newRecipe.laser_power) < 0 || Number(newRecipe.laser_power) > 99) {
+      errorMessages.laser_power = "雷射功率需介於0~99之間";
     }
 
     if (Number(newRecipe.laser_power) % 0.5 !== 0) {
