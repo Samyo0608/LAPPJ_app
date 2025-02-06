@@ -10,6 +10,7 @@ from routes.alicat_routes import alicat_bp
 from routes.recipe_routes import recipe_bp
 from routes.auth_routes import auth_bp
 from routes.co2_laser_routes import uc2000_bp
+from routes.port_connect_routes import port_scanner_bp
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
@@ -46,6 +47,7 @@ def create_app():
     app.register_blueprint(recipe_bp, url_prefix='/api/recipe_api')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(uc2000_bp, url_prefix='/api/uc2000')
+    app.register_blueprint(port_scanner_bp, url_prefix='/api/port_scanner')
 
     return app
 

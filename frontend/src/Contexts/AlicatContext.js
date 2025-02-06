@@ -13,8 +13,11 @@ export const useAlicatContext = () => {
 export const AlicatProvider = ({ children }) => {
   // 從 localStorage 讀取數據時需要解析 JSON
   const [carrierGasDetailState, setCarrierGasDetailState] = useState(() => {
+    if (localStorage.getItem("carrierGasDetailState") === undefined) {
+      return {};
+    }
     const savedDetail = localStorage.getItem("carrierGasDetailState");
-    return savedDetail ? JSON.parse(savedDetail) : "None";
+    return savedDetail ? JSON.parse(savedDetail) : {};
   });
 
   const [isCarrierGasOpenState, setIsCarrierOpenState] = useState(() => {

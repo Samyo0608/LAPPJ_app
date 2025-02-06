@@ -1,34 +1,43 @@
 import React, { useState } from "react";
+import { Button } from "flowbite-react";
+import CommonLoading from '../Loading/CommonLoading';
 import { getApi } from "../../utils/getApi";
 import AlertComponent from "../ComponentTools/Alert";
 import LineChartComponent from "../Chart/Chart";
 import { useAlicatContext } from "../../Contexts/AlicatContext";
 import { useCo2LaserContext } from "../../Contexts/Co2LaserContext";
-import { Button } from "flowbite-react";
 
 // Button Component
-const ButtonComponent = ({ label, otherCss, onClick, isDisabled }) => (
+const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen }) => (
   <Button
     className={`${otherCss} text-sm border rounded`}
-    color="blue"
+    color={isOpen ? "purple" : "blue"}
     size="sm"
     onClick={onClick}
-    disabled={isDisabled}
+    disabled={isDisabled || loading}
   >
-    {label}
+    {loading ? <CommonLoading /> : label}
   </Button>
 );
 
 const useHooks = () => {
-  const { isCarrierGasOpenState } = useAlicatContext();
-  const { isCo2LaserOpenState } = useCo2LaserContext();
+  const { isCarrierGasOpenState, setCarrierGasDetailState } = useAlicatContext();
+  const { isCo2LaserOpenState, co2LaserDetailState } = useCo2LaserContext();
+  // 載氣資料
   const [carrierGasDetail, setCarrierGasDetail] = useState({});
+  // 載器流量設定
+  const [carrierGasFlowSetting, setCarrierGasFlowSetting] = useState("");
+  // 載氣loading，用於API載入時的loading效果，或是預防在status讀取的時候修改資料，造成資料錯誤
+  const [isCarrierGasApiLoading, setIsCarrierGasApiLoading] = useState(false);
+  // Recipe資料
   const [recipeDetail, setRecipeDetail] = useState([]);
   const [recipeSelected, setRecipeSelected] = useState("");
   const [recipeSelectedDetail, setRecipeSelectedDetail] = useState({});
-  const [alertDetail, setAlertDetail] = React.useState({});
+  // CO2雷射資料
   const [co2LaserDetail, setCo2LaserDetail] = useState({});
   const [laserPWM, setLaserPWM] = useState(0);
+  const [onLaserOpenLoading, setOnLaserOpenLoading] = useState(false);
+  const [alertDetail, setAlertDetail] = React.useState({});
   const [temperature, setTemperature] = useState(35);
   // 載氣流量監測資料
   const [carrierGasFlowData, setCarrierGasFlowData] = useState({
@@ -45,24 +54,29 @@ const useHooks = () => {
     history: [],
     labels: [],
   });
-  // 載器流量設定
-  const [carrierGasFlowSetting, setCarrierGasFlowSetting] = useState("");
-  // 載氣loading，用於API載入時的loading效果，或是預防在status讀取的時候修改資料，造成資料錯誤
-  const [isCarrierGasApiLoading, setIsCarrierGasApiLoading] = useState(false);
+  // CO2雷射PWM功率監測資料
+  const [co2LaserPWMData, setCo2LaserPWMData] = useState({
+    history: [],
+    labels: [],
+  });
 
   // 取得載氣資料 API
-  const getCarrierGasDataApi = async () => {
-    setIsCarrierGasApiLoading(true);
-    const response = await getApi("/alicat_api/status", "GET");
-    console.log(response);
-    if (response?.data?.status === "success") {
-      setCarrierGasDetail(response.data.data);
-      setIsCarrierGasApiLoading(false);
-    } else {
-      console.error(response?.data?.status);
+  const getCarrierGasDataApi = React.useCallback(async () => {
+    try {
+      setIsCarrierGasApiLoading(true);
+      const response = await getApi("/alicat_api/status", "GET");
+      if (response?.data?.status === "success") {
+        setCarrierGasDetail(response.data.data);
+        setCarrierGasDetailState(response.data.data);
+      } else {
+        console.error(response?.data?.status);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
       setIsCarrierGasApiLoading(false);
     }
-  };
+  }, [setCarrierGasDetailState]);
 
   // 修改載氣流量
   const setCarrierGasFlowApi = async () => {
@@ -83,126 +97,198 @@ const useHooks = () => {
       }, 1000);
     }
 
-    const response = await getApi("/alicat_api/set_flow_rate", "POST", {
-      flow_rate: carrierGasFlowSetting,
-    });
-
-    if (response?.data?.status === "success") {
-      setAlertDetail({
-        show: true,
-        message: response.data.message,
-        type: "success",
+    try {
+      const response = await getApi("/alicat_api/set_flow_rate", "POST", {
+        flow_rate: carrierGasFlowSetting,
       });
-
-      setTimeout(() => {
+  
+      if (response?.data?.status === "success") {
         setAlertDetail({
-          type: "success",
+          show: true,
           message: response.data.message,
-          show: false,
+          type: "success",
         });
-      }, 3000);
-    } else {
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
       setAlertDetail({
         show: true,
-        message: response.data.message,
+        message: "發生錯誤，請稍後再試",
         type: "failure",
       });
-
+    } finally {
       setTimeout(() => {
-        setAlertDetail({
-          type: "failure",
-          message: response.data.message,
+        setAlertDetail((prev) => ({
+          ...prev,
           show: false,
-        });
-      }, 3000);
+        }));
+      }, 2000);
     }
   };
 
   // 取得CO2雷射資料 api
   const getCo2LaserDataApi = async () => {
-    const response = await getApi("/uc2000/status", "GET");
-    console.log(response);
-    if (response?.data?.status === "success") {
-      setCo2LaserDetail(response.data.data);
-    } else {
-      console.error(response?.data?.status);
+    try {
+      const response = await getApi("/uc2000/status", "GET");
+      if (response?.data?.status === "success") {
+        setCo2LaserDetail(response.data.data);
+
+      } else {
+        console.error(response?.data?.status);
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
   // 修改CO2雷射功率 api
-  const setCo2LaserPowerApi = async () => {
-    const response = await getApi("/uc2000/set_pwm", "POST", {
-      percentage: laserPWM,
-    });
-
-    if (response?.data?.status === "success") {
+  const setCo2LaserPowerApi = async (percentage) => {
+    if (!isCo2LaserOpenState) {
       setAlertDetail({
         show: true,
-        message: response.data.message,
-        type: "success",
-      });
-
-      getCo2LaserDataApi();
-
-      setTimeout(() => {
-        setAlertDetail({
-          type: "success",
-          message: response.data.message,
-          show: false,
-        });
-      }, 3000);
-
-    } else {
-      setAlertDetail({
-        show: true,
-        message: response.data.message,
+        message: "CO2雷尚未連線",
         type: "failure",
       });
 
       setTimeout(() => {
         setAlertDetail({
-          type: "failure",
-          message: response.data.message,
           show: false,
+          message: "CO2雷尚未連線",
+          type: "failure",
         });
-      }, 3000);
+      }, 2000);
+
+      return;
+    }
+
+    if (co2LaserDetailState?.max_pwm_95) {
+      if (Number(laserPWM) > 95 || Number(percentage) > 95) {
+        setAlertDetail({
+          show: true,
+          message: "超過最大PWM值 - 目前設定最大值: 95%",
+          type: "failure",
+        });
+
+        setTimeout(() => {
+          setAlertDetail({
+            type: "failure",
+            message: "超過最大PWM值 - 目前設定最大值: 95%",
+            show: false,
+          });
+        }, 3000);
+
+        return;
+      }
+    } else {
+      if (Number(laserPWM) > 99 || Number(percentage) > 99) {
+        setAlertDetail({
+          show: true,
+          message: "超過最大PWM值 - 目前設定最大值: 99%",
+          type: "failure",
+        });
+
+        setTimeout(() => {
+          setAlertDetail({
+            type: "failure",
+            message: "超過最大PWM值 - 目前設定最大值: 99%",
+            show: false,
+          });
+        }, 3000);
+
+        return;
+      }
+    }
+
+    try {
+      setOnLaserOpenLoading(true);
+
+      const response = await getApi("/uc2000/set_pwm", "POST", {
+        percentage: Number(percentage) || laserPWM,
+      });
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+  
+        getCo2LaserDataApi();
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnLaserOpenLoading(false);
+      
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
     }
   }
 
   // 更改CO2雷射開關狀態
   const setCo2LaserOpenState = async (openState) => {
-    const response = await getApi("/uc2000/set_laser", "POST", {
-      enable: openState,
-    });
+    setOnLaserOpenLoading(true);
 
-    if (response?.data?.status === "success") {
-      setAlertDetail({
-        show: true,
-        message: response.data.message,
-        type: "success",
+    try {
+      const response = await getApi("/uc2000/set_laser", "POST", {
+        enable: openState,
       });
-
-      setTimeout(() => {
+      
+      if (response?.data?.status === "success") {
         setAlertDetail({
-          type: "success",
+          show: true,
           message: response.data.message,
-          show: false,
+          type: "success",
         });
-      }, 3000);
-    } else {
+
+        getCo2LaserDataApi();
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+
       setAlertDetail({
         show: true,
-        message: response.data.message,
+        message: "發生錯誤，請稍後再試",
         type: "failure",
       });
+    } finally {
+      setOnLaserOpenLoading(false);
 
       setTimeout(() => {
         setAlertDetail({
+          ...alertDetail,
           type: "failure",
-          message: response.data.message,
           show: false,
         });
-      }, 3000);
+      }, 2000);
     }
   };
 
@@ -242,6 +328,17 @@ const useHooks = () => {
     setRecipeSelectedDetail(selectedRecipe);
   };
 
+  // 按下Recipe 套用的click事件
+  const onRecipeApplyClick = async () => {
+    // 載氣更改
+    setCarrierGasFlowSetting(recipeSelectedDetail.carrier_gas_flow);
+    // CO2雷射更改
+    setLaserPWM(recipeSelectedDetail.laser_power);
+
+    await setCo2LaserPowerApi(recipeSelectedDetail.laser_power);
+  };
+
+  // 載氣流量監測，每3秒更新一次
   React.useEffect(() => {
     let intervalId;
 
@@ -259,7 +356,7 @@ const useHooks = () => {
         console.log("Clearing interval");
       }
     };
-  }, [isCarrierGasOpenState]);
+  }, [isCarrierGasOpenState, getCarrierGasDataApi]);
 
   React.useEffect(() => {
     // 當有新的資料時，加入最新值與當前時間
@@ -308,17 +405,51 @@ const useHooks = () => {
         };
       });
     }
-  }, [carrierGasDetail]);
 
+    if (co2LaserDetail) {
+      const currentTime = new Date().toLocaleTimeString("en-GB");
+      setCo2LaserPWMData((prev) => {
+        const newHistory = [
+          ...prev.history,
+          Number(co2LaserDetail?.laser_on ? co2LaserDetail?.pwm_percentage : 0),
+        ];
+        const newLabels = [...prev.labels, currentTime];
+        // 限制只保留 10 筆資料
+        if (newHistory.length > 10) newHistory.shift();
+        if (newLabels.length > 10) newLabels.shift();
+        return {
+          history: newHistory,
+          labels: newLabels,
+        };
+      });
+    }
+  }, [carrierGasDetail, co2LaserDetail]);
+
+  // CO2雷射監測，每3秒更新一次
+  React.useEffect(() => {
+    let intervalId;
+
+    if (isCo2LaserOpenState) {
+      intervalId = setInterval(() => {
+        getCo2LaserDataApi();
+      }, 3000);
+      console.log("Starting interval");
+    }
+
+    // 清理函數
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        console.log("Clearing interval");
+      }
+    };
+  }, [isCo2LaserOpenState]);
+
+  // 取得Recipe資料
   React.useEffect(() => {
     getRecipeDataApi();
   }, []);
 
-  React.useEffect(() => {
-    if (isCo2LaserOpenState) {
-      getCo2LaserDataApi();
-    }
-  }, [isCo2LaserOpenState]);
 
   return {
     isCarrierGasOpenState,
@@ -333,6 +464,8 @@ const useHooks = () => {
     carrierGasFlowSetting,
     isCo2LaserOpenState,
     co2LaserDetail,
+    onLaserOpenLoading,
+    co2LaserPWMData,
     onAlertClose,
     laserPWM,
     setLaserPWM,
@@ -343,6 +476,7 @@ const useHooks = () => {
     onCarrierFlowSettingClick,
     setCo2LaserPowerApi,
     setCo2LaserOpenState,
+    onRecipeApplyClick,
   };
 };
 
@@ -360,6 +494,8 @@ const ControllerPage = () => {
     carrierGasTemperatureData,
     isCo2LaserOpenState,
     co2LaserDetail,
+    onLaserOpenLoading,
+    co2LaserPWMData,
     onAlertClose,
     onRecipeSelect,
     laserPWM,
@@ -370,6 +506,7 @@ const ControllerPage = () => {
     onCarrierFlowSettingClick,
     setCo2LaserPowerApi,
     setCo2LaserOpenState,
+    onRecipeApplyClick,
   } = useHooks();
 
   return (
@@ -380,7 +517,6 @@ const ControllerPage = () => {
         onClose={onAlertClose}
         type={alertDetail.type}
       />
-      {/* Header Section */}
       <div className="grid grid-cols-3 gap-4 p-2 bg-white shadow mb-4 rounded">
         <div className="flex items-center gap-2">
           <span
@@ -415,7 +551,6 @@ const ControllerPage = () => {
           <span className="text-sm">Ultrasonic</span>
         </div>
       </div>
-
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-3 gap-4">
         {/* Left Column - MPC */}
@@ -527,7 +662,7 @@ const ControllerPage = () => {
             {/* Laser Control */}
             <div className="border p-4 border-orange-300 rounded shadow">
               <h3 className="font-bold mb-2">Co2 雷射 (Co2 Laser)</h3>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap justify-between">
                 <span className="text-sm whitespace-nowrap">
                   PWM percentage (%)
                 </span>
@@ -542,6 +677,8 @@ const ControllerPage = () => {
                   otherCss="w-72"
                   label="設定"
                   onClick={setCo2LaserPowerApi}
+                  disabled={!isCo2LaserOpenState}
+                  loading={onLaserOpenLoading}
                 />
               </div>
               <span className="text-sm mb-2">目前PWM percentage (%)</span>
@@ -570,13 +707,16 @@ const ControllerPage = () => {
               <div className="grid grid-cols-2 gap-2">
                 <ButtonComponent
                   label="ON"
-                  isDisabled={!isCo2LaserOpenState}
+                  isDisabled={!isCo2LaserOpenState || co2LaserDetail?.laser_on}
                   onClick={() => setCo2LaserOpenState(true)}
+                  loading={onLaserOpenLoading}
+                  isOpen={co2LaserDetail?.laser_on}
                 />
                 <ButtonComponent
                   label="OFF" 
-                  isDisabled={!isCo2LaserOpenState}
+                  isDisabled={!isCo2LaserOpenState || !co2LaserDetail?.laser_on}
                   onClick={() => setCo2LaserOpenState(false)}
+                  loading={onLaserOpenLoading}
                 />
               </div>
             </div>
@@ -700,6 +840,18 @@ const ControllerPage = () => {
               lineColor="rgb(75, 75, 192)"
               backgroundColor="rgba(75, 75, 192, 0.2)"
             />
+            <LineChartComponent
+              title="CO2雷射PWM功率監測"
+              dataHistory={co2LaserPWMData.history}
+              timeLabels={co2LaserPWMData.labels}
+              label="CO2 Laser PWM Power (%)"
+              yAxisLabel="Percentage (%)"
+              yAxisMax={100}
+              yAxisMin={0}
+              yAxisStep={5}
+              lineColor="rgb(75, 75, 192)"
+              backgroundColor="rgba(75, 75, 192, 0.2)"
+            />
           </div>
         </div>
         {/* Recipe 調整 */}
@@ -707,7 +859,7 @@ const ControllerPage = () => {
           <div className="space-y-4">
             <div className="space-y-3 flex flex-col justify-between items-stretch gap-2 w-full">
               <div className="flex flex-col gap-2 w-full">
-                <h3 className="font-bold mb-2 text-red-400 text-center">
+                <h3 className="font-bold mb-2 text-blue-800 text-center text-lg">
                   參數選擇 (Recipe Setting)
                 </h3>
 
@@ -804,6 +956,7 @@ const ControllerPage = () => {
                 <ButtonComponent
                   label="套用 (Setting)"
                   otherCss="w-full max-w-md"
+                  onClick={onRecipeApplyClick}
                 />
               </div>
             </div>

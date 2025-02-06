@@ -161,6 +161,10 @@ const Navbar = () => {
                   title="控制頁面"
                 />
                 <LinkContainer
+                  href="/portAutoConnectPage"
+                  title="設備連線"
+                />
+                <LinkContainer
                   href="/mfcLaserSetting"
                   title="MFC及Laser設定"
                 />
@@ -246,6 +250,10 @@ const Navbar = () => {
         <LinkContainerForMobile
           href="/controllerPage"
           title="控制頁面"
+        />
+        <LinkContainerForMobile
+          href="/portAutoConnectPage"
+          title="設備連線"
         />
         <LinkContainerForMobile
           href="/mfcLaserSetting"

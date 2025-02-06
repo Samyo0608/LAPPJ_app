@@ -62,7 +62,7 @@ class UC2000:
                         time.sleep(2)  # 給設備更多時間進行切換
                         return True, "連接成功"
                 
-                return False, "無法設置 REMOTE 模式"
+                return False, "無法設置CO2 LASER REMOTE 模式，可能是PORT錯誤"
                 
         except serial.SerialException as e:
             print(f"Serial Exception: {str(e)}")

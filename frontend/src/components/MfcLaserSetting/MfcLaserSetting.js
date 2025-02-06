@@ -32,34 +32,38 @@ const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConne
   };
 
   return (
-    <div className='border rounded-md p-2 border-green-300 mb-2'>
-      <h3 className="font-semibold mb-3">廠牌: {company}</h3>
-      <label className="block font-medium">Port</label>
-      <input
-        type="text"
-        className={`${devicesData[deviceId]?.connected ? 'bg-gray-200' : 'bg-white'} w-full border rounded-md p-2`}
-        placeholder="輸入Port名稱, ex: COM7"
-        value={localPort || devicesData[deviceId]?.port}
-        onChange={handlePortChange}
-        readOnly={devicesData[deviceId]?.connected}
-        onBlur={() => handlePortBlur(deviceId, localPort)}
-      />
-      {
-        (deviceId !== 'laser') && (
-          <>
-            <label className="block font-medium">Address</label>
-            <input
-              type="text"
-              className={`${devicesData[deviceId]?.connected ? 'bg-gray-200' : 'bg-white'} w-full border rounded-md p-2`}
-              placeholder="輸入Address, ex: A"
-              value={localAddress || devicesData[deviceId]?.address}
-              onChange={handleAddressChange}
-              readOnly={devicesData[deviceId]?.connected}
-              onBlur={() => handleAddressBlur(deviceId, localAddress)}
-            />
-          </>
-        )
-      }
+    <div className='border rounded-md p-2 border-green-300 mb-2 flex flex-col justify-between min-h-72'>
+      <div>
+        <h3 className="font-semibold mb-3">廠牌: {company}</h3>
+        <div>
+          <label className="block font-medium">Port</label>
+          <input
+            type="text"
+            className={`${devicesData[deviceId]?.connected ? 'bg-gray-200' : 'bg-white'} w-full border rounded-md p-2`}
+            placeholder="輸入Port名稱, ex: COM7"
+            value={localPort || devicesData[deviceId]?.port}
+            onChange={handlePortChange}
+            readOnly={devicesData[deviceId]?.connected}
+            onBlur={() => handlePortBlur(deviceId, localPort)}
+          />
+        </div>
+        {
+          (deviceId !== 'laser') && (
+            <>
+              <label className="block font-medium">Address</label>
+              <input
+                type="text"
+                className={`${devicesData[deviceId]?.connected ? 'bg-gray-200' : 'bg-white'} w-full border rounded-md p-2`}
+                placeholder="輸入Address, ex: A"
+                value={localAddress || devicesData[deviceId]?.address}
+                onChange={handleAddressChange}
+                readOnly={devicesData[deviceId]?.connected}
+                onBlur={() => handleAddressBlur(deviceId, localAddress)}
+              />
+            </>
+          )
+        }
+      </div>
       <div className='flex justify-center items-center mb-2'>       
         <button
           className={`${devicesData[deviceId]?.connected ? 'bg-green-600 hover:bg-green-300 text-white' : 'bg-gray-600 hover:bg-gray-300 text-white'} py-2 px-4 rounded-md mt-2 w-48`}
@@ -94,8 +98,8 @@ const useHooks = () => {
     port: '',
     address: ''
   } ,{
-    title: '雷射控制器 - Laser',
-    company: 'CO2 Laser',
+    title: '雷射控制器 - CO2 Laser',
+    company: 'SYNRAD',
     deviceId: 'laser',
     port: '',
     address: ''
@@ -393,7 +397,7 @@ const useHooks = () => {
         console.error(response?.data?.status);
         setAlertDetail({
           show: true,
-          message: '連線失敗',
+          message: response?.data?.message || '連線失敗',
           type: 'failure'
         });
         
@@ -562,7 +566,6 @@ const useHooks = () => {
           loading: true
         }
       }));
-
       const response = await getApi('/uc2000/connect', 'POST', data);
 
       if (response?.data?.status === 'success') {
@@ -581,16 +584,12 @@ const useHooks = () => {
           }
         }));
 
-        setCo2LaserPortState({
-          port: data.port
-        });
-
         setIsCo2LaserOpenState(true);
       } else {
         console.error(response?.data?.status);
         setAlertDetail({
           show: true,
-          message: '連線失敗',
+          message: response?.data?.message || '連線失敗',
           type: 'failure'
         });
 
@@ -602,11 +601,6 @@ const useHooks = () => {
           }
         }));
       }
-
-      setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
-
     } catch (error) {
       console.error(error);
       setDevices(prev => ({
@@ -621,6 +615,11 @@ const useHooks = () => {
         show: true,
         message: '連線過程發生錯誤',
         type: 'failure'
+      });
+
+    } finally {
+      setCo2LaserPortState({
+        port: data.port
       });
 
       setTimeout(() => {
@@ -675,11 +674,6 @@ const useHooks = () => {
           }
         }));
       }
-
-      setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
-
     } catch (error) {
       console.error(error);
       setDevices(prev => ({
@@ -695,7 +689,7 @@ const useHooks = () => {
         message: '取消連線過程發生錯誤',
         type: 'failure'
       });
-
+    } finally {
       setTimeout(() => {
         setAlertDetail({ show: false });
       }, 3000);
@@ -1270,9 +1264,9 @@ const MfcLaserSetting = () => {
             <h2 className="text-lg font-semibold mb-3">雷射控制 (Laser Control)</h2>
             <div className="space-y-4">
               <div>
-                <label className="block font-medium">控制模式</label>
+                <label className="block font-medium font-semibold text-red-400">控制模式 - 目前不給調整 (調整有崩潰風險)</label>
                 <select
-                  className="w-full border rounded-md p-2"
+                  className="w-full border rounded-md p-2 bg-gray-50"
                   value="remote"
                   readOnly
                 >

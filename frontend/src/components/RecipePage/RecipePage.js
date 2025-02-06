@@ -53,44 +53,95 @@ const useHooks = () => {
 
   // 取得 Recipe 資料 API
   const getRecipesDataApi = async () => {
-    const response = await getApi('/recipe_api/get_recipes', 'GET');
 
-    if (response?.status === 'success') {
-      
-      if (response?.data?.data?.length > 0) {
-        setRecipes(response.data.data);
-      } else {
-        setRecipes({});
+    try {
+      const response = await getApi('/recipe_api/get_recipes', 'GET');
+  
+      if (response?.status === 'success') {
+        
+        if (response?.data?.data?.length > 0) {
+          setRecipes(response.data.data);
+
+          setAlertDetail({
+            show: true,
+            message: "Recipe資料取得成功",
+            type: "success"
+          });
+        } else {
+          setRecipes([{
+            parameter_name: "目前尚無資料",
+            main_gas_flow: 0,
+            main_gas: "- -",
+            carrier_gas_flow: 0,
+            carrier_gas: "- -",
+            laser_power: 0,
+            temperature: 0,
+            voltage: 0,
+            created_by: "- -"
+          }]);
+          setAlertDetail({
+            show: true,
+            message: "目前尚無 Recipe 資料",
+            type: "failure"
+          });
+        }
       }
+    } catch (error) {
+      console.error("取得 Recipe 資料錯誤：", error);
+
+      setAlertDetail({
+        show: true,
+        message: "取得 Recipe 資料錯誤",
+        type: "failure"
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail((prev) => {
+          return {
+            ...prev,
+            show: false
+          };
+        });
+      }, 3000);
     }
   };
 
   // 新增new recipe資料的 API
   const addNewRecipeApi = async () => {
-    const response = await getApi('/recipe_api/add_recipe', 'POST', newRecipe);
 
-    if (response?.status === 'success') {
-      getRecipesDataApi();
-
+    try {
+      const response = await getApi('/recipe_api/add_recipe', 'POST', newRecipe);
+  
+      if (response?.status === 'success') {
+        getRecipesDataApi();
+  
+        setAlertDetail({
+          show: true,
+          message: "Recipe新增成功",
+          type: "success"
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: "Recipe新增失敗",
+          type: "failure"
+        });
+      }
+    } catch (error) {
+      console.error("新增 Recipe 資料錯誤：", error);
       setAlertDetail({
         show: true,
-        message: "Recipe新增成功",
-        type: "success"
-      });
-
-      setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
-
-    } else {
-      setAlertDetail({
-        show: true,
-        message: "Recipe新增失敗",
+        message: "新增 Recipe 資料錯誤",
         type: "failure"
       });
-
+    } finally {
       setTimeout(() => {
-        setAlertDetail({ show: false });
+        setAlertDetail((prev) => {
+          return {
+            ...prev,
+            show: false
+          };
+        });
       }, 3000);
     }
   };
@@ -124,7 +175,7 @@ const useHooks = () => {
       });
 
       setTimeout(() => {
-        setAlertDetail({ show: false });
+        setAlertDetail({ ...alertDetail, show: false });
       }, 3000);
 
       return;
@@ -139,7 +190,7 @@ const useHooks = () => {
         });
 
         setTimeout(() => {
-          setAlertDetail({ show: false });
+          setAlertDetail({ ...alertDetail, show: false });
         }, 3000);
 
         return;
@@ -272,7 +323,7 @@ const RecipePage = () => {
   } = useHooks();
 
   return (
-    <div className="min-h-allView p-4 bg-gray-200">
+    <div className="min-h-allView px-4 bg-gray-200">
       <AlertComponent
         show={alertDetail.show}
         message={alertDetail.message}

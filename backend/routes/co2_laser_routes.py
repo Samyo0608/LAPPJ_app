@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request
-import asyncio
 from services.co2_laser_services import UC2000Service
 
 uc2000_bp = Blueprint('uc2000', __name__)
