@@ -1,13 +1,11 @@
 import asyncio
-from alicat import FlowController
 import serial
 from serial.serialutil import SerialException
+from typing import Optional, Dict, Any
+from alicat import FlowController
 
 class AsyncReentrantLock:
-    """
-    自定義一個非阻塞的可重入（reentrant）async lock
-    這個鎖允許同一個 task 在嵌套的情況下重複獲得鎖，而不會造成死鎖
-    """
+    """可重入的異步鎖"""
     def __init__(self):
         self._lock = asyncio.Lock()
         self._owner = None
@@ -39,27 +37,22 @@ class AsyncReentrantLock:
     async def __aexit__(self, exc_type, exc, tb):
         self.release()
 
-
 class FlowControllerModel:
-    def __init__(self, port, address):
+    def __init__(self, port: str, address: str):
         self.port = port
         self.address = address
-        self.flow_controller = None
-        self.timeout = 0.2
-        self.custom_mixtures = {}
-        self.mix_compositions = {}
-        # 使用可重入鎖，避免嵌套調用時產生死鎖
+        self.ser: Optional[serial.Serial] = None
+        self.timeout = 1
         self.lock = AsyncReentrantLock()
 
     def check_device_connection(self) -> bool:
-        """檢查設備連接狀態的防呆函式"""
+        """檢查設備連接狀態"""
         try:
             print(f"正在嘗試連接 {self.port}...")
             with serial.Serial(
                 self.port, 
-                baudrate=19200, 
-                timeout=self.timeout, 
-                write_timeout=self.timeout
+                baudrate=19200,
+                timeout=self.timeout
             ) as ser:
                 ser.reset_input_buffer()
                 ser.reset_output_buffer()
@@ -67,14 +60,12 @@ class FlowControllerModel:
                 command = f"{self.address}\r".encode("ascii")
                 ser.write(command)
                 
-                response = ser.read(1)
-                if not response:
-                    print(f"{self.port} 沒有回應")
-                    return False
-                    
-                full_response = response + ser.read(99)
-                print(f"收到回應: {full_response}")
-                return True
+                response = ser.read_until(b'\r')
+                if response:
+                    print(f"收到回應: {response}")
+                    return True
+                print("未收到回應")
+                return False
                     
         except SerialException as e:
             if "PermissionError" in str(e):
@@ -88,46 +79,238 @@ class FlowControllerModel:
             print(f"未預期的錯誤: {e}")
             return False
 
-    async def connect(self):
+    def _parse_response(self, response: bytes) -> Dict[str, Any]:
+        """解析設備回應"""
+        try:
+            parts = response.decode('ascii').strip().split()
+            if len(parts) >= 6:
+                return {
+                    "pressure": float(parts[1]),
+                    "temperature": float(parts[2]),
+                    "volumetric_flow": float(parts[3]),
+                    "mass_flow": float(parts[4]),
+                    "setpoint": float(parts[5]),
+                    "gas": parts[-1] if len(parts) > 6 else "Unknown"
+                }
+            return {}
+        except Exception as e:
+            print(f"解析回應失敗: {e}")
+            return {}
+
+    def _send_command(self, command: str) -> Optional[bytes]:
+        """發送命令到設備並讀取回應"""
+        if not self.ser:
+            return None
+            
+        try:
+            self.ser.reset_input_buffer()
+            self.ser.reset_output_buffer()
+            
+            # 添加結束符
+            if not command.endswith('\r'):
+                command = f"{command}\r"
+            
+            # 輸出偵錯資訊
+            print(f"發送命令: {command.encode('ascii')}")
+            
+            self.ser.write(command.encode('ascii'))
+            response = self.ser.read_until(b'\r')
+            
+            # 輸出偵錯資訊
+            print(f"收到回應: {response}")
+            
+            return response
+        except Exception as e:
+            print(f"發送命令失敗: {e}")
+            return None
+
+    async def connect(self) -> Dict[str, Any]:
         """建立與流量控制器的連線"""
         if not self.check_device_connection():
             raise Exception(f"無法連接到設備 {self.port}")
             
         async with self.lock:
             try:
-                self.flow_controller = FlowController(self.port)
-                await self.flow_controller.__aenter__()
-                initial_status = await self.flow_controller.get()
-                return initial_status  # 返回初始狀態
+                self.ser = serial.Serial(
+                    self.port,
+                    baudrate=19200,
+                    timeout=self.timeout
+                )
+                
+                response = self._send_command(self.address)
+                if response:
+                    status = self._parse_response(response)
+                    if status:
+                        return status
+                        
+                raise Exception("無法獲取設備狀態")
+                
             except Exception as e:
+                if self.ser:
+                    self.ser.close()
+                    self.ser = None
                 raise Exception(f"連接設備時發生錯誤: {e}")
 
     async def disconnect(self):
         """關閉與流量控制器的連線"""
         async with self.lock:
-            try:
-                if self.flow_controller:
-                    await self.flow_controller.__aexit__(None, None, None)
-                    self.flow_controller = None
-                    print(f"已斷開與 {self.port} 的連接")
-            except Exception as e:
-                print(f"斷開連接時發生錯誤: {e}")
-                raise Exception(f"斷開連接時發生錯誤: {e}")
+            if self.ser:
+                try:
+                    self.ser.close()
+                finally:
+                    self.ser = None
 
-    async def read_status(self):
+    async def read_status(self) -> Dict[str, Any]:
         """讀取設備狀態"""
         async with self.lock:
-            try:
-                if not self.flow_controller:
-                    raise Exception("設備未連接")
-                data = await self.flow_controller.get()
-                return self.format_status_data(data)
-            except Exception as e:
-                print(f"讀取狀態錯誤: {e}")
-                raise
+            if not self.ser:
+                raise Exception("設備未連接")
+                
+            response = self._send_command(self.address)
+            if response:
+                status = self._parse_response(response)
+                if status:
+                    return status
+                    
+            raise Exception("無法讀取設備狀態")
 
+    async def set_gas(self, gas: str):
+        async with self.lock:
+            try:
+                print(f"🔄 嘗試切換氣體至: {gas}")
+
+                # **1. 取得氣體列表 (已掃描過的氣體)**
+                all_standard_gases = {
+                    0: {'name': 'Air'}, 1: {'name': 'Ar'}, 2: {'name': 'CH4'}, 3: {'name': 'CO'},
+                    4: {'name': 'CO2'}, 5: {'name': 'C2H6'}, 6: {'name': 'H2'}, 7: {'name': 'He'},
+                    8: {'name': 'N2'}, 9: {'name': 'N2O'}, 10: {'name': 'Ne'}, 11: {'name': 'O2'},
+                    12: {'name': 'C3H8'}, 13: {'name': 'nC4H10'}, 14: {'name': 'C2H2'}, 
+                    15: {'name': 'C2H4'}, 16: {'name': 'iC4H10'}, 17: {'name': 'Kr'}, 
+                    18: {'name': 'Xe'}, 19: {'name': 'SF6'}, 20: {'name': 'C-25'}, 21: {'name': 'C-10'}, 
+                    22: {'name': 'C-8'}, 23: {'name': 'C-2'}, 24: {'name': 'C-75'}, 25: {'name': 'He-25'}, 
+                    26: {'name': 'He-75'}, 27: {'name': 'A1025'}, 28: {'name': 'Star29'}, 29: {'name': 'P-5'}
+                }
+
+                # **2. 確保 `gas` 存在於 `custom_mixtures`**
+                gas_number = next((k for k, v in all_standard_gases.items() if v["name"] == gas), None)
+                if gas_number is None:
+                    raise ValueError(f"不支援的氣體類型: {gas}")
+
+                print(f"氣體 {gas} 的對應編號為: {gas_number}")
+
+                # **3. 發送氣體切換命令**
+                gas_command = f"{self.address}G{gas_number}"
+                print(f"發送氣體切換命令: {gas_command}")
+                response = self._send_command(gas_command)
+                await asyncio.sleep(1)
+
+                # **4. 儲存變更**
+                print("🔄 嘗試儲存氣體設定...")
+                self._send_command(f"{self.address}S")
+                await asyncio.sleep(1)
+
+                # **5. 確認設備是否正確切換**
+                for _ in range(3):
+                    verify_status = self._parse_response(self._send_command(self.address))
+                    print(f"確認變更後的狀態: {verify_status}")
+
+                    if verify_status.get('gas') == gas:
+                        return {"message": f"成功切換至 {gas}", "status": "success"}
+
+                    await asyncio.sleep(1)  # **等待設備應用變更**
+
+                raise Exception(f"切換氣體失敗，當前氣體仍為 {verify_status.get('gas', '未知')}")
+
+            except Exception as e:
+                print(f"錯誤: {e}")
+                return {"message": str(e), "status": "error"}
+
+    async def set_flow_rate(self, flow_rate: float):
+        """設定流量"""
+        async with self.lock:
+            if not self.ser:
+                raise Exception("設備未連接")
+                
+            response = self._send_command(f"{self.address}S{flow_rate:.3f}")
+            if not response:
+                raise Exception("設定流量失敗")
+
+    async def create_mix(self, mix_no: int, name: str, gases: Dict[str, float]):
+        async with self.lock:
+            try:
+                print(f"🛠️ 嘗試建立混合氣體: {name}, 編號: {mix_no}, 成分: {gases}")
+
+                # **1. 手動定義標準氣體與對應編號**
+                standard_gases = {
+                    "Air": 0, "Ar": 1, "CH4": 2, "CO": 3, "CO2": 4, "C2H6": 5, "H2": 6, "He": 7,
+                    "N2": 8, "N2O": 9, "Ne": 10, "O2": 11, "C3H8": 12, "nC4H10": 13, "C2H2": 14,
+                    "C2H4": 15, "iC4H10": 16, "Kr": 17, "Xe": 18, "SF6": 19, "C-25": 20, "C-10": 21,
+                    "C-8": 22, "C-2": 23, "C-75": 24, "He-25": 25, "He-75": 26, "A1025": 27,
+                    "Star29": 28, "P-5": 29
+                }
+
+                # **2. 檢查輸入的氣體是否存在**
+                gas_parts = []
+                for gas, percentage in gases.items():
+                    if gas not in standard_gases:
+                        raise ValueError(f"❌ 不支援的氣體: {gas}")
+
+                    gas_number = standard_gases[gas]  # 取得氣體對應的編號
+                    gas_parts.append(f"{percentage:.1f} {gas_number}")
+
+                gas_str = " ".join(gas_parts)
+
+                # **3. 正確的 `AGM` 格式**
+                mix_command = f"AGM {name} {mix_no} {gas_str}"
+                print(f"📡 發送混合氣體創建命令: {mix_command}")
+                response = self._send_command(mix_command)
+                await asyncio.sleep(2)
+
+                # **4. 儲存變更**
+                print("💾 儲存混合氣體...")
+                self._send_command(f"{self.address}S")
+                await asyncio.sleep(1)
+
+                # **5. 驗證是否成功**
+                for _ in range(3):
+                    self._send_command(f"{self.address}G{mix_no}")  # 嘗試切換到新混合氣
+                    await asyncio.sleep(2)
+
+                    verify_status = self._parse_response(self._send_command(self.address))
+                    print(f"✅ 驗證混合氣體狀態: {verify_status}")
+
+                    if verify_status.get("gas") == name:
+                        return {"message": f"✅ 成功創建混合氣 {name}", "status": "success"}
+
+                raise Exception("❌ 無法確認混合氣體是否成功創建")
+
+            except Exception as e:
+                print(f"❌ 錯誤: {e}")
+                return {"message": str(e), "status": "error"}
+
+    async def delete_mix(self, mix_no: int):
+        async with self.lock:
+            try:
+                if not self.ser:
+                    raise Exception("設備未連接")
+
+                command = f"{self.address}GD {mix_no}"
+                response = self._send_command(command)
+                await asyncio.sleep(1)
+
+                # **驗證是否成功刪除**
+                verify_status = self._send_command(f"{self.address}G{mix_no}")
+                if "Unknown" in verify_status:
+                    return {"message": f"成功刪除混合氣體 {mix_no}", "status": "success"}
+
+                raise Exception(f"刪除混合氣體失敗，當前仍存在: {verify_status}")
+
+            except Exception as e:
+                print(f"錯誤: {e}")
+                return {"message": str(e), "status": "error"}
+            
     def format_status_data(self, data: dict) -> dict:
-        """格式化狀態數據"""
+        """格式化狀態數據 (保持向後兼容)"""
         try:
             return {
                 "pressure": data.get("pressure", "N/A"),
@@ -142,90 +325,57 @@ class FlowControllerModel:
             print(f"格式化數據錯誤: {e}")
             return {"error": str(e)}
 
-    async def set_flow_rate(self, flow_rate):
-        """設定流量"""
-        if not self.flow_controller:
-            raise Exception("Device not connected")
+    async def get_all_gases(self, search_term: str = None) -> Dict[str, Any]:
+        """獲取所有氣體資訊（標準氣體和混合氣體）"""
         async with self.lock:
+            if not self.ser:
+                raise Exception("設備未連接")
+                
             try:
-                flow_rate = float(flow_rate)  # 確保 flow_rate 是浮點數
-                await self.flow_controller.set_flow_rate(flow_rate)
-            except ValueError:
-                raise Exception("Invalid flow rate: must be a number")
+                # 首先獲取當前氣體
+                current_response = self._send_command(self.address)
+                current_gas = self._parse_response(current_response).get('gas', 'Unknown') if current_response else 'Unknown'
 
-    async def set_pressure(self, pressure):
-        """設定壓力"""
-        if not self.flow_controller:
-            raise Exception("Device not connected")
-        async with self.lock:
-            await self.flow_controller.set_pressure(pressure)
+                # 標準氣體列表
+                standard_gases = [
+                    'Air', 'Ar', 'CH4', 'CO', 'CO2', 'C2H6', 'H2', 'He',
+                    'N2', 'N2O', 'Ne', 'O2', 'C3H8', 'nC4H10', 'C2H2',
+                    'C2H4', 'iC4H10', 'Kr', 'Xe', 'SF6', 'C-25', 'C-10',
+                    'C-8', 'C-2', 'C-75', 'He-25', 'He-75', 'A1025',
+                    'Star29', 'P-5'
+                ]
 
-    async def set_gas(self, gas):
-        """設定氣體"""
-        if not self.flow_controller:
-            raise Exception("Device not connected")
-        async with self.lock:
-            await self.flow_controller.set_gas(gas)
-
-    async def create_mix(self, mix_no, name, gases):
-        """建立混合氣"""
-        if not self.flow_controller:
-            raise Exception("Device not connected")
-        async with self.lock:
-            await self.flow_controller.create_mix(mix_no, name, gases)
-
-    async def delete_mix(self, mix_no):
-        """刪除混合氣"""
-        if not self.flow_controller:
-            raise Exception("Device not connected")
-        async with self.lock:
-            await self.flow_controller.delete_mix(mix_no)
-    
-    async def get_available_gas_mixes(self):
-        """獲取所有已設定的混合氣體"""
-        async with self.lock:
-            try:
-                if not self.flow_controller:
-                    raise Exception("設備未連接")
-                mixes = {}
-                # 檢查 236-255 範圍內的混合氣體
+                # 獲取混合氣體
+                custom_mixtures = {}
                 for mix_no in range(236, 256):
                     try:
-                        await self.flow_controller.set_gas(mix_no)
-                        state = await self.flow_controller.get()
-                        if state and 'gas' in state:
-                            mixes[mix_no] = {
-                                'name': state['gas']
-                            }
-                    except Exception:
-                        continue
-                return mixes
-            except Exception as e:
-                print(f"獲取混合氣體列表錯誤: {e}")
-                return {}
+                        # 嘗試切換到每個可能的混合氣體編號
+                        response = self._send_command(f"{self.address}G{mix_no}")
+                        if response:
+                            # 再次讀取狀態來獲取氣體名稱
+                            status_response = self._send_command(self.address)
+                            if status_response:
+                                status = self._parse_response(status_response)
+                                if status and 'gas' in status:
+                                    custom_mixtures[mix_no] = {
+                                        'name': status['gas']
+                                    }
+                    except Exception as e:
+                        print(f"檢查混合氣體 {mix_no} 時發生錯誤: {e}")
 
-    async def get_all_gases(self, search_term: str = None):
-        """獲取所有氣體資訊，包括標準氣體和混合氣體"""
-        async with self.lock:
-            try:
-                if not self.flow_controller:
-                    raise Exception("設備未連接")
-                current_state = await self.flow_controller.get()
-                current_gas = current_state.get('gas', 'Unknown')
-                # 標準氣體列表通常已儲存在 flow_controller 中
-                standard_gases = {gas: gas for gas in self.flow_controller.gases}
-                # 獲取混合氣體列表
-                custom_mixtures = await self.get_available_gas_mixes()
+                # 切換回原始氣體（建議使用 'N2' 或 'Ar'）
+                self._send_command(f"{self.address}GAr")
 
+                # 如果有搜尋條件，過濾結果
                 if search_term:
                     search_term = search_term.lower()
-                    filtered_standard = {
-                        code: name for code, name in standard_gases.items()
-                        if search_term in code.lower() or search_term in name.lower()
-                    }
+                    filtered_standard = [
+                        gas for gas in standard_gases
+                        if search_term in gas.lower()
+                    ]
                     filtered_mixtures = {
-                        mix_no: mix_info for mix_no, mix_info in custom_mixtures.items()
-                        if search_term in str(mix_no) or search_term in mix_info['name'].lower()
+                        mix_no: info for mix_no, info in custom_mixtures.items()
+                        if search_term in str(mix_no) or search_term in info['name'].lower()
                     }
                     result = {
                         "current_gas": current_gas,
@@ -235,13 +385,12 @@ class FlowControllerModel:
                 else:
                     result = {
                         "current_gas": current_gas,
-                        "standard_gases": self.flow_controller.gases,
+                        "standard_gases": standard_gases,
                         "custom_mixtures": custom_mixtures
                     }
-                # 結束後設定回預設氣體（例如 Argon）
-                await self.flow_controller.set_gas('Ar')
+
                 return result
 
             except Exception as e:
                 print(f"獲取氣體列表錯誤: {e}")
-                raise
+                raise Exception(f"獲取氣體列表失敗: {str(e)}")

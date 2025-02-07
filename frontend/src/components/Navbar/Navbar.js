@@ -230,7 +230,7 @@ const Navbar = () => {
                 <div>
                   <button
                     type="button"
-                    className="ml-3 text-base font-medium text-white hover:bg-blue-600 bg-blue-700 p-2 rounded-md transition-colors"
+                    className="ml-3 text-base font-medium text-white hover:bg-purple-200 bg-purple-400 px-4 py-2 rounded-md transition-colors"
                     id="user-menu-button"
                     aria-expanded="false"
                     aria-haspopup="true"

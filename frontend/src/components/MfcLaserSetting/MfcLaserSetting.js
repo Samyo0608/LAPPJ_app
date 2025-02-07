@@ -157,67 +157,78 @@ const useHooks = () => {
   // 取得所有氣體種類
   const getCarrierGasAllGasTypeApi = async () => {
     setCarrierGasTypeListLoading(true);
-    const response = await getApi('/alicat_api/gases', 'GET');
+    try {
+      const response = await getApi('/alicat_api/gases', 'GET');
+  
+      const processGasesData = (apiData) => {
+        if (!apiData?.data) return [];
+        
+        const { custom_mixtures, standard_gases } = apiData.data;
+        
+        // 處理自定義混合氣體
+        const customGasOptions = Object.entries(custom_mixtures).map(([number, info]) => ({
+          label: `${number}_${info.name}`,
+          value: number
+        }));
+        
+        // 處理標準氣體
+        const standardGasOptions = standard_gases.map(gas => ({
+          label: gas,
+          value: gas
+        }));
+        
+        // 合併兩個數組
+        return [...standardGasOptions, ...customGasOptions];
+      };
+  
+      if (response?.data?.status === 'success') {
+        const gasList = processGasesData(response.data);
+        setCarrierGasTypeList(gasList);
+        setCarrierGasTypeListLoading(false);
+        setCarrierGasTypeState(gasList);
+        const firstMixGas = gasList.map(gas => gas.label.split('_') > 1)[0];
+        setCarrierGasMixGas(firstMixGas);
+  
+        console.log("carrierGasMixGas", firstMixGas);
+  
+        setAlertDetail({
+          show: true,
+          message: '取得資料成功',
+          type: 'success'
+        });
+      } else {
+        console.error(response?.data?.status);
 
-    const processGasesData = (apiData) => {
-      if (!apiData?.data) return [];
-      
-      const { custom_mixtures, standard_gases } = apiData.data;
-      
-      // 處理自定義混合氣體
-      const customGasOptions = Object.entries(custom_mixtures).map(([number, info]) => ({
-        label: `${number}_${info.name}`,
-        value: number
-      }));
-      
-      // 處理標準氣體
-      const standardGasOptions = standard_gases.map(gas => ({
-        label: gas,
-        value: gas
-      }));
-      
-      // 合併兩個數組
-      return [...standardGasOptions, ...customGasOptions];
-    };
-
-    if (response?.data?.status === 'success') {
-      const gasList = processGasesData(response.data);
-      setCarrierGasTypeList(gasList);
-      setCarrierGasTypeListLoading(false);
-      setCarrierGasTypeState(gasList);
-
-      setAlertDetail({
-        show: true,
-        message: '取得資料成功',
-        type: 'success'
-      });
-
-      setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
-    } else {
-      console.error(response?.data?.status);
-      setCarrierGasTypeListLoading(false);
-
+        setAlertDetail({
+          show: true,
+          message: '取得資料失敗，請勿連續點擊、同時使用其他功能、或是尚未連結MFC。',
+          type: 'failure'
+        });
+      }
+    } catch (error) {
+      console.error(error);
       setAlertDetail({
         show: true,
         message: '取得資料失敗，請勿連續點擊、同時使用其他功能、或是尚未連結MFC。',
         type: 'failure'
       });
-
+  
+    } finally {
       setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 2000);
+
+      setCarrierGasTypeListLoading(false);
     }
   };
 
   // 修改載氣氣體種類api
   const setCarrierGasGasTypeApi = async (data) => {
+    setCarrierGasTypeListLoading(true);
     try {
       const gasData = {
         gas: data
       };
-      setCarrierGasTypeListLoading(true);
       const response = await getApi('/alicat_api/set_gas', 'POST', gasData);
 
       if (response?.data?.status === 'success') {
@@ -226,7 +237,6 @@ const useHooks = () => {
           message: '載氣氣體修改成功',
           type: 'success'
         });
-        setCarrierGasTypeListLoading(false);
       } else {
         console.error(response?.data?.status);
         setAlertDetail({
@@ -234,14 +244,7 @@ const useHooks = () => {
           message: '載氣氣體修改失敗',
           type: 'failure'
         });
-
-        setCarrierGasTypeListLoading(false);
       }
-
-      setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
-
     } catch (error) {
       console.error(error);
       setAlertDetail({
@@ -249,17 +252,17 @@ const useHooks = () => {
         message: '修改過程發生錯誤',
         type: 'failure'
       });
-
+    } finally {
       setCarrierGasTypeListLoading(false);
-
       setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 2000);
     }
   };
 
   // 新增載氣混合氣體api
   const addCarrierGasGasTypeApi = async () => {
+    setCarrierGasTypeListLoading(true);
     try {
       const gasData = {
         mix_no: carrierGasCreateMixGas?.number,
@@ -285,11 +288,6 @@ const useHooks = () => {
           type: 'failure'
         });
       }
-
-      setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
-
     } catch (error) {
       console.error(error);
       setAlertDetail({
@@ -297,15 +295,18 @@ const useHooks = () => {
         message: '新增過程發生錯誤',
         type: 'failure'
       });
-
+    } finally {
       setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 2000);
+
+      setCarrierGasTypeListLoading(false);
     }
   };
 
   // 刪除載氣混合氣體api
   const deleteCarrierGasGasTypeApi = async (number) => {
+    setCarrierGasTypeListLoading(true);
     try {
       const response = await getApi('/alicat_api/delete_mix', 'POST', {
         mix_no: number
@@ -317,7 +318,6 @@ const useHooks = () => {
           message: '載氣氣體刪除成功',
           type: 'success'
         });
-
         // 成功後重新取得所有氣體種類
         getCarrierGasAllGasTypeApi();
       } else {
@@ -328,11 +328,6 @@ const useHooks = () => {
           type: 'failure'
         });
       }
-
-      setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
-
     } catch (error) {
       console.error(error);
       setAlertDetail({
@@ -340,10 +335,11 @@ const useHooks = () => {
         message: '刪除過程發生錯誤',
         type: 'failure'
       });
-
+    } finally {
       setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 2000);
+      setCarrierGasTypeListLoading(false);
     }
   };
 
@@ -1168,7 +1164,13 @@ const MfcLaserSetting = () => {
                   className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
                   onClick={onCarrierGasCreateMixGasClick}
                 >
-                  新增混合氣體 (Create mix gas)
+                  {
+                    carrierGasTypeListLoading ? (
+                      <CommonLoading />
+                    ) : (
+                      '新增混合氣體 (Create mix gas)'
+                    )
+                  }
                 </button>
               </div>
             </div>

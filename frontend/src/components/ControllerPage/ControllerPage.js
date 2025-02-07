@@ -27,8 +27,6 @@ const useHooks = () => {
   const [carrierGasDetail, setCarrierGasDetail] = useState({});
   // 載器流量設定
   const [carrierGasFlowSetting, setCarrierGasFlowSetting] = useState("");
-  // 載氣loading，用於API載入時的loading效果，或是預防在status讀取的時候修改資料，造成資料錯誤
-  const [isCarrierGasApiLoading, setIsCarrierGasApiLoading] = useState(false);
   // Recipe資料
   const [recipeDetail, setRecipeDetail] = useState([]);
   const [recipeSelected, setRecipeSelected] = useState("");
@@ -63,7 +61,6 @@ const useHooks = () => {
   // 取得載氣資料 API
   const getCarrierGasDataApi = React.useCallback(async () => {
     try {
-      setIsCarrierGasApiLoading(true);
       const response = await getApi("/alicat_api/status", "GET");
       if (response?.data?.status === "success") {
         setCarrierGasDetail(response.data.data);
@@ -73,30 +70,11 @@ const useHooks = () => {
       }
     } catch (error) {
       console.error(error);
-    } finally {
-      setIsCarrierGasApiLoading(false);
     }
   }, [setCarrierGasDetailState]);
 
   // 修改載氣流量
   const setCarrierGasFlowApi = async () => {
-    // 如果isCarrierGasApiLoading為true，則不執行後續，然後等待isCarrierGasApiLoading為false時，再執行後續
-    if (isCarrierGasApiLoading) {
-      setAlertDetail({
-        show: true,
-        message: "載氣資料讀取中，請稍後再試",
-        type: "warning",
-      });
-
-      setTimeout(() => {
-        setAlertDetail({
-          type: "warning",
-          message: "載氣資料讀取中，請稍後再試",
-          show: false,
-        });
-      }, 1000);
-    }
-
     try {
       const response = await getApi("/alicat_api/set_flow_rate", "POST", {
         flow_rate: carrierGasFlowSetting,
@@ -283,11 +261,10 @@ const useHooks = () => {
       setOnLaserOpenLoading(false);
 
       setTimeout(() => {
-        setAlertDetail({
-          ...alertDetail,
-          type: "failure",
+        setAlertDetail((prev) => ({
+          ...prev,
           show: false,
-        });
+          }));
       }, 2000);
     }
   };
@@ -316,9 +293,10 @@ const useHooks = () => {
 
   // 關閉Alert
   const onAlertClose = () => {
-    setAlertDetail({
+    setAlertDetail((prev) => ({
+      ...prev,
       show: false,
-    });
+    }));
   };
 
   // 選擇recipe的Select option
@@ -615,7 +593,7 @@ const ControllerPage = () => {
                 </span>
                 <input
                   type="number"
-                  value={Number(carrierGasDetail?.mass_flow || 0).toFixed(2)}
+                  value={Number(carrierGasDetail?.mass_flow || 0).toFixed(3)}
                   step="0.01"
                   readOnly
                   className="w-full p-1 border rounded bg-gray-50 mt-2"
@@ -638,6 +616,7 @@ const ControllerPage = () => {
                 <ButtonComponent
                   label="流量設定"
                   onClick={onCarrierFlowSettingClick}
+                  isDisabled={!isCarrierGasOpenState}
                 />
               </div>
               <div className="mb-2 flex items-center gap-2 flex-wrap justify-between">
@@ -677,7 +656,7 @@ const ControllerPage = () => {
                   otherCss="w-72"
                   label="設定"
                   onClick={setCo2LaserPowerApi}
-                  disabled={!isCo2LaserOpenState}
+                  isDisabled={!isCo2LaserOpenState}
                   loading={onLaserOpenLoading}
                 />
               </div>

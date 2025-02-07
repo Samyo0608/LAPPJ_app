@@ -172,25 +172,41 @@ def set_gas():
     
 @alicat_bp.route('/create_mix', methods=['POST'])
 def create_mix():
-    """建立混合氣"""
+    """建立混合氣體"""
     if not flow_controller:
-        return jsonify({"status": "error", "message": "Device not connected"}), 400
+        return jsonify({"status": "error", "message": "設備未連接"}), 400
 
     data = request.get_json()
     mix_no = data.get('mix_no')
     name = data.get('name')
     gases = data.get('gases')
 
-    if not mix_no or not name or not gases:
-        return jsonify({"status": "error", "message": "Missing required parameters"}), 400
+    # 參數驗證
+    if not all([mix_no, name, gases]):
+        return jsonify({
+            "status": "error", 
+            "message": "缺少必要參數。需要 mix_no, name, 和 gases"
+        }), 400
 
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(flow_controller.create_mix(mix_no, name, gases))
-        return jsonify({"status": "success", "message": f"Mix {mix_no} created with {gases}"}), 200
+        async def async_create_mix():
+            return await flow_controller.create_mix(mix_no, name, gases)
+
+        result = asyncio.run(async_create_mix())
+        return jsonify({
+            "status": "success", 
+            "message": f"成功創建混合氣體 {name} (編號 {mix_no})"
+        }), 200
+    except ValueError as ve:
+        return jsonify({
+            "status": "error", 
+            "message": str(ve)
+        }), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 500
 
 @alicat_bp.route('/delete_mix', methods=['POST'])
 def delete_mix():
