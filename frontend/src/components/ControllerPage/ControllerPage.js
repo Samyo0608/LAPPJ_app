@@ -383,7 +383,9 @@ const useHooks = () => {
         };
       });
     }
+  }, [carrierGasDetail]);
 
+  React.useEffect(() => {
     if (co2LaserDetail) {
       const currentTime = new Date().toLocaleTimeString("en-GB");
       setCo2LaserPWMData((prev) => {
@@ -401,7 +403,7 @@ const useHooks = () => {
         };
       });
     }
-  }, [carrierGasDetail, co2LaserDetail]);
+  }, [co2LaserDetail]);
 
   // CO2雷射監測，每3秒更新一次
   React.useEffect(() => {
