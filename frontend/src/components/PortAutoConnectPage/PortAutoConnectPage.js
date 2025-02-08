@@ -99,7 +99,6 @@ const useHooks = () => {
     }
   };
 
-  // 連接載氣質量流量控制器 api
   // 載氣設備連線api
     const connectCarrierGasApi = async (data, deviceId) => {
       try {
@@ -234,6 +233,76 @@ const useHooks = () => {
     }
   };
 
+  // 連線Heater設備api
+  const connectHeaterApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/heater/connect', 'POST', data, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        deviceConnectedRef.current = {
+          ...deviceConnectedRef.current,
+          heater: true
+        };
+
+        setAlertDetail({
+          show: true,
+          message: '連線成功',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          heater: {
+            ...prev.heater,
+            connected: true,
+            loading: false,
+            port: data.port,
+            address: data.address,
+            selected: true
+          }
+        }));
+
+        const statusResponse = await getApi('/heater/status', 'GET', null, localStorage.getItem('token'));
+
+        console.log('statusResponse:', statusResponse);
+
+        return response;
+      } else {
+        deviceConnectedRef.current.heater = false;
+      }
+    } catch (error) {
+      console.error('Heater 連線錯誤:', error);
+      deviceConnectedRef.current.heater = false;
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          loading: false
+        }
+      }));
+
+      setAlertDetail({
+        show: true,
+        message: '連線過程發生錯誤',
+        type: 'failure'
+      });
+
+    } finally {
+      setTimeout(() => {
+        setAlertDetail(prev => ({ ...prev, show: false }));
+      }, 1000);
+    }
+  };
+
+  // 自動連線 functrion
   const autoConnectApi = async () => {
     setIsAutoConnecting(true);
     try {
@@ -308,6 +377,8 @@ const useHooks = () => {
                         success: false
                       }, ...prev]);
                     }
+                    break;
+                  case 'heater':
                     break;
                   default:
                     break;
@@ -436,7 +507,7 @@ const useHooks = () => {
     }
   };
 
-  // 載氣設備取消連線api
+  // disconnect carrier gas device
   const disconnectDeviceApi = async (data, deviceId) => {
     try {
       setDevices(prev => ({
@@ -576,6 +647,72 @@ const useHooks = () => {
     }
   };
 
+  // disconnect heater device
+  const disconnectHeaterApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/heater/disconnect', 'POST', data, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '已取消連線',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          heater: {
+            ...prev.heater,
+            connected: false,
+            loading: false
+          }
+        }));
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '取消連線失敗',
+          type: 'failure'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          heater: {
+            ...prev.heater,
+            loading: false
+          }
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          loading: false
+        }
+      }));
+      setAlertDetail({
+        show: true,
+        message: '取消連線過程發生錯誤',
+        type: 'failure'
+      });
+
+    } finally {
+      setTimeout(() => {
+        setAlertDetail(prev => ({ ...prev, show: false }));
+      }, 1000);
+    }
+  };
+
   // 斷開所有設備連接
   const disconnectAllDevicesApi = async () => {
     try {
@@ -640,6 +777,19 @@ const useHooks = () => {
         } else {
           await connectCo2LaserApi({
             port: devices[deviceId].port
+          });
+        }
+        break;
+      case 'heater':
+        if (devices[deviceId].connected) {
+          await disconnectHeaterApi({
+            port: devices[deviceId].port,
+            address: devices[deviceId].address
+          });
+        } else {
+          await connectHeaterApi({
+            port: devices[deviceId].port,
+            address: devices[deviceId].address
           });
         }
         break;
