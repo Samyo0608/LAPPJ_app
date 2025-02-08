@@ -191,6 +191,28 @@ class FlowControllerModel:
                     26: {'name': 'He-75'}, 27: {'name': 'A1025'}, 28: {'name': 'Star29'}, 29: {'name': 'P-5'}
                 }
 
+                custom_mixtures = {}
+                for mix_no in range(236, 256):
+                    try:
+                        # 嘗試切換到每個可能的混合氣體編號
+                        response = self._send_command(f"{self.address}G{mix_no}")
+                        if response:
+                            # 再次讀取狀態來獲取氣體名稱
+                            status_response = self._send_command(self.address)
+                            if status_response:
+                                status = self._parse_response(status_response)
+                                if status and 'gas' in status:
+                                    custom_mixtures[mix_no] = {
+                                        'name': status['gas']
+                                    }
+                    except Exception as e:
+                        print(f"檢查混合氣體 {mix_no} 時發生錯誤: {e}")
+
+                all_standard_gases.update(custom_mixtures)
+
+                print('mix', custom_mixtures)
+                print('all_standard_gases', all_standard_gases)
+
                 # **2. 確保 `gas` 存在於 `custom_mixtures`**
                 gas_number = next((k for k, v in all_standard_gases.items() if v["name"] == gas), None)
                 if gas_number is None:

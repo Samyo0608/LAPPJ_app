@@ -189,8 +189,6 @@ const useHooks = () => {
         const firstMixGas = gasList.map(gas => gas.label.split('_') > 1)[0];
         setCarrierGasMixGas(firstMixGas);
   
-        console.log("carrierGasMixGas", firstMixGas);
-  
         setAlertDetail({
           show: true,
           message: '取得資料成功',
@@ -876,6 +874,8 @@ const useHooks = () => {
     setCarrierGasTypeSetting(data);
   };
 
+  console.log("CarrierGasTypeSetting", carrierGasTypeSetting);
+
   // 選擇混合氣體的Click事件
   const onCarrierGasMixGasClick = (data) => {
       setCarrierGasMixGas(data);
@@ -1235,7 +1235,7 @@ const MfcLaserSetting = () => {
                   carrierGasTypeList.map(option => (
                     <option
                       key={option.value}
-                      value={option.value}
+                      value={option?.label?.split("_")?.length > 0 ? option?.label?.split("_")[1] : option.value}
                     >
                       {option.label}
                     </option>

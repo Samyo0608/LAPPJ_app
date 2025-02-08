@@ -318,6 +318,10 @@ const useHooks = () => {
 
   // 載氣流量監測，每3秒更新一次
   React.useEffect(() => {
+    // 先call一次
+    if (isCarrierGasOpenState) {
+      getCarrierGasDataApi();
+    }
     let intervalId;
 
     if (isCarrierGasOpenState) {
@@ -407,6 +411,10 @@ const useHooks = () => {
 
   // CO2雷射監測，每3秒更新一次
   React.useEffect(() => {
+    // 先call一次
+    if (isCo2LaserOpenState) {
+      getCo2LaserDataApi();
+    }
     let intervalId;
 
     if (isCo2LaserOpenState) {
