@@ -5,6 +5,7 @@ import Navbar from './components/Navbar/Navbar';
 import { AlicatProvider } from './Contexts/AlicatContext';
 import { AuthProvider } from './Contexts/AuthContext';
 import { Co2LaserProvider } from './Contexts/Co2LaserContext';
+import { HeaterProvider } from './Contexts/HeaterContext';
 import ControllerPage from './components/ControllerPage/ControllerPage';
 import MfcLaserSetting from './components/MfcLaserSetting/MfcLaserSetting';
 import LabWeb from './components/LabWeb/LabWeb';
@@ -18,6 +19,7 @@ const App = () => {
       <AuthProvider>
         <AlicatProvider>
           <Co2LaserProvider>
+              <HeaterProvider>
             <Navbar />
             <Routes>
                 <Route index element={<ControllerPage />} />
@@ -29,6 +31,7 @@ const App = () => {
                 <Route path='/portAutoConnectPage' element={<PortAutoConnectPage />} />
                 {/* <Route path='*' element={<NoMatch />} /> */}
             </Routes>
+              </HeaterProvider>
           </Co2LaserProvider>
         </AlicatProvider>
       </AuthProvider>
