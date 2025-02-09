@@ -5,6 +5,7 @@ import AlertComponent from '../ComponentTools/Alert';
 import { HiCheck, HiX } from 'react-icons/hi';
 import { useAlicatContext } from '../../Contexts/AlicatContext';
 import { useCo2LaserContext } from '../../Contexts/Co2LaserContext';
+import { useHeaterContext } from '../../Contexts/HeaterContext';
 
 const useHooks = () => {
   const deviceConnectedRef = React.useRef({});
@@ -14,6 +15,9 @@ const useHooks = () => {
   const {
     setCo2LaserDetailState, isCo2LaserOpenState, setIsCo2LaserOpenState, co2LaserPortState, setCo2LaserPortState
   } = useCo2LaserContext();
+  const {
+    setHeaterDetailState, isHeaterOpenState, setIsHeaterOpenState, heaterPortAndAddressState, setHeaterPortAndAddressState
+  } = useHeaterContext();
 
   // 設備列表
   const deviceList = React.useMemo(() => [
@@ -270,9 +274,13 @@ const useHooks = () => {
           }
         }));
 
-        const statusResponse = await getApi('/heater/status', 'GET', null, localStorage.getItem('token'));
+        setHeaterPortAndAddressState({
+          port: data.port,
+          address: data.address
+        });
 
-        console.log('statusResponse:', statusResponse);
+        setIsHeaterOpenState(true);
+        setHeaterDetailState(response.data.data);
 
         return response;
       } else {
@@ -379,6 +387,33 @@ const useHooks = () => {
                     }
                     break;
                   case 'heater':
+                    try {
+                      await connectHeaterApi({
+                        port: portInfo.port,
+                        address
+                      });
+
+                      if (deviceConnectedRef.current['heater']) {
+                        deviceConnected = true;
+                        usedPorts.add(portInfo.port);
+                        setConnectionResults(prev => [{
+                          deviceId: device.id,
+                          deviceName: device.name,
+                          message: `連接成功: Address: ${address}, Port: ${portInfo.port}`,
+                          timestamp: new Date().toLocaleTimeString(),
+                          success: true
+                        }, ...prev]);
+                        break;
+                      }
+                    } catch (error) {
+                      setConnectionResults(prev => [{
+                        deviceId: device.id,
+                        deviceName: device.name,
+                        message: `連接錯誤 Address: ${address}, Port: ${portInfo.port} - ${error.message}`,
+                        timestamp: new Date().toLocaleTimeString(),
+                        success: false
+                      }, ...prev]);
+                    }
                     break;
                   default:
                     break;
@@ -508,7 +543,7 @@ const useHooks = () => {
   };
 
   // disconnect carrier gas device
-  const disconnectDeviceApi = async (data, deviceId) => {
+  const disconnectCarrierGasApi = async (data, deviceId) => {
     try {
       setDevices(prev => ({
         ...prev,
@@ -537,11 +572,6 @@ const useHooks = () => {
         }));
         
         setIsCarrierOpenState(false);
-
-        setCarrierGasPortandAddressState({
-          port: devices[deviceId].port,
-          address: devices[deviceId].address
-        });
       } else {
         console.error(response?.data?.status);
         setAlertDetail({
@@ -675,6 +705,9 @@ const useHooks = () => {
             loading: false
           }
         }));
+
+        setIsHeaterOpenState(false);
+        
       } else {
         console.error(response?.data?.status);
         setAlertDetail({
@@ -719,10 +752,16 @@ const useHooks = () => {
       for (const device of deviceList) {
         switch (device.id) {
           case 'carrierGas':
-            await disconnectDeviceApi({
+            await disconnectCarrierGasApi({
               port: devices[device.id].port,
               address: devices[device.id].address
             }, device.id);
+            break;
+          case 'heater':
+            await disconnectHeaterApi({
+              port: devices[device.id].port,
+              address: devices[device.id].address
+            });
             break;
           case 'co2Laser':
             await disconnectCo2LaserApi();
@@ -760,7 +799,7 @@ const useHooks = () => {
     switch (deviceId) {
       case 'carrierGas':
         if (devices[deviceId].connected) {
-          await disconnectDeviceApi({
+          await disconnectCarrierGasApi({
             port: devices[deviceId].port,
             address: devices[deviceId].address
           }, deviceId);
@@ -769,15 +808,6 @@ const useHooks = () => {
             port: devices[deviceId].port,
             address: devices[deviceId].address
           }, deviceId);
-        }
-        break;
-      case 'co2Laser':
-        if (devices[deviceId].connected) {
-          await disconnectCo2LaserApi();
-        } else {
-          await connectCo2LaserApi({
-            port: devices[deviceId].port
-          });
         }
         break;
       case 'heater':
@@ -793,6 +823,15 @@ const useHooks = () => {
           });
         }
         break;
+      case 'co2Laser':
+        if (devices[deviceId].connected) {
+          await disconnectCo2LaserApi();
+        } else {
+          await connectCo2LaserApi({
+            port: devices[deviceId].port
+          });
+        }
+        break;
       default:
         break;
     }
@@ -802,7 +841,7 @@ const useHooks = () => {
   const handleAutoConnect = async () => {
     if (isAutoConnecting) return;
 
-    if (isCarrierGasOpenState || isCo2LaserOpenState) {
+    if (isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState) {
       const result = window.confirm('已有設備連接，是否要斷開現有連接再進行自動連接？');
       if (!result) return;
       await disconnectAllDevicesApi();
@@ -847,7 +886,7 @@ const useHooks = () => {
     deviceConnectedRef.current = initialSelected;
   }, [deviceList]);
 
-  // 如果有carrierGasPortandAddressState和co2LaserPortState，則將其設定到devices
+  // 如果有carrierGasPortandAddressState、co2LaserPortState和heaterPortAndAddressSAtate，則將其設定到devices
   useEffect(() => {
     if (isCarrierGasOpenState || carrierGasPortandAddressState?.port || carrierGasPortandAddressState?.address) {
       setDevices(prev => ({
@@ -873,7 +912,20 @@ const useHooks = () => {
         }
       }));
     }
-  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState]);
+
+    if (isHeaterOpenState || heaterPortAndAddressState?.port || heaterPortAndAddressState?.address) {
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          port: heaterPortAndAddressState.port,
+          address: heaterPortAndAddressState.address,
+          connected: isHeaterOpenState,
+          selected: isHeaterOpenState
+        }
+      }));
+    }
+  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState, heaterPortAndAddressState, isHeaterOpenState]);
 
   useEffect(() => {
     getPortsListApi();
@@ -891,6 +943,7 @@ const useHooks = () => {
     alertDetail,
     isCarrierGasOpenState,
     isCo2LaserOpenState,
+    isHeaterOpenState,
     setIpAddress,
     handleConnect,
     handleAutoConnect,
@@ -904,6 +957,7 @@ const useHooks = () => {
 const PortAutoConnectPage = () => {
   const {
     deviceList, devices, ipAddress, isAutoConnecting, connectionResults, usefulPorts, alertDetail, isCarrierGasOpenState, isCo2LaserOpenState,
+    isHeaterOpenState,
     setIpAddress, handleConnect, handleAutoConnect, toggleDeviceSelection, setAlertDetail,
     onPortOrAddressChange
   } = useHooks();
@@ -967,7 +1021,7 @@ const PortAutoConnectPage = () => {
                     checked={devices[device.id]?.selected}
                     onChange={() => toggleDeviceSelection(device.id)}
                     label={device.name}
-                    disabled={isCarrierGasOpenState || isCo2LaserOpenState}
+                    disabled={isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState}
                   />
                   <Label
                     htmlFor={device.id}
@@ -980,7 +1034,7 @@ const PortAutoConnectPage = () => {
             }
           </div>
           {
-            isCarrierGasOpenState || isCo2LaserOpenState ? (
+            isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState ? (
             <Button
               onClick={handleAutoConnect}
               disabled={isAutoConnecting}

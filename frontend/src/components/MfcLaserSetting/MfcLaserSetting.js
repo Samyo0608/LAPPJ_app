@@ -6,6 +6,7 @@ import { getApi } from '../../utils/getApi';
 import { parseGasMixture } from '../../utils/mixGasUtil';
 import { useAlicatContext } from '../../Contexts/AlicatContext';
 import { useCo2LaserContext } from '../../Contexts/Co2LaserContext';
+import { useHeaterContext } from '../../Contexts/HeaterContext';
 
 // 將 SingleConnectComponent 改為獨立的函數組件
 const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConnectPortChange, onConnectAddressChange, devicesData }) => {
@@ -48,7 +49,7 @@ const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConne
           />
         </div>
         {
-          (deviceId !== 'laser') && (
+          (deviceId !== 'co2Laser') && (
             <>
               <label className="block font-medium">Address</label>
               <input
@@ -84,6 +85,7 @@ const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConne
 const useHooks = () => {
   const { isCarrierGasOpenState, setIsCarrierOpenState, setCarrierGasPortandAddressState, carrierGasPortandAddressState, carrierGasTypeState, setCarrierGasTypeState } = useAlicatContext();
   const { setCo2LaserDetailState, isCo2LaserOpenState, setIsCo2LaserOpenState, co2LaserPortState, setCo2LaserPortState } = useCo2LaserContext();
+  const { isHeaterOpenState, setIsHeaterOpenState, setHeaterPortAndAddressState, heaterPortAndAddressState, heaterDetailState } = useHeaterContext();
   // 單獨連線的項目整合
   const deviceList = [{
     title: '主氣流量控制器 - Main Gas',
@@ -93,14 +95,20 @@ const useHooks = () => {
     address: ''
   }, {
     title: '載氣流量控制器 - Carrier Gas',
-    company: 'Alicat',
+    company: 'Alicat - MC Series',
     deviceId: 'carrierGas',
     port: '',
     address: ''
   } ,{
     title: '雷射控制器 - CO2 Laser',
-    company: 'SYNRAD',
-    deviceId: 'laser',
+    company: 'SYNRAD - UC2000',
+    deviceId: 'co2Laser',
+    port: '',
+    address: ''
+  }, {
+    title: '加熱控制器 - Heater',
+    company: '陽明電機 - NT-48-V-SSR',
+    deviceId: 'heater',
     port: '',
     address: ''
   }];
@@ -512,7 +520,7 @@ const useHooks = () => {
   };
   // -----------------------------------------------------------------------
 
-  // -------------------------co2 laser api function-----------------------------
+  // -------------------------co2 co2Laser api function-----------------------------
   // 取得雷射設備資料
   const getCo2LaserDataApi = React.useCallback(async () => {
     const response = await getApi('/uc2000/status', 'GET');
@@ -555,8 +563,8 @@ const useHooks = () => {
     try {
       setDevices(prev => ({
         ...prev,
-        laser: {
-          ...prev.laser,
+        co2Laser: {
+          ...prev.co2Laser,
           loading: true
         }
       }));
@@ -571,8 +579,8 @@ const useHooks = () => {
 
         setDevices(prev => ({
           ...prev,
-          laser: {
-            ...prev.laser,
+          co2Laser: {
+            ...prev.co2Laser,
             connected: true,
             loading: false
           }
@@ -589,8 +597,8 @@ const useHooks = () => {
 
         setDevices(prev => ({
           ...prev,
-          laser: {
-            ...prev.laser,
+          co2Laser: {
+            ...prev.co2Laser,
             loading: false
           }
         }));
@@ -599,8 +607,8 @@ const useHooks = () => {
       console.error(error);
       setDevices(prev => ({
         ...prev,
-        laser: {
-          ...prev.laser,
+        co2Laser: {
+          ...prev.co2Laser,
           loading: false
         }
       }));
@@ -622,13 +630,13 @@ const useHooks = () => {
     }
   };
 
-  // disconnect co2 laser
+  // disconnect co2 co2Laser
   const disconnectCo2LaserApi = async () => {
     try {
       setDevices(prev => ({
         ...prev,
-        laser: {
-          ...prev.laser,
+        co2Laser: {
+          ...prev.co2Laser,
           loading: true
         }
       }));
@@ -644,8 +652,8 @@ const useHooks = () => {
 
         setDevices(prev => ({
           ...prev,
-          laser: {
-            ...prev.laser,
+          co2Laser: {
+            ...prev.co2Laser,
             connected: false,
             loading: false
           }
@@ -662,8 +670,8 @@ const useHooks = () => {
 
         setDevices(prev => ({
           ...prev,
-          laser: {
-            ...prev.laser,
+          co2Laser: {
+            ...prev.co2Laser,
             loading: false
           }
         }));
@@ -672,8 +680,8 @@ const useHooks = () => {
       console.error(error);
       setDevices(prev => ({
         ...prev,
-        laser: {
-          ...prev.laser,
+        co2Laser: {
+          ...prev.co2Laser,
           loading: false
         }
       }));
@@ -744,7 +752,7 @@ const useHooks = () => {
       }, 3000);
     }
   };
-  // -------------------------co2 laser api function-----------------------------
+  // -------------------------co2 co2Laser api function-----------------------------
 
   // 關閉Alert
   const onAlertClose = () => {
@@ -780,7 +788,7 @@ const useHooks = () => {
         case 'carrierGas':
           await disconnectDeviceApi(devices[deviceId], deviceId);
           break;
-        case 'laser':
+        case 'co2Laser':
           await disconnectCo2LaserApi();
           break;
         default:
@@ -810,7 +818,7 @@ const useHooks = () => {
     };
 
     switch (deviceId) {
-      case 'laser':
+      case 'co2Laser':
         if (!data.port) {
           setAlertDetail({
             show: true,
@@ -848,7 +856,7 @@ const useHooks = () => {
       case 'carrierGas':
         await connectDeviceApi(data, deviceId);
         break;
-      case 'laser':
+      case 'co2Laser':
         await connectCo2LaserApi(data);
         break;
       default:
@@ -939,8 +947,8 @@ const useHooks = () => {
 
   // ----------------------------載氣設定的function----------------------------
   
-  // ---------------------------------co2 laser function---------------------------------
-  // onchange co2 laser select or change
+  // ---------------------------------co2 co2Laser function---------------------------------
+  // onchange co2 co2Laser select or change
   const onChangeCo2SelectOrChange = (value, flag) => {
     setCo2SelectOrChangeList(prev => ({
       ...prev,
@@ -948,7 +956,7 @@ const useHooks = () => {
     }));
   };
 
-  // 更新onchange co2 laser select or change
+  // 更新onchange co2 co2Laser select or change
   React.useEffect(() => {
     if (co2LaserDetail) {
       setCo2SelectOrChangeList({
@@ -966,8 +974,8 @@ const useHooks = () => {
     if (co2LaserPortState?.port) {
       setDevices(prev => ({
         ...prev,
-        laser: {
-          ...prev.laser,
+        co2Laser: {
+          ...prev.co2Laser,
           port: co2LaserPortState.port
         }
       }));
@@ -976,8 +984,8 @@ const useHooks = () => {
     if (isCo2LaserOpenState) {
       setDevices(prev => ({
         ...prev,
-        laser: {
-          ...prev.laser,
+        co2Laser: {
+          ...prev.co2Laser,
           connected: true
         }
       }));
@@ -986,14 +994,14 @@ const useHooks = () => {
     } else {
       setDevices(prev => ({
         ...prev,
-        laser: {
-          ...prev.laser,
+        co2Laser: {
+          ...prev.co2Laser,
           connected: false
         }
       }));
     }
   }, [co2LaserPortState, isCo2LaserOpenState, getCo2LaserDataApi]);
-  // ---------------------------------co2 laser function---------------------------------
+  // ---------------------------------co2 co2Laser function---------------------------------
 
   return {
     devices,
@@ -1009,6 +1017,7 @@ const useHooks = () => {
     co2LaserDetail,
     isCo2LaserOpenState,
     isCo2LaserLoading,
+    heaterDetailState,
     onAlertClose,
     onConnectPortChange,
     onConnectAddressChange,
@@ -1025,8 +1034,10 @@ const useHooks = () => {
 };
 
 const MfcLaserSetting = () => {
-  const { devices, carrierGasDetail, alertDetail, deviceList, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas,
+  const {
+    devices, carrierGasDetail, alertDetail, deviceList, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas,
     carrierGasTypeSetting, carrierGasMixGas, co2SelectOrChangeList, co2LaserDetail, isCo2LaserOpenState, isCo2LaserLoading,
+    heaterDetailState,
     onAlertClose, onConnectPortChange, onConnectAddressChange, onConnectClick, onGetCarrierGasTypeClick, onSetCarrierGasGasTypeClick,
     onCarrierGasMixGasClick, onCarrierGasCreateMixGasChange, onCarrierGasCreateMixGasClick, onDeleteCarrierGasGasTypeClick, onChangeCo2SelectOrChange,
     onCo2LaserSettingClick
@@ -1041,329 +1052,476 @@ const MfcLaserSetting = () => {
         type={alertDetail.type}
       />
       <h1 className="text-2xl font-bold text-center mb-5">MFC及雷射細部控制介面</h1>
-      {/* 主氣 (Alicat) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-red-200 shadow-md rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">主氣流量控制 (Main gas Flow Control - Azbil)</h2>
-          <h2 className="text-lg font-semibold mb-3">(尚未有設備)</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block font-medium mb-2">壓力 (Pressure)</label>
-              <input
-                type="number"
-                className="w-full border rounded-md p-2"
-                placeholder="輸入設定壓力"
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {
+          deviceList.map((device) => {
+            const CommonComponent = () => (
+              <div key={device.deviceId} className="bg-white shadow-md rounded-lg p-4">
+                <h2 className="text-lg font-semibold mb-1">One Device Connect:</h2>
+                <h2 className="text-lg font-semibold mb-3 text-blue-500">{device.title}</h2>
+                <SingleConnectComponent
+                  company={device.company}
+                  deviceId={device.deviceId}
+                  onClick={onConnectClick}
+                  onConnectPortChange={onConnectPortChange}
+                  onConnectAddressChange={onConnectAddressChange}
+                  devicesData={devices}
               />
-            </div>
-            <div>
-              <label className="block font-medium mb-2">建立混合氣體種類 (Create mix gas)</label>
-              <div className='flex justify-between items-center mb-2'>
-                <span className='w-48'>設定編號</span>
-                <input
-                  type="number"
-                  className="w-full border rounded-md p-2"
-                  placeholder="從236開始，請避免重複使用編號"
-                />
-              </div><div className='flex justify-between items-center mb-2'>
-                <span className='w-48'>設定名稱</span>
-                <input
-                  type="text"
-                  className="w-full border rounded-md p-2"
-                  placeholder="英文，8個字母內"
-                />
               </div>
-              <div className='flex justify-between items-center mb-2'>
-                <span className='w-48'>設定參數</span>
-                <input
-                  type="text"
-                  className="w-full border rounded-md p-2"
-                  placeholder="總和為100, 請輸入ex: N2: 50, H2: 30, Ar: 20"
-                />
-              </div>
-            </div>
-            <div className='flex justify-center items-center mb-2'>              
-              <button
-                className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
-              >
-                新增混合氣體 (Create mix gas)
-              </button>
-            </div>
-            <div>
-              <label className="block font-medium mb-2">氣體類型 (Gas Type)</label>
-              <select className="w-full border rounded-md p-2">
-                <option value="N2">N2</option>
-                <option value="O2">O2</option>
-                <option value="Ar">Ar</option>
-                <option value="">Others</option>
-              </select>
-            </div>
-            <input
-              type="number"
-              className="w-full border rounded-md p-2"
-              placeholder="輸入其餘氣體種類，ex: 236, or Carrier (編號/名稱擇一)"
-            />
-            <div className='flex justify-center items-center mb-2'>
-              <button className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300">
-                修改 (Setting)
-              </button>
-            </div>
-          </div>
-        </div>
+            );
 
-        {/* 載氣 (Carrier Gas) (Alicat) */}
-        <div className="bg-white shadow-md rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">載氣流量控制 (Carrier gas Flow Control - Alicat)</h2>
-          <div className="space-y-4">
-            <div>
-              <div>
-                <label className="block font-medium mb-2">目前壓力 (Pressure)</label>
-                <input
-                  type="number"
-                  className="w-full border rounded-md p-2 bg-gray-50 mb-2"
-                  placeholder="目前壓力數值"
-                  value={Number(carrierGasDetail?.pressure || 0).toFixed(2)}
-                  readOnly
-                />
-              </div>
-            </div>
-            <div className='border rounded-md p-2 border-blue-300'>
-              <label className="block font-medium mb-2">建立混合氣體種類 (Create mix gas)</label>
-              <div className='flex justify-between items-center mb-2'>
-                <span className='w-48'>設定編號</span>
-                <input
-                  type="number"
-                  min={236}
-                  max={256}
-                  className="w-full border rounded-md p-2"
-                  placeholder="從236開始，請避免重複使用編號"
-                  onChange={(e) => onCarrierGasCreateMixGasChange(Number(e.target.value), 'number')}
-                  value={carrierGasCreateMixGas?.number || 0}
-                />
-              </div><div className='flex justify-between items-center mb-2'>
-                <span className='w-48'>設定名稱</span>
-                <input
-                  type="text"
-                  className="w-full border rounded-md p-2"
-                  placeholder="英文數字，6個字母內"
-                  onChange={(e) => onCarrierGasCreateMixGasChange(e.target.value, 'name')}
-                  value={carrierGasCreateMixGas?.name || ""}
-                />
-              </div>
-              <div className='flex justify-between items-center mb-2'>
-                <span className='w-48'>設定參數</span>
-                <input
-                  type="text"
-                  className="w-full border rounded-md p-2"
-                  placeholder="總和為100, 請輸入ex: N2: 50, H2: 30, Ar: 20"
-                  onChange={(e) => onCarrierGasCreateMixGasChange(e.target.value, 'gases')}
-                  value={carrierGasCreateMixGas?.gases || ""}
-                />
-              </div>
-              <div className='flex justify-center items-center mb-2'>              
-                <button
-                  className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
-                  onClick={onCarrierGasCreateMixGasClick}
-                >
-                  {
-                    carrierGasTypeListLoading ? (
-                      <CommonLoading />
-                    ) : (
-                      '新增混合氣體 (Create mix gas)'
-                    )
-                  }
-                </button>
-              </div>
-            </div>
-            <div className='border rounded-md p-2 border-red-300'>
-              <label className="block font-medium mb-2">混合氣體類型 (Mix Gas Type)</label>
-              <div>
-                {/* 混和氣體select */}
-                <select
-                  className="w-full border rounded-md p-2"
-                  onChange={(e) => onCarrierGasMixGasClick(Number(e.target.value))}
-                  value={carrierGasMixGas}
-                >
-                  {carrierGasTypeList?.length > 0 ? (
-                    carrierGasTypeList.map(option => {
-                      const labelSplit = option.label.split('_');
+            switch (device.deviceId) {
+              case 'carrierGas':
+                return (
+                  <div
+                    key={device.deviceId}
+                    className="bg-white shadow-md rounded-lg p-4 flex flex-col justify-between"
+                  >
+                    <div className="bg-white shadow-md rounded-lg p-4 mb-2">
+                      <h2 className="text-lg font-semibold mb-3">載氣流量控制 (Carrier gas Flow Control - Alicat)</h2>
+                      <div className="space-y-4">
+                        <div>
+                          <div>
+                            <label className="block font-medium mb-2">目前壓力 (Pressure)</label>
+                            <input
+                              type="number"
+                              className="w-full border rounded-md p-2 bg-gray-50 mb-2"
+                              placeholder="目前壓力數值"
+                              value={Number(carrierGasDetail?.pressure || 0).toFixed(2)}
+                              readOnly
+                            />
+                          </div>
+                        </div>
+                        <div className='border rounded-md p-2 border-blue-300'>
+                          <label className="block font-medium mb-2">建立混合氣體種類 (Create mix gas)</label>
+                          <div className='flex justify-between items-center mb-2'>
+                            <span className='w-48'>設定編號</span>
+                            <input
+                              type="number"
+                              min={236}
+                              max={256}
+                              className="w-full border rounded-md p-2"
+                              placeholder="從236開始，請避免重複使用編號"
+                              onChange={(e) => onCarrierGasCreateMixGasChange(Number(e.target.value), 'number')}
+                              value={carrierGasCreateMixGas?.number || 0}
+                            />
+                          </div><div className='flex justify-between items-center mb-2'>
+                            <span className='w-48'>設定名稱</span>
+                            <input
+                              type="text"
+                              className="w-full border rounded-md p-2"
+                              placeholder="英文數字，6個字母內"
+                              onChange={(e) => onCarrierGasCreateMixGasChange(e.target.value, 'name')}
+                              value={carrierGasCreateMixGas?.name || ""}
+                            />
+                          </div>
+                          <div className='flex justify-between items-center mb-2'>
+                            <span className='w-48'>設定參數</span>
+                            <input
+                              type="text"
+                              className="w-full border rounded-md p-2"
+                              placeholder="總和為100, 請輸入ex: N2: 50, H2: 30, Ar: 20"
+                              onChange={(e) => onCarrierGasCreateMixGasChange(e.target.value, 'gases')}
+                              value={carrierGasCreateMixGas?.gases || ""}
+                            />
+                          </div>
+                          <div className='flex justify-center items-center mb-2'>              
+                            <button
+                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                              onClick={onCarrierGasCreateMixGasClick}
+                            >
+                              {
+                                carrierGasTypeListLoading ? (
+                                  <CommonLoading />
+                                ) : (
+                                  '新增混合氣體 (Create mix gas)'
+                                )
+                              }
+                            </button>
+                          </div>
+                        </div>
+                        <div className='border rounded-md p-2 border-red-300'>
+                          <label className="block font-medium mb-2">混合氣體類型 (Mix Gas Type)</label>
+                          <div>
+                            {/* 混和氣體select */}
+                            <select
+                              className="w-full border rounded-md p-2"
+                              onChange={(e) => onCarrierGasMixGasClick(Number(e.target.value))}
+                              value={carrierGasMixGas}
+                            >
+                              {carrierGasTypeList?.length > 0 ? (
+                                carrierGasTypeList.map(option => {
+                                  const labelSplit = option.label.split('_');
 
-                      if (labelSplit.length > 1) {
-                        return (
-                          <option
-                            key={option.value}
-                            value={option.value}
+                                  if (labelSplit.length > 1) {
+                                    return (
+                                      <option
+                                        key={option.value}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </option>
+                                    );
+                                  }
+                                  return null;
+                                })) : (
+                                  <option value="">No data</option>
+                                )
+                              }
+                            </select>
+                          </div>
+                          <div className='flex justify-center items-center mb-2 mt-2'>
+                            <button
+                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                              onClick={() => onDeleteCarrierGasGasTypeClick(carrierGasMixGas)}
+                            >
+                              {
+                                carrierGasTypeListLoading ? (
+                                  <CommonLoading />
+                                ) : (
+                                  '刪除混合氣體 (Delete mix gas)'
+                                )
+                              }
+                            </button>
+                          </div>
+                          <p
+                            className="text-sm text-red-500"
                           >
-                            {option.label}
-                          </option>
-                        );
-                      }
-                      return null;
-                    })) : (
-                      <option value="">No data</option>
-                    )
-                  }
-                </select>
-              </div>
-              <div className='flex justify-center items-center mb-2 mt-2'>
-                <button
-                  className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
-                  onClick={() => onDeleteCarrierGasGasTypeClick(carrierGasMixGas)}
-                >
-                  {
-                    carrierGasTypeListLoading ? (
-                      <CommonLoading />
-                    ) : (
-                      '刪除混合氣體 (Delete mix gas)'
-                    )
-                  }
-                </button>
-              </div>
-              <p
-                className="text-sm text-red-500"
-              >
-                如果沒有選項，請先按下方的取得氣體種類(Get Gas type)，再選擇混合氣體
-              </p>
-            </div>
-            <div className='border rounded-md p-2 border-blue-300'>
-              <label className="block font-medium mb-2">全部氣體類型 (Gas Type)</label>
-              <select
-                className="w-full border rounded-md p-2 mb-2"
-                onChange={(e) => onSetCarrierGasGasTypeClick(e.target.value)}
-                value={carrierGasTypeSetting} 
-              >
-                {carrierGasTypeList?.length > 0 ? (
-                  carrierGasTypeList.map(option => (
-                    <option
-                      key={option.value}
-                      value={option?.label?.split("_")?.length > 0 ? option?.label?.split("_")[1] : option.value}
+                            如果沒有選項，請先按下方的取得氣體種類(Get Gas type)，再選擇混合氣體
+                          </p>
+                        </div>
+                        <div className='border rounded-md p-2 border-blue-300'>
+                          <label className="block font-medium mb-2">全部氣體類型 (Gas Type)</label>
+                          <select
+                            className="w-full border rounded-md p-2 mb-2"
+                            onChange={(e) => onSetCarrierGasGasTypeClick(e.target.value)}
+                            value={carrierGasTypeSetting} 
+                          >
+                            {carrierGasTypeList?.length > 0 ? (
+                              carrierGasTypeList.map(option => (
+                                <option
+                                  key={option.value}
+                                  value={option?.label?.split("_")?.length > 0 ? option?.label?.split("_")[1] : option.value}
+                                >
+                                  {option.label}
+                                </option>
+                              ))) : (
+                                <option value="">No data</option>
+                              )
+                            }
+                          </select>
+                          <div className='flex justify-center items-center mb-2'>
+                            <button
+                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                              onClick={onGetCarrierGasTypeClick}
+                            >
+                              {
+                                carrierGasTypeListLoading ? (
+                                  <CommonLoading />
+                                ) : (
+                                  carrierGasTypeList?.length > 0 ? '氣體調整 (Gas Setting)' : '取得氣體種類 (Get gas type)'
+                                )
+                              }
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <CommonComponent />
+                  </div>
+                );
+              case 'co2Laser':
+                return (
+                    <div
+                      key={device.deviceId}
+                      className="bg-white shadow-md rounded-lg p-4 flex flex-col justify-between"
                     >
-                      {option.label}
-                    </option>
-                  ))) : (
-                    <option value="">No data</option>
-                  )
-                }
-              </select>
-              <div className='flex justify-center items-center mb-2'>
-                <button
-                  className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
-                  onClick={onGetCarrierGasTypeClick}
-                >
-                  {
-                    carrierGasTypeListLoading ? (
-                      <CommonLoading />
-                    ) : (
-                      carrierGasTypeList?.length > 0 ? '氣體調整 (Gas Setting)' : '取得氣體種類 (Get gas type)'
-                    )
-                  }
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white shadow-md rounded-lg p-4 flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-semibold mb-3">雷射控制 (Laser Control)</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block font-medium font-semibold text-red-400">控制模式 - 目前不給調整 (調整有崩潰風險)</label>
-                <select
-                  className="w-full border rounded-md p-2 bg-gray-50"
-                  value="remote"
-                  readOnly
-                >
-                  {
-                    !isCo2LaserOpenState && (
-                      <option value="">None</option>
-                    )
-                  }
-                  <option value="manual">Manual</option>
-                  <option value="anc">ANC (Analog Current)</option>
-                  <option value="anv">ANV (Analog Voltage)</option>
-                  <option value="manual_closed">Manual Closed (Can not Remote)</option>
-                  <option value="anv_closed">ANV Closed</option>
-                  <option value="remote">Remote</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-medium">頻率 PWM (kHz)</label>
-                <select
-                  className="w-full border rounded-md p-2"
-                  onChange={(e) => onChangeCo2SelectOrChange(Number(e.target.value), 'pwmFreq')}
-                  value={co2SelectOrChangeList?.pwmFreq}
-                >
-                  {
-                    !isCo2LaserOpenState && (
-                      <option value={0}>None</option>
-                    )
-                  }
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-medium">控制器版本</label>
-                <input
-                  type="text"
-                  className="w-full border rounded-md p-2 bg-gray-50"
-                  placeholder="控制器版本"
-                  readOnly
-                  value={co2LaserDetail?.version || 0}
-                />
-              </div>
-              <div
-                className="grid grid-cols-2 gap-4 mt-2 md:grid-cols-1"
-              >
-                <ToggleSwitch
-                  className='mr-2'
-                  label="PWM最高百分比限制 (開啟: 95% / 關閉: 99%)"
-                  onChange={(e) => onChangeCo2SelectOrChange(e, 'maxPwm')}
-                  checked={co2SelectOrChangeList?.maxPwm}
-                />
-                <ToggleSwitch
-                  className='mr-2'
-                  label="開啟時自動開啟雷射"
-                  onChange={(e) => onChangeCo2SelectOrChange(e, 'laserOnPowerUp')}
-                  checked={co2SelectOrChangeList?.laserOnPowerUp}
-                />
-                <ToggleSwitch
-                  label="電位開啟(Gate Pull up)"
-                  onChange={(e) => onChangeCo2SelectOrChange(e, 'gatePullUp')}
-                  checked={co2SelectOrChangeList?.gatePullUp}
-                />
-              </div>
-            </div>
-          </div>
-          <div className='flex justify-center items-center mb-2 mt-2'>
-            <button 
-              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-400"
-              onClick={onCo2LaserSettingClick}
-              disabled={isCo2LaserLoading || !isCo2LaserOpenState}
-            >
-              {isCo2LaserLoading ? (
-                <CommonLoading />
-              ) : (
-                '設定 (Setting)'
-              )}
-            </button>
-          </div>
-        </div>
-        {/* 單獨連線 */}
-        {deviceList.map((device) => (
-          <div key={device.deviceId} className="bg-white shadow-md rounded-lg p-4">
-            <h2 className="text-lg font-semibold mb-1">One Device Connect:</h2>
-            <h2 className="text-lg font-semibold mb-3 text-blue-500">{device.title}</h2>
-            <SingleConnectComponent
-              company={device.company}
-              deviceId={device.deviceId}
-              onClick={onConnectClick}
-              onConnectPortChange={onConnectPortChange}
-              onConnectAddressChange={onConnectAddressChange}
-              devicesData={devices}
-            />
-          </div>
-        ))}
+                      <div className="bg-white shadow-md rounded-lg p-4 flex flex-col justify-between mb-2">
+                        <div>
+                          <h2 className="text-lg font-semibold mb-3">雷射控制 (Laser Control)</h2>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block font-medium font-semibold text-red-400">控制模式 - 目前不給調整 (調整有崩潰風險)</label>
+                              <select
+                                className="w-full border rounded-md p-2 bg-gray-50"
+                                value="remote"
+                                readOnly
+                              >
+                                {
+                                  !isCo2LaserOpenState && (
+                                    <option value="">None</option>
+                                  )
+                                }
+                                <option value="manual">Manual</option>
+                                <option value="anc">ANC (Analog Current)</option>
+                                <option value="anv">ANV (Analog Voltage)</option>
+                                <option value="manual_closed">Manual Closed (Can not Remote)</option>
+                                <option value="anv_closed">ANV Closed</option>
+                                <option value="remote">Remote</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block font-medium">頻率 PWM (kHz)</label>
+                              <select
+                                className="w-full border rounded-md p-2"
+                                onChange={(e) => onChangeCo2SelectOrChange(Number(e.target.value), 'pwmFreq')}
+                                value={co2SelectOrChangeList?.pwmFreq}
+                              >
+                                {
+                                  !isCo2LaserOpenState && (
+                                    <option value={0}>None</option>
+                                  )
+                                }
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block font-medium">控制器版本</label>
+                              <input
+                                type="text"
+                                className="w-full border rounded-md p-2 bg-gray-50"
+                                placeholder="控制器版本"
+                                readOnly
+                                value={co2LaserDetail?.version || 0}
+                              />
+                            </div>
+                            <div
+                              className="grid grid-cols-2 gap-4 mt-2 md:grid-cols-1"
+                            >
+                              <ToggleSwitch
+                                className='mr-2'
+                                label="PWM最高百分比限制 (開啟: 95% / 關閉: 99%)"
+                                onChange={(e) => onChangeCo2SelectOrChange(e, 'maxPwm')}
+                                checked={co2SelectOrChangeList?.maxPwm}
+                              />
+                              <ToggleSwitch
+                                className='mr-2'
+                                label="開啟時自動開啟雷射"
+                                onChange={(e) => onChangeCo2SelectOrChange(e, 'laserOnPowerUp')}
+                                checked={co2SelectOrChangeList?.laserOnPowerUp}
+                              />
+                              <ToggleSwitch
+                                label="電位開啟(Gate Pull up)"
+                                onChange={(e) => onChangeCo2SelectOrChange(e, 'gatePullUp')}
+                                checked={co2SelectOrChangeList?.gatePullUp}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className='flex justify-center items-center mb-2 mt-2'>
+                          <button 
+                            className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-400"
+                            onClick={onCo2LaserSettingClick}
+                            disabled={isCo2LaserLoading || !isCo2LaserOpenState}
+                          >
+                            {isCo2LaserLoading ? (
+                              <CommonLoading />
+                            ) : (
+                              '設定 (Setting)'
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <CommonComponent />
+                    </div>
+                  );
+                case 'mainGas':
+                  return (
+                    <div
+                      key={device.deviceId}
+                      className="shadow-md rounded-lg p-4 flex flex-col justify-between bg-red-200"
+                    >
+                      <div className="shadow-md rounded-lg p-4 mb-2">
+                        <h2 className="text-lg font-semibold mb-3">主氣流量控制 (Main gas Flow Control - Azbil)</h2>
+                        <h2 className="text-lg font-semibold mb-3">(尚未有設備)</h2>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block font-medium mb-2">壓力 (Pressure)</label>
+                            <input
+                              type="number"
+                              className="w-full border rounded-md p-2"
+                              placeholder="輸入設定壓力"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-medium mb-2">建立混合氣體種類 (Create mix gas)</label>
+                            <div className='flex justify-between items-center mb-2'>
+                              <span className='w-48'>設定編號</span>
+                              <input
+                                type="number"
+                                className="w-full border rounded-md p-2"
+                                placeholder="從236開始，請避免重複使用編號"
+                              />
+                            </div><div className='flex justify-between items-center mb-2'>
+                              <span className='w-48'>設定名稱</span>
+                              <input
+                                type="text"
+                                className="w-full border rounded-md p-2"
+                                placeholder="英文，8個字母內"
+                              />
+                            </div>
+                            <div className='flex justify-between items-center mb-2'>
+                              <span className='w-48'>設定參數</span>
+                              <input
+                                type="text"
+                                className="w-full border rounded-md p-2"
+                                placeholder="總和為100, 請輸入ex: N2: 50, H2: 30, Ar: 20"
+                              />
+                            </div>
+                          </div>
+                          <div className='flex justify-center items-center mb-2'>              
+                            <button
+                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                            >
+                              新增混合氣體 (Create mix gas)
+                            </button>
+                          </div>
+                          <div>
+                            <label className="block font-medium mb-2">氣體類型 (Gas Type)</label>
+                            <select className="w-full border rounded-md p-2">
+                              <option value="N2">N2</option>
+                              <option value="O2">O2</option>
+                              <option value="Ar">Ar</option>
+                              <option value="">Others</option>
+                            </select>
+                          </div>
+                          <input
+                            type="number"
+                            className="w-full border rounded-md p-2"
+                            placeholder="輸入其餘氣體種類，ex: 236, or Carrier (編號/名稱擇一)"
+                          />
+                          <div className='flex justify-center items-center mb-2'>
+                            <button className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300">
+                              修改 (Setting)
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <CommonComponent />
+                    </div>
+                  );
+              case 'heater':
+                return (
+                  <div
+                    key={device.deviceId}
+                    className="bg-white shadow-md rounded-lg p-4 flex flex-col justify-between"
+                  >
+                    <div className="bg-white shadow-md rounded-lg p-4 flex flex-col justify-between mb-2">
+                      <div>
+                        <h2 className="text-lg font-semibold mb-3">加熱控制器 (Heater)</h2>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block font-medium mb-2">目前控制器溫度 (Temperature)</label>
+                            <input
+                              type="number"
+                              className="w-full border rounded-md p-2 bg-gray-50"
+                              placeholder="目前溫度數值"
+                              value={Number(heaterDetailState?.pv || 0)}
+                              readOnly
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-medium mb-2">目前控制器設定溫度 (Set Temperature)</label>
+                            <input
+                              type="number"
+                              className="w-full border rounded-md p-2 bg-gray-50"
+                              placeholder="目前設定溫度數值"
+                              value={Number(heaterDetailState?.sv || 0)}
+                              readOnly
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-medium mb-2">緩啟動設定值 (SV 2)</label>
+                            <p
+                              className='text-sm text-red-500 mb-2'
+                            >
+                              緩啟動設定: 在達到此溫度以前，溫度會快速上升，超過此溫度後會緩慢上升。
+                            </p>
+                            <input
+                              type="text"
+                              className="w-full border rounded-md p-2"
+                              placeholder="範圍 -9999~9999"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-medium mb-2">最高溫度上限 (Set Limit High)</label>
+                            <input
+                              type="text"
+                              className="w-full border rounded-md p-2"
+                              placeholder="範圍 -9999~9999"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-medium mb-2">升溫速率控制 (°C/min) (Ramp Control)</label>
+                            <input
+                              type="number"
+                              className="w-full border rounded-md p-2"
+                              placeholder="範圍 0~9999"
+                            />
+                          </div>
+                          <div>
+                            <h3
+                              className="text-lg font-semibold mb-3"
+                            >
+                              PID控制相關
+                            </h3>
+                            <label className="block font-medium mb-2">增益值 (Gain)</label>
+                            <input
+                              type="text"
+                              className="w-full border rounded-md p-2 mb-2"
+                              placeholder="範圍 0.0~9.9"
+                            />
+                            <label className="block font-medium mb-2">比例參數 (Proportional Band)</label>
+                            <input
+                              type="text"
+                              className="w-full border rounded-md p-2 mb-2"
+                              placeholder="範圍 0~3999"
+                            />
+                            <label className="block font-medium mb-2">積分值 (Integral)</label>
+                            <input
+                              type="text"
+                              className="w-full border rounded-md p-2 mb-2"
+                              placeholder="範圍 0~3999"
+                            />
+                            <label className="block font-medium mb-2">微分值 (Derivative)</label>
+                            <input
+                              type="text"
+                              className="w-full border rounded-md p-2 mb-2"
+                              placeholder="範圍 0~3999"
+                            />
+                            <ToggleSwitch
+                              className='mr-2'
+                              label="PID控制開關 (Auto/Manual)"
+                              // onChange={(e) => onChangeCo2SelectOrChange(e, 'maxPwm')}
+                              // checked={co2SelectOrChangeList?.maxPwm}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className='flex justify-center items-center mb-2 mt-2'>
+                        <button 
+                          className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-400"
+                          onClick={onCo2LaserSettingClick}
+                          disabled={isCo2LaserLoading || !isCo2LaserOpenState}
+                        >
+                          {isCo2LaserLoading ? (
+                            <CommonLoading />
+                          ) : (
+                            '設定 (Setting)'
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <CommonComponent />
+                  </div>
+                );
+              default:
+                return null;
+            }
+          }
+        )}
       </div>
     </div>
   );

@@ -18,8 +18,8 @@ export const HeaterProvider = ({ children }) => {
     return savedState === "true";
   });
 
-  const [heaterPortState, setHeaterPortState] = useState(() => {
-    const savedPort = localStorage.getItem("heaterPortState");
+  const [heaterPortAndAddressState, setHeaterPortAndAddressState] = useState(() => {
+    const savedPort = localStorage.getItem("heaterPortAndAddressState");
     return savedPort ? JSON.parse(savedPort) : {
       port: "",
     };
@@ -39,10 +39,10 @@ export const HeaterProvider = ({ children }) => {
   }, [isHeaterOpenState]);
 
   useEffect(() => {
-    localStorage.setItem("heaterPortState", 
-      JSON.stringify(heaterPortState)
+    localStorage.setItem("heaterPortAndAddressState", 
+      JSON.stringify(heaterPortAndAddressState)
     );
-  }, [heaterPortState]);
+  }, [heaterPortAndAddressState]);
 
   return (
     <HeaterContext.Provider
@@ -51,8 +51,8 @@ export const HeaterProvider = ({ children }) => {
         setHeaterDetailState,
         isHeaterOpenState,
         setIsHeaterOpenState,
-        heaterPortState,
-        setHeaterPortState
+        heaterPortAndAddressState,
+        setHeaterPortAndAddressState
       }}
     >
       {children}
