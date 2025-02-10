@@ -85,7 +85,7 @@ const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConne
 const useHooks = () => {
   const { isCarrierGasOpenState, setIsCarrierOpenState, setCarrierGasPortandAddressState, carrierGasPortandAddressState, carrierGasTypeState, setCarrierGasTypeState } = useAlicatContext();
   const { setCo2LaserDetailState, isCo2LaserOpenState, setIsCo2LaserOpenState, co2LaserPortState, setCo2LaserPortState } = useCo2LaserContext();
-  const { isHeaterOpenState, setIsHeaterOpenState, setHeaterPortAndAddressState, heaterPortAndAddressState, heaterDetailState } = useHeaterContext();
+  const { isHeaterOpenState, setIsHeaterOpenState, setHeaterPortAndAddressState, heaterPortAndAddressState, heaterDetailState, setHeaterDetailState } = useHeaterContext();
   // 單獨連線的項目整合
   const deviceList = [{
     title: '主氣流量控制器 - Main Gas',
@@ -147,6 +147,20 @@ const useHooks = () => {
     gatePullUp: false
   });
   const [isCo2LaserLoading, setIsCo2LaserLoading] = React.useState(false);
+  // Heater設定相關
+  const [heaterDetail, setHeaterDetail] = React.useState({});
+  const [heaterInputList, setHeaterInputList] = React.useState({
+    sv2: 0,
+    SLH: 0,
+    rAP: 0,
+    Gain: 0.0,
+    P: 0,
+    I: 0,
+    D: 0,
+    M: 0,
+  });
+  const [isHeaterLoading, setIsHeaterLoading] = React.useState(false);
+  
   // Alert相關
   const [alertDetail, setAlertDetail] = React.useState({});
 
@@ -162,7 +176,7 @@ const useHooks = () => {
     }
   }, [setIsCarrierOpenState]);
 
-  // 取得所有氣體種類
+  // 取得所有載氣氣體種類
   const getCarrierGasAllGasTypeApi = async () => {
     setCarrierGasTypeListLoading(true);
     try {
@@ -350,7 +364,7 @@ const useHooks = () => {
   };
 
   // 載氣設備連線api
-  const connectDeviceApi = async (data, deviceId) => {
+  const connectCarrierGasApi = async (data, deviceId) => {
     try {
       setDevices(prev => ({
         ...prev,
@@ -365,7 +379,7 @@ const useHooks = () => {
       if (response?.data?.status === 'success') {
         setAlertDetail({
           show: true,
-          message: '連線成功',
+          message: response?.data?.message || '載氣連線成功',
           type: 'success'
         });
         
@@ -433,13 +447,13 @@ const useHooks = () => {
       });
   
       setTimeout(() => {
-        setAlertDetail({ show: false });
+        setAlertDetail((prev) => ({ ...prev, show: false }));
       }, 3000);
     }
   };
   
   // 載氣設備取消連線api
-  const disconnectDeviceApi = async (data, deviceId) => {
+  const disconnectCarrierGasApi = async (data, deviceId) => {
     try {
       setDevices(prev => ({
         ...prev,
@@ -454,7 +468,7 @@ const useHooks = () => {
       if (response?.data?.status === 'success') {
         setAlertDetail({
           show: true,
-          message: '已取消連線',
+          message: '載氣設備已取消連線',
           type: 'success'
         });
         
@@ -514,14 +528,14 @@ const useHooks = () => {
       });
   
       setTimeout(() => {
-        setAlertDetail({ show: false });
+        setAlertDetail((prev) => ({ ...prev, show: false }));
       }, 3000);
     }
   };
   // -----------------------------------------------------------------------
 
   // -------------------------co2 co2Laser api function-----------------------------
-  // 取得雷射設備資料
+  // 取得CO2雷射設備資料
   const getCo2LaserDataApi = React.useCallback(async () => {
     const response = await getApi('/uc2000/status', 'GET');
     if (response?.data?.status === 'success') {
@@ -552,9 +566,9 @@ const useHooks = () => {
         type: 'failure'
     });
 
-    setTimeout(() => {
-      setAlertDetail({ show: false });
-    }, 3000);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 3000);
     }
   }, [setIsCo2LaserOpenState, setCo2LaserDetailState]);
 
@@ -573,7 +587,7 @@ const useHooks = () => {
       if (response?.data?.status === 'success') {
         setAlertDetail({
           show: true,
-          message: '連線成功',
+          message: response.data.message || 'CO2雷射控制器連線成功',
           type: 'success'
         });
 
@@ -591,7 +605,7 @@ const useHooks = () => {
         console.error(response?.data?.status);
         setAlertDetail({
           show: true,
-          message: response?.data?.message || '連線失敗',
+          message: response?.data?.message || 'CO2雷射控制器連線失敗',
           type: 'failure'
         });
 
@@ -625,7 +639,7 @@ const useHooks = () => {
       });
 
       setTimeout(() => {
-        setAlertDetail({ show: false });
+        setAlertDetail((prev) => ({ ...prev, show: false }));
       }, 3000);
     }
   };
@@ -646,7 +660,7 @@ const useHooks = () => {
       if (response?.data?.status === 'success') {
         setAlertDetail({
           show: true,
-          message: '已取消連線',
+          message: 'CO2雷射控制器已取消連線',
           type: 'success'
         });
 
@@ -688,7 +702,7 @@ const useHooks = () => {
 
       setAlertDetail({
         show: true,
-        message: '取消連線過程發生錯誤',
+        message: 'CO2雷射控制器取消連線過程發生錯誤',
         type: 'failure'
       });
     } finally {
@@ -698,11 +712,12 @@ const useHooks = () => {
     }
   };
 
+  // co2Laser setting (update) api
   const onCo2LaserSettingClick = async () => {
     if (!isCo2LaserOpenState) {
       setAlertDetail({
         show: true,
-        message: '請先連接雷射設備',
+        message: '請先連接CO2雷射控制器',
         type: 'failure'
       });
       return;
@@ -736,7 +751,13 @@ const useHooks = () => {
           setCo2LaserDetailState(statusResponse.data.data);
         }
       } else {
-        throw new Error(response?.data?.message || '設定更新失敗');
+        console.error(response?.data?.status);
+
+        setAlertDetail({
+          show: true,
+          message: response?.data?.message || '設定更新失敗',
+          type: 'failure'
+        });
       }
     } catch (error) {
       console.error('設定更新失敗:', error);
@@ -748,17 +769,239 @@ const useHooks = () => {
     } finally {
       setIsCo2LaserLoading(false);
       setTimeout(() => {
-        setAlertDetail({ show: false });
+        setAlertDetail((prev) => ({ ...prev, show: false }));
       }, 3000);
     }
   };
   // -------------------------co2 co2Laser api function-----------------------------
 
-  // 關閉Alert
-  const onAlertClose = () => {
-    setAlertDetail({
-      show: false
-    });
+  // ----------------------------heater api function----------------------------
+  // 取得Heater設備資料
+  const getHeaterDataApi = React.useCallback(async () => {
+    const response = await getApi('/heater/status', 'GET');
+    if (response?.data?.status === 'success') {
+      setHeaterDetail(response.data.data);
+      localStorage.setItem('heaterDetailState', JSON.stringify(response.data.data));
+      setHeaterDetailState(response.data.data);
+    } else {
+      setIsHeaterOpenState(false);
+      setHeaterDetailState({
+        "SV2": 0,
+        "SLH": 0,
+        "rAP": 0,
+        "Gain": 0.0,
+        "P": 0,
+        "I": 0,
+        "D": 0,
+        "M": 0
+      });
+      console.error(response?.data?.status);
+
+      setAlertDetail({
+        show: true,
+        message: '取得Heater資料失敗',
+        type: 'failure'
+      });
+
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 3000);
+    }
+
+  }, [setIsHeaterOpenState, setHeaterDetailState]);
+
+  // 連線Heater設備api
+  const connectHeaterApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/heater/connect', 'POST', data);
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: response.data.message || 'Heater連線成功',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          heater: {
+            ...prev.heater,
+            connected: true,
+            loading: false
+          }
+        }));
+
+        setIsHeaterOpenState(true);
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: response?.data?.message || 'Heater連線失敗',
+          type: 'failure'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          heater: {
+            ...prev.heater,
+            loading: false
+          }
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          loading: false
+        }
+      }));
+
+      setAlertDetail({
+        show: true,
+        message: '連線過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setHeaterPortAndAddressState({
+        port: data.port,
+        address: data.address
+      });
+
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 3000);
+    }
+  };
+
+  // 斷開Heater設備連線api
+  const disconnectHeaterApi = async () => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/heater/disconnect', 'POST');
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: 'Heater已取消連線',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          heater: {
+            ...prev.heater,
+            connected: false,
+            loading: false
+          }
+        }));
+
+        setIsHeaterOpenState(false);
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '取消連線失敗',
+          type: 'failure'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          heater: {
+            ...prev.heater,
+            loading: false
+          }
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          loading: false
+        }
+      }));
+
+      setAlertDetail({
+        show: true,
+        message: '取消連線過程發生錯誤',
+        type: 'failure'
+      });
+
+    } finally {
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 3000);
+    }
+  };
+
+  // Heater設定(update)api
+  const onHeaterSettingClick = async () => {
+    if (!isHeaterOpenState) {
+      setAlertDetail({
+        show: true,
+        message: '請先連接Heater控制器',
+        type: 'failure'
+      });
+      return;
+    }
+
+    setIsHeaterLoading(true);
+
+    try {
+      const response = await getApi('/heater/update', 'POST', heaterInputList);
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: 'Heater設定更新成功',
+          type: 'success'
+        });
+
+        // 更新狀態
+        const statusResponse = await getApi('/heater/status', 'GET');
+        if (statusResponse?.data?.status === 'success') {
+          setHeaterDetail(statusResponse.data.data);
+          setHeaterDetailState(statusResponse.data.data);
+        }
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: response?.data?.message || 'Heater設定更新失敗',
+          type: 'failure'
+        });
+      }
+    } catch (error) {
+      console.error('Heater設定更新失敗:', error);
+      setAlertDetail({
+        show: true,
+        message: error.message || 'Heater設定更新失敗',
+        type: 'failure'
+      });
+    } finally {
+      setIsHeaterLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 3000);
+    }
   };
 
   // ----------------單獨連線的function (onChange, onClick)---------------------------------
@@ -786,10 +1029,13 @@ const useHooks = () => {
     if (devices[deviceId]?.connected) {
       switch (deviceId) {
         case 'carrierGas':
-          await disconnectDeviceApi(devices[deviceId], deviceId);
+          await disconnectCarrierGasApi(devices[deviceId], deviceId);
           break;
         case 'co2Laser':
           await disconnectCo2LaserApi();
+          break;
+        case 'heater':
+          await disconnectHeaterApi();
           break;
         default:
           break;
@@ -805,9 +1051,7 @@ const useHooks = () => {
       });
 
       setTimeout(() => {
-        setAlertDetail({
-          show: false
-        });
+        setAlertDetail((prev) => ({ ...prev, show: false }));
       }, 3000);
       return;
     }
@@ -827,9 +1071,7 @@ const useHooks = () => {
           });
   
           setTimeout(() => {
-            setAlertDetail({
-              show: false
-            });
+            setAlertDetail((prev) => ({ ...prev, show: false }));
           }, 3000);
           return;
         }
@@ -843,9 +1085,7 @@ const useHooks = () => {
           });
     
           setTimeout(() => {
-            setAlertDetail({
-              show: false
-            });
+            setAlertDetail((prev) => ({ ...prev, show: false }));
           }, 3000);
           return;
         }
@@ -854,14 +1094,22 @@ const useHooks = () => {
 
     switch (deviceId) {
       case 'carrierGas':
-        await connectDeviceApi(data, deviceId);
+        await connectCarrierGasApi(data, deviceId);
         break;
       case 'co2Laser':
         await connectCo2LaserApi(data);
         break;
+      case 'heater':
+        await connectHeaterApi(data);
+        break;
       default:
         break;
     }
+  };
+
+  // 關閉Alert
+  const onAlertClose = () => {
+    setAlertDetail((prev) => ({ ...prev, show: false }));
   };
   // -----------------------------------------------------------------------
 
@@ -881,8 +1129,6 @@ const useHooks = () => {
   const onSetCarrierGasGasTypeClick = (data) => {
     setCarrierGasTypeSetting(data);
   };
-
-  console.log("CarrierGasTypeSetting", carrierGasTypeSetting);
 
   // 選擇混合氣體的Click事件
   const onCarrierGasMixGasClick = (data) => {
@@ -1003,6 +1249,78 @@ const useHooks = () => {
   }, [co2LaserPortState, isCo2LaserOpenState, getCo2LaserDataApi]);
   // ---------------------------------co2 co2Laser function---------------------------------
 
+  // ---------------------------------heater function---------------------------------
+  // onChange heater input
+  const onHeaterInputChange = (value, flag) => {
+    if (flag === 'M') {
+      setHeaterInputList(prev => ({
+        ...prev,
+        [flag]: value ? 0 : 1
+      }));
+      return;
+    }
+    setHeaterInputList(prev => ({
+      ...prev,
+      [flag]: value
+    }));
+  };
+
+  // 更新heater input
+  React.useEffect(() => {
+    if (heaterDetailState) {
+      setHeaterInputList({
+        SV2: heaterDetailState.SV2 || 0,
+        SLH: heaterDetailState.SLH || 0,
+        rAP: heaterDetailState.rAP || 0,
+        Gain: heaterDetailState.Gain || 0.0,
+        P: heaterDetailState.P || 0,
+        I: heaterDetailState.I || 0,
+        D: heaterDetailState.D || 0,
+        M: heaterDetailState.M || 0
+      });
+    }
+  }, [heaterDetailState]);
+
+  // 從 localStorage 取得heater是否開啟，如果開啟則取得heater資料
+  React.useEffect(() => {
+    if (isHeaterOpenState) {
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          connected: true
+        }
+      }));
+  
+      getHeaterDataApi();
+  
+    } else {
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          connected: false
+        }
+      }));
+    }
+  }, [isHeaterOpenState, getHeaterDataApi]);
+
+  // 從 localStorage 取得heater的Port及Address
+  React.useEffect(() => {
+    if (heaterPortAndAddressState?.port && heaterPortAndAddressState?.address) {
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          port: heaterPortAndAddressState.port,
+          address: heaterPortAndAddressState.address
+        }
+      }));
+    }
+  }, [heaterPortAndAddressState]);
+
+  // ---------------------------------heater function---------------------------------
+
   return {
     devices,
     carrierGasDetail,
@@ -1013,11 +1331,15 @@ const useHooks = () => {
     carrierGasCreateMixGas,
     carrierGasTypeSetting,
     carrierGasMixGas,
+    isCarrierGasOpenState,
     co2SelectOrChangeList,
     co2LaserDetail,
     isCo2LaserOpenState,
     isCo2LaserLoading,
-    heaterDetailState,
+    heaterDetail,
+    isHeaterOpenState,
+    isHeaterLoading,
+    heaterInputList,
     onAlertClose,
     onConnectPortChange,
     onConnectAddressChange,
@@ -1029,18 +1351,20 @@ const useHooks = () => {
     onCarrierGasCreateMixGasClick,
     onDeleteCarrierGasGasTypeClick,
     onChangeCo2SelectOrChange,
-    onCo2LaserSettingClick
+    onCo2LaserSettingClick,
+    onHeaterSettingClick,
+    onHeaterInputChange
   };
 };
 
 const MfcLaserSetting = () => {
   const {
-    devices, carrierGasDetail, alertDetail, deviceList, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas,
+    devices, carrierGasDetail, alertDetail, deviceList, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas, isCarrierGasOpenState,
     carrierGasTypeSetting, carrierGasMixGas, co2SelectOrChangeList, co2LaserDetail, isCo2LaserOpenState, isCo2LaserLoading,
-    heaterDetailState,
+    heaterDetail, isHeaterOpenState, isHeaterLoading, heaterInputList,
     onAlertClose, onConnectPortChange, onConnectAddressChange, onConnectClick, onGetCarrierGasTypeClick, onSetCarrierGasGasTypeClick,
     onCarrierGasMixGasClick, onCarrierGasCreateMixGasChange, onCarrierGasCreateMixGasClick, onDeleteCarrierGasGasTypeClick, onChangeCo2SelectOrChange,
-    onCo2LaserSettingClick
+    onCo2LaserSettingClick, onHeaterInputChange, onHeaterSettingClick
   } = useHooks();
 
   return (
@@ -1127,8 +1451,9 @@ const MfcLaserSetting = () => {
                           </div>
                           <div className='flex justify-center items-center mb-2'>              
                             <button
-                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-400"
                               onClick={onCarrierGasCreateMixGasClick}
+                              disabled={carrierGasTypeListLoading || !isCarrierGasOpenState}
                             >
                               {
                                 carrierGasTypeListLoading ? (
@@ -1172,8 +1497,9 @@ const MfcLaserSetting = () => {
                           </div>
                           <div className='flex justify-center items-center mb-2 mt-2'>
                             <button
-                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-400"
                               onClick={() => onDeleteCarrierGasGasTypeClick(carrierGasMixGas)}
+                              disabled={carrierGasTypeListLoading || !isCarrierGasOpenState}
                             >
                               {
                                 carrierGasTypeListLoading ? (
@@ -1212,8 +1538,9 @@ const MfcLaserSetting = () => {
                           </select>
                           <div className='flex justify-center items-center mb-2'>
                             <button
-                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
+                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-400"
                               onClick={onGetCarrierGasTypeClick}
+                              disabled={carrierGasTypeListLoading || !isCarrierGasOpenState}
                             >
                               {
                                 carrierGasTypeListLoading ? (
@@ -1418,7 +1745,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 bg-gray-50"
                               placeholder="目前溫度數值"
-                              value={Number(heaterDetailState?.pv || 0)}
+                              value={Number(heaterDetail?.pv || 0).toFixed(2)}
                               readOnly
                             />
                           </div>
@@ -1428,7 +1755,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 bg-gray-50"
                               placeholder="目前設定溫度數值"
-                              value={Number(heaterDetailState?.sv || 0)}
+                              value={Number(heaterDetail?.sv || 0).toFixed(2)}
                               readOnly
                             />
                           </div>
@@ -1440,17 +1767,21 @@ const MfcLaserSetting = () => {
                               緩啟動設定: 在達到此溫度以前，溫度會快速上升，超過此溫度後會緩慢上升。
                             </p>
                             <input
-                              type="text"
+                              type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 -9999~9999"
+                              value={Number(heaterInputList?.sv2 || 0).toFixed(2)}
+                              onChange={(e) => onHeaterInputChange(Number(e.target.value), 'SV2')}
                             />
                           </div>
                           <div>
                             <label className="block font-medium mb-2">最高溫度上限 (Set Limit High)</label>
                             <input
-                              type="text"
+                              type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 -9999~9999"
+                              value={Number(heaterInputList?.SLH || 0).toFixed(2)}
+                              onChange={(e) => onHeaterInputChange(Number(e.target.value), 'SLH')}
                             />
                           </div>
                           <div>
@@ -1459,6 +1790,8 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 0~9999"
+                              value={Number(heaterInputList?.rAP || 0).toFixed(2)}
+                              onChange={(e) => onHeaterInputChange(Number(e.target.value), 'rAP')}
                             />
                           </div>
                           <div>
@@ -1469,33 +1802,42 @@ const MfcLaserSetting = () => {
                             </h3>
                             <label className="block font-medium mb-2">增益值 (Gain)</label>
                             <input
-                              type="text"
+                              type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0.0~9.9"
+                              value={Number(heaterInputList?.Gain || 0.0).toFixed(1)}
+                              step={0.1}
+                              onChange={(e) => onHeaterInputChange(Number(e.target.value), 'Gain')}
                             />
                             <label className="block font-medium mb-2">比例參數 (Proportional Band)</label>
                             <input
-                              type="text"
+                              type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0~3999"
+                              value={Number(heaterInputList?.P || 0)}
+                              onChange={(e) => onHeaterInputChange(Number(e.target.value), 'P')}
                             />
                             <label className="block font-medium mb-2">積分值 (Integral)</label>
                             <input
-                              type="text"
+                              type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0~3999"
+                              value={Number(heaterInputList?.I || 0)}
+                              onChange={(e) => onHeaterInputChange(Number(e.target.value), 'I')}
                             />
                             <label className="block font-medium mb-2">微分值 (Derivative)</label>
                             <input
-                              type="text"
+                              type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0~3999"
+                              value={Number(heaterInputList?.D || 0)}
+                              onChange={(e) => onHeaterInputChange(Number(e.target.value), 'D')}
                             />
                             <ToggleSwitch
                               className='mr-2'
                               label="PID控制開關 (Auto/Manual)"
-                              // onChange={(e) => onChangeCo2SelectOrChange(e, 'maxPwm')}
-                              // checked={co2SelectOrChangeList?.maxPwm}
+                              onChange={(e) => onHeaterInputChange(e, 'M')}
+                              checked={Number(heaterInputList?.M) === 0}
                             />
                           </div>
                         </div>
@@ -1503,10 +1845,10 @@ const MfcLaserSetting = () => {
                       <div className='flex justify-center items-center mb-2 mt-2'>
                         <button 
                           className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-400"
-                          onClick={onCo2LaserSettingClick}
-                          disabled={isCo2LaserLoading || !isCo2LaserOpenState}
+                          onClick={onHeaterSettingClick}
+                          disabled={isHeaterLoading || !isHeaterOpenState}
                         >
-                          {isCo2LaserLoading ? (
+                          {isHeaterLoading ? (
                             <CommonLoading />
                           ) : (
                             '設定 (Setting)'

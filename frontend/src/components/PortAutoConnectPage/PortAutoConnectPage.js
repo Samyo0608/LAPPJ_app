@@ -125,7 +125,7 @@ const useHooks = () => {
     
           setAlertDetail({
             show: true,
-            message: '連線成功',
+            message: response.data.message || '載氣連線成功',
             type: 'success'
           });
     
@@ -190,7 +190,7 @@ const useHooks = () => {
   
         setAlertDetail({
           show: true,
-          message: '連線成功',
+          message: response.data.message || 'CO2 Laser 連線成功',
           type: 'success'
         });
   
@@ -258,7 +258,7 @@ const useHooks = () => {
 
         setAlertDetail({
           show: true,
-          message: '連線成功',
+          message: response.data.message || 'Heater連線成功',
           type: 'success'
         });
 
@@ -299,7 +299,7 @@ const useHooks = () => {
 
       setAlertDetail({
         show: true,
-        message: '連線過程發生錯誤',
+        message: 'Heater連線過程發生錯誤',
         type: 'failure'
       });
 
@@ -558,7 +558,7 @@ const useHooks = () => {
       if (response?.data?.status === 'success') {
         setAlertDetail({
           show: true,
-          message: '已取消連線',
+          message: '載氣設備已取消連線',
           type: 'success'
         });
         
@@ -576,7 +576,7 @@ const useHooks = () => {
         console.error(response?.data?.status);
         setAlertDetail({
           show: true,
-          message: '取消連線失敗',
+          message: '載氣設備取消連線失敗',
           type: 'failure'
         });
         
@@ -600,7 +600,7 @@ const useHooks = () => {
   
       setAlertDetail({
         show: true,
-        message: '取消連線過程發生錯誤',
+        message: '載氣設備取消連線過程發生錯誤',
         type: 'failure'
       });
     } finally {
@@ -626,7 +626,7 @@ const useHooks = () => {
       if (response?.data?.status === 'success') {
         setAlertDetail({
           show: true,
-          message: '已取消連線',
+          message: 'CO2雷射控制器已取消連線',
           type: 'success'
         });
 
@@ -644,7 +644,7 @@ const useHooks = () => {
         console.error(response?.data?.status);
         setAlertDetail({
           show: true,
-          message: '取消連線失敗',
+          message: 'CO2雷射控制器取消連線失敗',
           type: 'failure'
         });
 
@@ -667,7 +667,7 @@ const useHooks = () => {
       }));
       setAlertDetail({
         show: true,
-        message: '取消連線過程發生錯誤',
+        message: 'CO2雷射控制器取消連線過程發生錯誤',
         type: 'failure'
       });
     } finally {
@@ -693,7 +693,7 @@ const useHooks = () => {
       if (response?.data?.status === 'success') {
         setAlertDetail({
           show: true,
-          message: '已取消連線',
+          message: 'Heater已取消連線',
           type: 'success'
         });
 
@@ -712,7 +712,7 @@ const useHooks = () => {
         console.error(response?.data?.status);
         setAlertDetail({
           show: true,
-          message: '取消連線失敗',
+          message: 'Heater取消連線失敗',
           type: 'failure'
         });
 
@@ -735,7 +735,7 @@ const useHooks = () => {
       }));
       setAlertDetail({
         show: true,
-        message: '取消連線過程發生錯誤',
+        message: 'Heater取消連線過程發生錯誤',
         type: 'failure'
       });
 

@@ -6,6 +6,7 @@ import AlertComponent from "../ComponentTools/Alert";
 import LineChartComponent from "../Chart/Chart";
 import { useAlicatContext } from "../../Contexts/AlicatContext";
 import { useCo2LaserContext } from "../../Contexts/Co2LaserContext";
+import { useHeaterContext } from "../../Contexts/HeaterContext";
 
 // Button Component
 const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen }) => (
@@ -22,7 +23,8 @@ const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false
 
 const useHooks = () => {
   const { isCarrierGasOpenState, setCarrierGasDetailState } = useAlicatContext();
-  const { isCo2LaserOpenState, co2LaserDetailState } = useCo2LaserContext();
+  const { isCo2LaserOpenState, co2LaserDetailState, setCo2LaserDetailState } = useCo2LaserContext();
+  const { isHeaterOpenState, heaterDetailState, setHeaterDetailState } = useHeaterContext();
   // 載氣資料
   const [carrierGasDetail, setCarrierGasDetail] = useState({});
   // 載器流量設定
@@ -35,8 +37,12 @@ const useHooks = () => {
   const [co2LaserDetail, setCo2LaserDetail] = useState({});
   const [laserPWM, setLaserPWM] = useState(0);
   const [onLaserOpenLoading, setOnLaserOpenLoading] = useState(false);
+  // Heater
+  const [heaterDetail, setHeaterDetail] = useState({});
+  const [temperature, setTemperature] = useState(0);
+  const [onHeaterSettingLoading, setOnHeaterSettingLoading] = useState(false);
   const [alertDetail, setAlertDetail] = React.useState({});
-  const [temperature, setTemperature] = useState(35);
+
   // 載氣流量監測資料
   const [carrierGasFlowData, setCarrierGasFlowData] = useState({
     history: [],
@@ -54,6 +60,11 @@ const useHooks = () => {
   });
   // CO2雷射PWM功率監測資料
   const [co2LaserPWMData, setCo2LaserPWMData] = useState({
+    history: [],
+    labels: [],
+  });
+  // Heater溫度監測資料
+  const [heaterTemperatureData, setHeaterTemperatureData] = useState({ 
     history: [],
     labels: [],
   });
@@ -111,19 +122,19 @@ const useHooks = () => {
   };
 
   // 取得CO2雷射資料 api
-  const getCo2LaserDataApi = async () => {
+  const getCo2LaserDataApi = React.useCallback(async () => {
     try {
       const response = await getApi("/uc2000/status", "GET");
       if (response?.data?.status === "success") {
         setCo2LaserDetail(response.data.data);
-
+        setCo2LaserDetailState(response.data.data);
       } else {
         console.error(response?.data?.status);
       }
     } catch (error) {
       console.error(error);
     }
-  };
+  }, [setCo2LaserDetailState]);
 
   // 修改CO2雷射功率 api
   const setCo2LaserPowerApi = async (percentage) => {
@@ -172,11 +183,10 @@ const useHooks = () => {
         });
 
         setTimeout(() => {
-          setAlertDetail({
-            type: "failure",
-            message: "超過最大PWM值 - 目前設定最大值: 99%",
+          setAlertDetail((prev) => ({
+            ...prev,
             show: false,
-          });
+          }));
         }, 3000);
 
         return;
@@ -269,10 +279,81 @@ const useHooks = () => {
     }
   };
 
+  // 取得Heater資料 API
+  const getHeaterDataApi = React.useCallback(async () => {
+    try {
+      const response = await getApi("/heater/status", "GET");
+      if (response?.data?.status === "success") {
+        setHeaterDetailState(response.data.data);
+        setHeaterDetail(response.data.data);
+      } else {
+        console.error(response?.data?.status);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [setHeaterDetailState]);
+
+  // 修改Heater溫度 API
+  const setHeaterTemperatureApi = async () => {
+    if (Number(temperature) > Number(heaterDetailState?.rAP)) {
+      setAlertDetail({
+        show: true,
+        message: `超過最大溫度 - 目前設定最大值: ${heaterDetailState?.rAP}°C`,
+        type: "failure",
+      });
+
+      setTimeout(() => {
+        setAlertDetail({
+          show: false,
+          message: `超過最大溫度 - 目前設定最大值: ${heaterDetailState?.rAP}°C`,
+          type: "failure",
+        });
+      }, 3000);
+
+      return;
+    }
+
+    try {
+      setOnHeaterSettingLoading(true);
+      const response = await getApi("/heater/update", "POST", {
+        sv: temperature,
+      });
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnHeaterSettingLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  }
+
   // 取得Recipe資料 API
   const getRecipeDataApi = async () => {
     const response = await getApi("/recipe_api/get_recipes", "GET");
-    console.log(response);
     if (response?.data?.status === "success") {
       setRecipeDetail(response.data.data);
       setRecipeSelectedDetail(response.data.data[0] || {});
@@ -312,6 +393,8 @@ const useHooks = () => {
     setCarrierGasFlowSetting(recipeSelectedDetail.carrier_gas_flow);
     // CO2雷射更改
     setLaserPWM(recipeSelectedDetail.laser_power);
+    // Heater更改
+    setTemperature(recipeSelectedDetail.temperature);
 
     await setCo2LaserPowerApi(recipeSelectedDetail.laser_power);
   };
@@ -340,8 +423,8 @@ const useHooks = () => {
     };
   }, [isCarrierGasOpenState, getCarrierGasDataApi]);
 
+  // 載氣當有新的資料時，加入最新值與當前時間
   React.useEffect(() => {
-    // 當有新的資料時，加入最新值與當前時間
     if (carrierGasDetail) {
       const currentTime = new Date().toLocaleTimeString("en-GB");
       setCarrierGasFlowData((prev) => {
@@ -389,6 +472,7 @@ const useHooks = () => {
     }
   }, [carrierGasDetail]);
 
+  // CO2雷射當有新的資料時，加入最新值與當前時間
   React.useEffect(() => {
     if (co2LaserDetail) {
       const currentTime = new Date().toLocaleTimeString("en-GB");
@@ -431,7 +515,53 @@ const useHooks = () => {
         console.log("Clearing interval");
       }
     };
-  }, [isCo2LaserOpenState]);
+  }, [isCo2LaserOpenState, getCo2LaserDataApi]);
+
+  // Heater監測，每3秒更新一次
+  React.useEffect(() => {
+    // 先call一次
+    if (isHeaterOpenState) {
+      getHeaterDataApi();
+    }
+    let intervalId;
+
+    if (isHeaterOpenState) {
+      intervalId = setInterval(() => {
+        getHeaterDataApi();
+      }
+      , 3000);
+      console.log("Starting interval");
+    }
+
+    // 清理函數
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        console.log("Clearing interval");
+      }
+    }
+  }, [isHeaterOpenState, getHeaterDataApi]);
+
+  // Heater當有新的資料時，加入最新值與當前時間
+  React.useEffect(() => {
+    if (heaterDetail) {
+      const currentTime = new Date().toLocaleTimeString("en-GB");
+      setHeaterTemperatureData((prev) => {
+        const newHistory = [
+          ...prev.history,
+          Number(heaterDetail?.temperature || 0),
+        ];
+        const newLabels = [...prev.labels, currentTime];
+        // 限制只保留 10 筆資料
+        if (newHistory.length > 10) newHistory.shift();
+        if (newLabels.length > 10) newLabels.shift();
+        return {
+          history: newHistory,
+          labels: newLabels,
+        };
+      });
+    }
+  }, [heaterDetail]);
 
   // 取得Recipe資料
   React.useEffect(() => {
@@ -452,10 +582,14 @@ const useHooks = () => {
     isCo2LaserOpenState,
     co2LaserDetail,
     co2LaserPWMData,
+    onLaserOpenLoading,
     laserPWM,
     temperature,
+    heaterDetail,
+    onHeaterSettingLoading,
+    heaterTemperatureData,
+    isHeaterOpenState,
     alertDetail,
-    onLaserOpenLoading,
     onCarrierFlowSettingChange,
     onCarrierFlowSettingClick,
     onRecipeSelect,
@@ -465,6 +599,7 @@ const useHooks = () => {
     setLaserPWM,
     onAlertClose,
     setTemperature,
+    setHeaterTemperatureApi,
   };
 };
 
@@ -472,10 +607,10 @@ const ControllerPage = () => {
   const {
     isCarrierGasOpenState, carrierGasDetail, carrierGasFlowData, carrierGasFlowSetting, carrierGasPressureData, carrierGasTemperatureData,
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
-    alertDetail,  temperature,
+    alertDetail,  temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState,
     onCarrierFlowSettingChange, onCarrierFlowSettingClick, onRecipeSelect, onRecipeApplyClick,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM,
-    onAlertClose, setTemperature
+    onAlertClose, setTemperature, setHeaterTemperatureApi,
   } = useHooks();
 
   return (
@@ -512,7 +647,11 @@ const ControllerPage = () => {
           <span className="text-sm">Plasma</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-green-500 rounded-full"></span>
+          <span
+            className={`${
+              isHeaterOpenState ? "bg-green-500" : "bg-red-500"
+            } w-4 h-4 bg-green-500 rounded-full`}
+          />
           <span className="text-sm">Heater</span>
         </div>
         <div className="flex items-center gap-2">
@@ -620,7 +759,7 @@ const ControllerPage = () => {
                     className="p-1 border rounded bg-gray-50 mb-2"
                   />
                 </div>
-                <span className="text-md">sccm</span>
+                <span className="text-md">slm</span>
               </div>
             </div>
           </div>
@@ -708,23 +847,43 @@ const ControllerPage = () => {
             <div className="border p-4 border-blue-300 rounded shadow">
               <h3 className="font-bold mb-2">溫度控制器 (Heater)</h3>
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">Setting Value</span>
+                <div className="flex items-center gap-2 justify-between flex-wrap">
+                  <span className="text-sm min-w-28">設定溫度</span>
                   <input
                     type="number"
-                    value={temperature}
+                    value={Number(temperature).toFixed(1)}
                     onChange={(e) => setTemperature(e.target.value)}
-                    className="w-20 p-1 border rounded"
+                    className="p-1 border rounded"
                   />
                   <span className="text-sm">°C</span>
                 </div>
-                <input
-                  type="text"
-                  value="實際數值"
-                  readOnly
-                  className="w-full p-1 border rounded bg-gray-50"
-                />
-                <ButtonComponent label="Setting" otherCss={"w-full"} />
+                <div className="flex items-center gap-2 justify-between flex-wrap">
+                  <span className="text-sm min-w-28">目前設定溫度</span>
+                  <input
+                    type="number"
+                    value={Number(heaterDetail?.sv || 0).toFixed(1)}
+                    readOnly
+                    className="p-1 border rounded bg-gray-50"
+                  />
+                  <span className="text-sm">°C</span>
+                </div>
+                <div className="flex items-center gap-2 justify-between flex-wrap">
+                  <span className="text-sm min-w-28">實際溫度</span>
+                  <input
+                    type="number"
+                    value={Number(heaterDetail?.pv || 0).toFixed(1)}
+                    readOnly
+                    className="p-1 border rounded bg-gray-50"
+                  />
+                  <span className="text-sm">°C</span>
+                </div>
+                <ButtonComponent
+                  label="Setting"
+                  otherCss={"w-full"}
+                  onClick={setHeaterTemperatureApi}
+                  loading={onHeaterSettingLoading}
+                  isDisabled={!isHeaterOpenState}
+                  />
               </div>
             </div>
 
@@ -779,10 +938,10 @@ const ControllerPage = () => {
               dataHistory={carrierGasFlowData.history}
               timeLabels={carrierGasFlowData.labels}
               label="Carrier Gas flow"
-              yAxisLabel="Flow Rate (sccm)"
-              yAxisMax={300}
+              yAxisLabel="Flow Rate (slm)"
+              yAxisMax={1}
               yAxisMin={0}
-              yAxisStep={10}
+              yAxisStep={0.1}
               lineColor="rgb(192, 108, 75)"
               backgroundColor="rgba(192, 79, 75, 0.2)"
             />
@@ -819,7 +978,19 @@ const ControllerPage = () => {
               yAxisMax={100}
               yAxisMin={0}
               yAxisStep={5}
-              lineColor="rgb(75, 75, 192)"
+              lineColor="rgb(15, 16, 15)"
+              backgroundColor="rgba(75, 75, 192, 0.2)"
+            />
+            <LineChartComponent
+              title="Heater溫度監測"
+              dataHistory={heaterTemperatureData.history}
+              timeLabels={heaterTemperatureData.labels}
+              label="Heater Temprature"
+              yAxisLabel="Temprature (°C)"
+              yAxisMax={150}
+              yAxisMin={0}
+              yAxisStep={10}
+              lineColor="rgb(230, 46, 178)"
               backgroundColor="rgba(75, 75, 192, 0.2)"
             />
           </div>

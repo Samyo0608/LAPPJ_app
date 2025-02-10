@@ -1,4 +1,5 @@
-from pymodbus.client import ModbusSerialClient
+import asyncio
+from pymodbus.client import AsyncModbusSerialClient  # 改用異步客戶端
 from models.heater_model import ModbusData
 from datetime import datetime
 
@@ -6,145 +7,175 @@ class ModbusService:
     def __init__(self):
         self.client = None
         self.address = None
+        self.lock = asyncio.Lock()  # 添加鎖來控制並發
 
-    def connect(self, port, address):
+    async def connect(self, port, address):
         """ 連線到 Modbus 設備 """
-        try:
-            self.client = ModbusSerialClient(
-                port=port,
-                baudrate=19200,  # 修改為 19200
-                parity="N",
-                stopbits=1,
-                bytesize=8,
-                timeout=3
-            )
-            self.address = int(address)
-            
-            # 連接診斷
-            connection_status = self.client.connect()
-            print(f"連接狀態: {'✅ 成功' if connection_status else '❌ 失敗'}")
-            print(f"Port: {port}")
-            print(f"Address: {self.address}")
-            print(f"Client 狀態: {self.client.is_socket_open()}")
-            
-            if connection_status:
-                print("串口設置:", self.client.socket.get_settings())
+        async with self.lock:  # 使用鎖確保連接操作的原子性
+            try:
+                self.client = AsyncModbusSerialClient(
+                    port=port,
+                    baudrate=19200,
+                    parity="N",
+                    stopbits=1,
+                    bytesize=8,
+                    timeout=3
+                )
+                self.address = int(address)
                 
-            return connection_status
-                
-        except Exception as e:
-            print(f"❌ Modbus 連接異常: {str(e)}")
-            print(f"異常類型: {type(e).__name__}")
-            return False
+                # 先檢查連接是否成功
+                if not await self.client.connect():
+                    return {"status": "failure", "message": f"無法連接到端口 {port}"}, 500
+                    
+                # 連接成功後，測試讀取一個重要寄存器
+                test_value = await self.read_register(0x0041)
+                if test_value is None:
+                    await self.disconnect()
+                    return {
+                        "status": "failure", 
+                        "message": f"端口 {port} 連接成功但無法讀取數據，可能不是正確的設備"
+                    }, 500
 
-    def disconnect(self):
+                data = ModbusData(
+                    SV=await self.read_register(0x0023) or 0,
+                    PV=await self.read_register(0x0041) or 0,
+                    SV2=await self.read_register(0x0027) or 0,
+                    Gain=await self.read_register(0x0016) or 0,
+                    P=await self.read_register(0x0013) or 0,
+                    I=await self.read_register(0x0014) or 0,
+                    D=await self.read_register(0x0015) or 0,
+                    M=await self.read_register(0x0025) or 0,
+                    rAP=await self.read_register(0x000D) or 0,
+                    SLH=await self.read_register(0x0007) or 0
+                )
+
+                return {
+                    "status": "success",
+                    "message": f"Heater 連接成功，地址: {address}，端口: {port}",
+                    "data": data.__dict__
+                }, 200
+                    
+            except Exception as e:
+                if self.client:
+                    await self.disconnect()
+                return {
+                    "status": "failure",
+                    "message": f"連接異常: {str(e)}"
+                }, 500
+
+    async def disconnect(self):
         """ 斷開 Modbus 連線 """
-        if self.client:
-            self.client.close()
-            self.client = None
+        async with self.lock:
+            if self.client:
+                await self.client.close()
+                self.client = None
 
-    def read_register(self, reg_addr):
+    async def read_register(self, reg_addr):
         """ 讀取 Modbus Holding Register """
-        if not self.client:
-            print("❌ Modbus 客戶端未初始化")
-            return None
-        try:
-            print(f"📍 嘗試讀取寄存器 {hex(reg_addr)}:")
-            print(f"  - Slave ID: {self.address}")
-            print(f"  - 客戶端狀態: {'已連接' if self.client.connected else '未連接'}")
-            
-            response = self.client.read_holding_registers(
-                address=reg_addr, 
-                count=1, 
-                slave=self.address
-            )
-            
-            if response is None:
-                print(f"❌ 讀取超時")
+        async with self.lock:
+            if not self.client:
+                print("Modbus 客戶端未初始化")
                 return None
+            try:
+                response = await self.client.read_holding_registers(
+                    address=reg_addr, 
+                    count=1, 
+                    slave=self.address
+                )
                 
-            if hasattr(response, 'isError') and response.isError():
-                print(f"⚠️ 讀取錯誤: {response}")
+                if response is None:
+                    return None
+                    
+                if hasattr(response, 'isError') and response.isError():
+                    print(f"讀取錯誤: {response}")
+                    return None
+                    
+                return response.registers[0] if hasattr(response, 'registers') else None
+                
+            except Exception as e:
+                print(f"讀取異常: {type(e).__name__} - {str(e)}")
                 return None
-                
-            return response.registers[0] if hasattr(response, 'registers') else None
-            
-        except Exception as e:
-            print(f"❌ 讀取異常: {type(e).__name__} - {str(e)}")
-            return None
 
-    def write_register(self, reg_addr, value):
-        """ 寫入 Modbus Holding Register (對應 C# 的 write_data_to_modbus) """
-        if not self.client:
-            return False
-        response = self.client.write_register(address=reg_addr, value=value, slave=self.address)
-        if response.isError():
-            print(f"⚠️ 寫入寄存器 {hex(reg_addr)} 失敗！")
-            return False
-        return True
+    async def write_register(self, reg_addr, value):
+        """ 寫入 Modbus Holding Register """
+        async with self.lock:
+            if not self.client:
+                return False
+            try:
+                response = await self.client.write_register(
+                    address=reg_addr, 
+                    value=value, 
+                    slave=self.address
+                )
+                return not (response.isError() if hasattr(response, 'isError') else True)
+            except Exception as e:
+                print(f"寫入異常: {str(e)}")
+                return False
 
-    def read_modbus_data(self):
+    async def read_modbus_data(self):
         """ 讀取所有 Modbus 參數 """
-        try:
-            data = ModbusData(
-                # 使用文檔中的正確地址
-                SV=self.read_register(0x0023) or 0,     # 0023H: SV Setting value
-                PV=self.read_register(0x0041) or 0,     # 0041H: PV Process value
-                SV2=self.read_register(0x0027) or 0,    # 0027H: SV2 Soft start selecting
-                Gain=self.read_register(0x0016) or 0,   # 0016H: GAin
-                P=self.read_register(0x0013) or 0,      # 0013H: P Proportion band
-                I=self.read_register(0x0014) or 0,      # 0014H: I Integral time
-                D=self.read_register(0x0015) or 0,      # 0015H: D Derivative time
-                M=self.read_register(0x0025) or 0,      # 0025H: M.A Auto/Manual selecting
-                rAP=self.read_register(0x000D) or 0,    # 000DH: rAP Ramp control
-                SLH=self.read_register(0x0007) or 0     # 0007H: SLH High limit of set
-            )
-            
-            return {
-                "data": data.__dict__,
-                "status": {
-                    "connected": True,
-                    "timestamp": datetime.now().isoformat()
+        async with self.lock:
+            try:
+                data = ModbusData(
+                    SV=await self.read_register(0x0023) or 0,
+                    PV=await self.read_register(0x0041) or 0,
+                    SV2=await self.read_register(0x0027) or 0,
+                    Gain=await self.read_register(0x0016) or 0,
+                    P=await self.read_register(0x0013) or 0,
+                    I=await self.read_register(0x0014) or 0,
+                    D=await self.read_register(0x0015) or 0,
+                    M=await self.read_register(0x0025) or 0,
+                    rAP=await self.read_register(0x000D) or 0,
+                    SLH=await self.read_register(0x0007) or 0
+                )
+                
+                return {
+                    "data": data.__dict__,
+                    "status": "success",
                 }
-            }
-            
-        except Exception as e:
-            print(f"❌ 讀取全部數據時發生錯誤: {str(e)}")
-            return None
-        
-    def update_modbus_data(self, data: ModbusData):
-        """ 更新 Modbus 設備參數 """
-        if not self.client:
-            return {"status": "failed", "message": "Modbus 未連線"}
-        
-        validation_errors = self.validate_data(data)
+                
+            except Exception as e:
+                print(f"讀取全部數據時發生錯誤: {str(e)}")
+                return None
 
-        if validation_errors:
-            return {
-                "status": "failed",
-                "message": "數據驗證失敗",
-                "details": validation_errors
-            }
+    async def update_modbus_data(self, data: ModbusData):
+        """ 更新 Modbus 設備參數 """
+        async with self.lock:
+            if not self.client:
+                return {"status": "failure", "message": "Modbus 未連線"}
             
-        failed_registers = []
-        
-        # 使用文檔中的正確地址進行寫入
-        if not self.write_register(0x0023, data.SV): failed_registers.append("SV")        # 0023H: SV Setting value
-        if not self.write_register(0x0027, data.SV2): failed_registers.append("SV2")      # 0027H: SV2 Soft start
-        if not self.write_register(0x0016, data.Gain): failed_registers.append("Gain")    # 0016H: GAin
-        if not self.write_register(0x0013, data.P): failed_registers.append("P")          # 0013H: P Proportion band
-        if not self.write_register(0x0014, data.I): failed_registers.append("I")          # 0014H: I Integral time
-        if not self.write_register(0x0015, data.D): failed_registers.append("D")          # 0015H: D Derivative time
-        if not self.write_register(0x0025, data.M): failed_registers.append("M")          # 0025H: M.A Auto/Manual
-        if not self.write_register(0x000D, data.rAP): failed_registers.append("rAP")      # 000DH: rAP Ramp control
-        if not self.write_register(0x0007, data.SLH): failed_registers.append("SLH")      # 0007H: SLH High limit
-        
-        if failed_registers:
-            return {
-                "status": "failed", 
-                "message": f"這些參數更新失敗: {', '.join(failed_registers)}"
-            }
-        return {"status": "success"}
+            validation_errors = self.validate_data(data)
+            if validation_errors:
+                return {
+                    "status": "failure",
+                    "message": "數據驗證失敗",
+                    "details": validation_errors
+                }
+                
+            failed_registers = []
+            
+            updates = [
+                (0x0023, data.SV, "SV"),
+                (0x0027, data.SV2, "SV2"),
+                (0x0016, data.Gain, "Gain"),
+                (0x0013, data.P, "P"),
+                (0x0014, data.I, "I"),
+                (0x0015, data.D, "D"),
+                (0x0025, data.M, "M"),
+                (0x000D, data.rAP, "rAP"),
+                (0x0007, data.SLH, "SLH")
+            ]
+            
+            for addr, value, name in updates:
+                if not await self.write_register(addr, value):
+                    failed_registers.append(name)
+            
+            if failed_registers:
+                return {
+                    "status": "failure", 
+                    "message": f"這些參數更新失敗: {', '.join(failed_registers)}"
+                }
+            return {"status": "success"}
     
     def validate_data(self, data: ModbusData):
         """ 驗證數據是否在有效範圍內 """

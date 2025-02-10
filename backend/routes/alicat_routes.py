@@ -16,7 +16,7 @@ def connect():
     address = data.get('address', 'A')
 
     if not port:
-        return jsonify({"status": "error", "message": "需要提供端口號"}), 400
+        return jsonify({"status": "failure", "message": "需要提供端口號"}), 400
 
     try:
         async def async_connect():
@@ -41,7 +41,7 @@ def connect():
         formatted_status = asyncio.run(async_connect())
         
         return jsonify({
-            "message": f"已連接到端口 {port}",
+            "message": f"Alicat 載氣MFC連接成功，端口: {port}",
             "port": port,
             "address": address,
             "status": "success"
@@ -56,9 +56,9 @@ def connect():
         except:
             pass
         flow_controller = None
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "failure", "message": str(e)}), 500
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "failure", "message": str(e)}), 500
 
 def is_port_available(port):
     """檢查指定的端口是否有效"""
@@ -74,7 +74,7 @@ def disconnect():
     """斷開設備連接"""
     global flow_controller
     if not flow_controller:
-        return jsonify({"status": "error", "message": "Device not connected"}), 400
+        return jsonify({"status": "failure", "message": "Device not connected"}), 400
 
     try:
         loop = asyncio.new_event_loop()
@@ -83,13 +83,13 @@ def disconnect():
         flow_controller = None
         return jsonify({"status": "success", "message": "Disconnected"}), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "failure", "message": str(e)}), 500
 
 @alicat_bp.route('/status', methods=['GET'])
 def get_status():
     """獲取設備狀態"""
     if not flow_controller:
-        return jsonify({"status": "error", "message": "設備未連接"}), 400
+        return jsonify({"status": "failure", "message": "設備未連接"}), 400
 
     try:
         loop = asyncio.new_event_loop()
@@ -100,19 +100,19 @@ def get_status():
             "data": status
         }), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "failure", "message": str(e)}), 500
 
 @alicat_bp.route('/set_flow_rate', methods=['POST'])
 def set_flow_rate():
     """設定流量"""
     if not flow_controller:
-        return jsonify({"status": "error", "message": "Device not connected"}), 400
+        return jsonify({"status": "failure", "message": "Device not connected"}), 400
 
     data = request.get_json()
     flow_rate = data.get('flow_rate')
 
     if flow_rate is None:
-        return jsonify({"status": "error", "message": "Flow rate is required"}), 400
+        return jsonify({"status": "failure", "message": "Flow rate is required"}), 400
 
     try:
         flow_rate = float(flow_rate)
@@ -121,16 +121,16 @@ def set_flow_rate():
         loop.run_until_complete(flow_controller.set_flow_rate(flow_rate))
         return jsonify({"status": "success", "message": f"Flow rate set to {flow_rate:.3f} slm"}), 200
     except ValueError:
-        return jsonify({"status": "error", "message": "Invalid flow rate format"}), 400
+        return jsonify({"status": "failure", "message": "Invalid flow rate format"}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "failure", "message": str(e)}), 500
 
 
 @alicat_bp.route('/gases', methods=['GET'])
 def get_all_gases():
     """獲取所有氣體資訊（標準氣體和混合氣體）"""
     if not flow_controller:
-        return jsonify({"status": "error", "message": "設備未連接"}), 400
+        return jsonify({"status": "failure", "message": "設備未連接"}), 400
 
     # 獲取搜尋參數（可選）
     search_term = request.args.get('search', None)
@@ -145,19 +145,19 @@ def get_all_gases():
             "data": gases_data
         }), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "failure", "message": str(e)}), 500
 
 @alicat_bp.route('/set_gas', methods=['POST'])
 def set_gas():
     """設定氣體"""
     if not flow_controller:
-        return jsonify({"status": "error", "message": "Device not connected"}), 400
+        return jsonify({"status": "failure", "message": "Device not connected"}), 400
 
     data = request.get_json()
     gas = data.get('gas')
 
     if gas is None:
-        return jsonify({"status": "error", "message": "Gas is required"}), 400
+        return jsonify({"status": "failure", "message": "Gas is required"}), 400
 
     try:
         loop = asyncio.new_event_loop()
@@ -168,13 +168,13 @@ def set_gas():
         loop.run_until_complete(flow_controller.set_gas(gas))
         return jsonify({"status": "success", "message": f"Gas set to {gas}"}), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "failure", "message": str(e)}), 500
     
 @alicat_bp.route('/create_mix', methods=['POST'])
 def create_mix():
     """建立混合氣體"""
     if not flow_controller:
-        return jsonify({"status": "error", "message": "設備未連接"}), 400
+        return jsonify({"status": "failure", "message": "設備未連接"}), 400
 
     data = request.get_json()
     mix_no = data.get('mix_no')
@@ -184,7 +184,7 @@ def create_mix():
     # 參數驗證
     if not all([mix_no, name, gases]):
         return jsonify({
-            "status": "error", 
+            "status": "failure", 
             "message": "缺少必要參數。需要 mix_no, name, 和 gases"
         }), 400
 
@@ -199,12 +199,12 @@ def create_mix():
         }), 200
     except ValueError as ve:
         return jsonify({
-            "status": "error", 
+            "status": "failure", 
             "message": str(ve)
         }), 400
     except Exception as e:
         return jsonify({
-            "status": "error", 
+            "status": "failure", 
             "message": str(e)
         }), 500
 
@@ -212,13 +212,13 @@ def create_mix():
 def delete_mix():
     """刪除混合氣"""
     if not flow_controller:
-        return jsonify({"status": "error", "message": "Device not connected"}), 400
+        return jsonify({"status": "failure", "message": "Device not connected"}), 400
 
     data = request.get_json()
     mix_no = data.get('mix_no')
 
     if not mix_no:
-        return jsonify({"status": "error", "message": "Missing required parameters"}), 400
+        return jsonify({"status": "failure", "message": "Missing required parameters"}), 400
 
     try:
         loop = asyncio.new_event_loop()
@@ -226,4 +226,4 @@ def delete_mix():
         loop.run_until_complete(flow_controller.delete_mix(mix_no))
         return jsonify({"status": "success", "message": f"Mix {mix_no} deleted"}), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "failure", "message": str(e)}), 500
