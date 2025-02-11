@@ -10,7 +10,7 @@ class ModbusService:
         self._lock = asyncio.Lock()
         
     def connect(self, port, address):
-        """ 連線到 Modbus 設備 """
+        """ 連線到 Heater """
         try:
             self.client = ModbusSerialClient(
                 port=port,
@@ -46,7 +46,8 @@ class ModbusService:
                 D=self.read_register(0x0015) or 0,
                 M=self.read_register(0x0025) or 0,
                 rAP=self.read_register(0x000D) or 0,
-                SLH=self.read_register(0x0007) or 0
+                SLH=self.read_register(0x0007) or 0,
+                decimal_point=self.read_register(0x0019) or 0
             )
 
             return {
@@ -64,40 +65,36 @@ class ModbusService:
             }, 500
 
     def disconnect(self):
-        """ 斷開 Modbus 連線 """
+        """ 斷開 Heater 連線 """
         if self.client:
             self.client.close()
             self.client = None
 
-    def read_register(self, reg_addr):
-        """ 讀取 Modbus Holding Register """
+    def get_decimal_point_setting(self):
+        """ 讀取小數點設定 """
         if not self.client:
-            print("Modbus 客戶端未初始化")
+            print("Heater未初始化")
             return None
         try:
             response = self.client.read_holding_registers(
-                address=reg_addr, 
+                address=0x0019, 
                 count=1, 
                 slave=self.address
             )
             
-            if response is None:
-                return None
+            if response is None or (hasattr(response, 'isError') and response.isError()):
+                return 0  # 如果無法讀取，預設為無小數點
                 
-            if hasattr(response, 'isError') and response.isError():
-                print(f"讀取錯誤: {response}")
-                return None
+            return response.registers[0] if hasattr(response, 'registers') else 0
                 
-            return response.registers[0] if hasattr(response, 'registers') else None
-            
         except Exception as e:
-            print(f"讀取異常: {type(e).__name__} - {str(e)}")
-            return None
+            print(f"讀取小數點設定異常: {type(e).__name__} - {str(e)}")
+            return 0
 
     def read_register(self, reg_addr):
-        """ 讀取 Modbus Holding Register """
+        """ 讀取 Heater Holding Register """
         if not self.client:
-            print("Modbus未初始化")
+            print("Heater未初始化")
             return None
         try:
             response = self.client.read_holding_registers(
@@ -116,23 +113,25 @@ class ModbusService:
             value = response.registers[0] if hasattr(response, 'registers') else None
             
             if value is not None:
-                if reg_addr == 0x0023:  # SV
-                    decimal_point = self.read_register(0x0019)
-                    if decimal_point == 1:  # 有小數點
-                        return value / 10.0  # 355 -> 35.5
+                decimal_point = self.get_decimal_point_setting()
+                
+                # PV 和 SV 都需要轉換，因為這是設備返回的實際值
+                if decimal_point == 1 and reg_addr == 0x0041:  # PV 和 SV 都需要轉換
+                    print(f"讀取到的原始值: {value}, 寄存器: {hex(reg_addr)}")  # 添加調試信息
+                    return value / 10.0
                 elif reg_addr == 0x0016:  # Gain
                     return value / 10.0
                 elif reg_addr == 0x000D:  # rAP
                     return value / 100.0
-                    
+                        
             return value
-                
+                    
         except Exception as e:
             print(f"讀取異常: {type(e).__name__} - {str(e)}")
             return None
     
     def update_modbus_data(self, data: ModbusData):
-        """ 更新 Modbus 設備參數 """
+        """ 更新 Heater 參數 """
         if not self.client:
             return {"status": "failure", "message": "Modbus 未連線"}
         
@@ -208,31 +207,18 @@ class ModbusService:
         return errors
     
     def write_register(self, reg_addr, value):
-        """ 寫入 Modbus Holding Register """
+        """ 寫入 Heater Holding Register """
         if not self.client:
             print("Modbus未初始化")
             return False
         try:
-            # 針對不同寄存器進行特殊處理
-            if reg_addr == 0x0023:  # SV
-                decimal_point = self.read_register(0x0019)
-                if decimal_point == 1:  # 有小數點
-                    value = int(float(value) * 10)  # 35.5 -> 355
-                else:
-                    value = int(value)
-            elif reg_addr == 0x0016:  # Gain
-                value = int(float(value) * 10)  # 0.0~9.9 -> 0~99
-            elif reg_addr == 0x000D:  # rAP
-                value = int(float(value) * 100)  # 0.00~99.99 -> 0~9999
-            else:
-                value = int(value)
-                
+            value = int(value)  # 直接將收到的值寫入，讓前端負責轉換
             print(f"寫入寄存器 {hex(reg_addr)}:")
             print(f"  - Slave ID: {self.address}")
             print(f"  - 值: {value}")
             
             response = self.client.write_register(
-                address=reg_addr, 
+                address=reg_addr,
                 value=value,
                 slave=self.address
             )
@@ -242,3 +228,29 @@ class ModbusService:
         except Exception as e:
             print(f"寫入異常: {type(e).__name__} - {str(e)}")
             return False
+        
+    def read_modbus_data(self):
+        """ 讀取所有 Heater 參數 """
+        try:
+            data = {
+                "SV": self.read_register(0x0023),
+                "PV": self.read_register(0x0041),
+                "SV2": self.read_register(0x0027),
+                "Gain": self.read_register(0x0016),
+                "P": self.read_register(0x0013),
+                "I": self.read_register(0x0014),
+                "D": self.read_register(0x0015),
+                "M": self.read_register(0x0025),
+                "rAP": self.read_register(0x000D),
+                "SLH": self.read_register(0x0007),
+                "decimal_point": self.read_register(0x0019) or 0
+            }
+            
+            return {
+                "data": data,
+                "status": "success"
+            }
+                
+        except Exception as e:
+            print(f"讀取全部數據時發生錯誤: {str(e)}")
+            return None

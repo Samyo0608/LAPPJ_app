@@ -921,25 +921,33 @@ const useHooks = () => {
       for (const device of deviceList) {
         switch (device.id) {
           case 'carrierGas':
-            await disconnectCarrierGasApi({
-              port: devices[device.id].port,
-              address: devices[device.id].address
-            }, device.id);
+            if (isCarrierGasOpenState) {
+              await disconnectCarrierGasApi({
+                port: devices[device.id].port,
+                address: devices[device.id].address
+              }, device.id);
+            }
             break;
           case 'heater':
-            await disconnectHeaterApi({
-              port: devices[device.id].port,
-              address: devices[device.id].address
-            });
+            if (isHeaterOpenState) {
+              await disconnectHeaterApi({
+                port: devices[device.id].port,
+                address: devices[device.id].address
+              });
+            }
             break;
           case 'co2Laser':
-            await disconnectCo2LaserApi();
+            if (isCo2LaserOpenState) {
+              await disconnectCo2LaserApi();
+            }
             break;
           case 'ultrasonic':
-            await disconnectUltraSonicApi({
-              port: devices[device.id].port,
-              address: devices[device.id].address
-            });
+            if(isUltraSonicOpenState) {
+              await disconnectUltraSonicApi({
+                port: devices[device.id].port,
+                address: devices[device.id].address
+              });
+            }
             break;
           default:
             break;

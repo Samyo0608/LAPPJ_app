@@ -351,7 +351,7 @@ const useHooks = () => {
     try {
       setOnHeaterSettingLoading(true);
       const response = await getApi("/heater/update", "POST", {
-        SV: Number(temperature),
+        SV: Number(heaterDetailState?.decimal_point) === 1 ? Number(temperature*10) : Number(temperature),
       });
 
       if (response?.data?.status === "success") {
@@ -656,7 +656,7 @@ const useHooks = () => {
       setHeaterTemperatureData((prev) => {
         const newHistory = [
           ...prev.history,
-          Number(heaterDetail?.SV || 0),
+          Number(heaterDetail?.PV || 0),
         ];
         const newLabels = [...prev.labels, currentTime];
         // 限制只保留 10 筆資料
@@ -971,7 +971,7 @@ const ControllerPage = () => {
                   <span className="text-sm min-w-28">目前設定溫度</span>
                   <input
                     type="number"
-                    value={Number(heaterDetail?.SV || 0).toFixed(1)}
+                    value={Number(heaterDetail?.decimal_point) === 1 ? Number(heaterDetail?.SV*0.1 || 0).toFixed(1) : Number(heaterDetail?.SV || 0).toFixed(1)}
                     readOnly
                     className="p-1 border rounded bg-gray-50"
                   />

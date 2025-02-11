@@ -158,6 +158,7 @@ const useHooks = () => {
     I: 0,
     D: 0,
     M: 0,
+    decimal_point: 0
   });
   const [isHeaterLoading, setIsHeaterLoading] = React.useState(false);
   
@@ -966,7 +967,12 @@ const useHooks = () => {
     setIsHeaterLoading(true);
 
     try {
-      const response = await getApi('/heater/update', 'POST', heaterInputList);
+      const response = await getApi('/heater/update', 'POST', {
+        ...heaterInputList,
+        SV: (Number(heaterDetailState?.decimal_point) === 1 && Number(heaterInputList?.decimal_point) === 0) ? Number(heaterDetail?.SV*0.1) : Number(heaterDetail?.SV)
+      });
+
+      console.log('heaterInputList', heaterInputList);
 
       if (response?.data?.status === 'success') {
         setAlertDetail({
@@ -1263,13 +1269,14 @@ const useHooks = () => {
   // ---------------------------------heater function---------------------------------
   // onChange heater input
   const onHeaterInputChange = (value, flag) => {
-    if (flag === 'M') {
+    if (flag === 'M' || flag === 'decimal_point') {
       setHeaterInputList(prev => ({
         ...prev,
         [flag]: value ? 0 : 1
       }));
       return;
     }
+
     setHeaterInputList(prev => ({
       ...prev,
       [flag]: value
@@ -1287,7 +1294,8 @@ const useHooks = () => {
         P: heaterDetailState.P || 0,
         I: heaterDetailState.I || 0,
         D: heaterDetailState.D || 0,
-        M: heaterDetailState.M || 0
+        M: heaterDetailState.M || 0,
+        decimal_point: heaterDetailState.decimal_point || 0
       });
     }
   }, [heaterDetailState]);
@@ -1756,7 +1764,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 bg-gray-50"
                               placeholder="目前溫度數值"
-                              value={Number(heaterDetail?.PV || 0).toFixed(2)}
+                              value={Number(heaterDetail?.PV || 0).toFixed(1)}
                               readOnly
                             />
                           </div>
@@ -1766,7 +1774,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 bg-gray-50"
                               placeholder="目前設定溫度數值"
-                              value={Number(heaterDetail?.SV || 0).toFixed(2)}
+                              value={Number(heaterDetail?.decimal_point) === 1 ? Number(heaterDetail?.SV*0.1 || 0).toFixed(1) : Number(heaterDetail?.SV || 0).toFixed(1)}
                               readOnly
                             />
                           </div>
@@ -1781,7 +1789,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 -9999~9999"
-                              value={heaterInputList?.SV2 || ""}
+                              value={heaterInputList?.SV2}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'SV2')}
                             />
                           </div>
@@ -1791,7 +1799,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 -9999~9999"
-                              value={heaterInputList?.SLH || ""}
+                              value={heaterInputList?.SLH}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'SLH')}
                             />
                           </div>
@@ -1801,7 +1809,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 0~9999"
-                              value={heaterInputList?.rAP || ""}
+                              value={heaterInputList?.rAP}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'rAP')}
                             />
                           </div>
@@ -1816,7 +1824,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0.0~9.9"
-                              value={heaterInputList?.Gain || ""}
+                              value={heaterInputList?.Gain}
                               step={0.1}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'Gain')}
                             />
@@ -1825,7 +1833,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0~3999"
-                              value={heaterInputList?.P || ""}
+                              value={heaterInputList?.P}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'P')}
                             />
                             <label className="block font-medium mb-2">積分值 (Integral)</label>
@@ -1833,7 +1841,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0~3999"
-                              value={heaterInputList?.I || ""}
+                              value={heaterInputList?.I}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'I')}
                             />
                             <label className="block font-medium mb-2">微分值 (Derivative)</label>
@@ -1841,8 +1849,14 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0~3999"
-                              value={heaterInputList?.D || ""}
+                              value={heaterInputList?.D}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'D')}
+                            />
+                            <ToggleSwitch
+                              className='mr-2 mb-2'
+                              label="SV小數點設定 (開: 整數, 關: 小數點後一位)"
+                              onChange={(e) => onHeaterInputChange(e, 'decimal_point')}
+                              checked={Number(heaterInputList?.decimal_point) === 0}
                             />
                             <ToggleSwitch
                               className='mr-2'

@@ -13,3 +13,4 @@ class ModbusData:
     M: Optional[int] = None      # 模式切換 (0 = 自動, 1 = 手動)
     rAP: Optional[int] = None    # Ramp 控制
     SLH: Optional[int] = None    # 設定最大溫度上限
+    decimal_point: Optional[int] = None      # SV小數點切換 (0 = 整數, 1 = 小數點後一位)

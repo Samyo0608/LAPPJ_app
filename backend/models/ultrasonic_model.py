@@ -14,7 +14,6 @@ class ModbusDevice:
         
         # 初始化 RS232 連線
         self.client = ModbusSerialClient(
-            method="rtu",
             port=self.port,
             baudrate=self.baudrate,
             parity="N",
@@ -28,16 +27,15 @@ class ModbusDevice:
 
         # 嘗試讀取 0x00 (或其他 Ultrasonic 設備識別碼寄存器)
         try:
-            response = self.client.read_holding_registers(0x2D, 1, unit=self.device_id)
-            print(response)
+            response = self.client.read_holding_registers(0x00, 1, self.device_id)  # ✅ 修正參數格式
             if response.isError():
                 self.client.close()
                 return {"status": "failure", "message": "連接的設備不是 Ultrasonic，已自動斷開連線"}
 
             # **這裡替換為你的 Ultrasonic 設備應該返回的值**
-            # if response.registers[0] != 1234:  # 假設 Ultrasonic 設備會返回 1234
-            #     self.client.close()
-            #     return {"status": "failure", "message": "連接的設備不是 Ultrasonic，已自動斷開"}
+            if response.registers[0] != 1234:  # 假設 Ultrasonic 設備會返回 1234
+                self.client.close()
+                return {"status": "failure", "message": "連接的設備不是 Ultrasonic，已自動斷開"}
 
             return {"status": "success", "message": f"已成功連接 Ultrasonic 設備 (Port: {self.port})"}
         
