@@ -12,6 +12,7 @@ from routes.auth_routes import auth_bp
 from routes.co2_laser_routes import uc2000_bp
 from routes.port_connect_routes import port_scanner_bp
 from routes.heater_routes import heater_bp
+from routes.ultrasonic_routes import modbus_bp
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
@@ -50,6 +51,7 @@ def create_app():
     app.register_blueprint(uc2000_bp, url_prefix='/api/uc2000')
     app.register_blueprint(port_scanner_bp, url_prefix='/api/port_scanner')
     app.register_blueprint(heater_bp, url_prefix='/api/heater')
+    app.register_blueprint(modbus_bp, url_prefix='/api/ultrasonic')
 
     return app
 

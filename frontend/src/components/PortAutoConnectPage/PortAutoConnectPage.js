@@ -6,6 +6,7 @@ import { HiCheck, HiX } from 'react-icons/hi';
 import { useAlicatContext } from '../../Contexts/AlicatContext';
 import { useCo2LaserContext } from '../../Contexts/Co2LaserContext';
 import { useHeaterContext } from '../../Contexts/HeaterContext';
+import { useUltrasonicContext } from '../../Contexts/UltrasonicContext';
 
 const useHooks = () => {
   const deviceConnectedRef = React.useRef({});
@@ -18,6 +19,9 @@ const useHooks = () => {
   const {
     setHeaterDetailState, isHeaterOpenState, setIsHeaterOpenState, heaterPortAndAddressState, setHeaterPortAndAddressState
   } = useHeaterContext();
+  const {
+    isUltraSonicOpenState, setIsUltraSonicOpenState, ultraSonicPortAndAddressState, setUltraSonicPortAndAddressState
+  } = useUltrasonicContext();
 
   // 設備列表
   const deviceList = React.useMemo(() => [
@@ -310,6 +314,75 @@ const useHooks = () => {
     }
   };
 
+  // 連線UltraSonic api
+  const connectUltraSonicApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        ultrasonic: {
+          ...prev.ultrasonic,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/ultrasonic/connect', 'POST', data, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        deviceConnectedRef.current = {
+          ...deviceConnectedRef.current,
+          ultrasonic: true
+        };
+
+        setAlertDetail({
+          show: true,
+          message: response.data.message || 'UltraSonic連線成功',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          ultrasonic: {
+            ...prev.ultrasonic,
+            connected: true,
+            loading: false,
+            port: data.port,
+            address: data.address,
+            selected: true
+          }
+        }));
+
+        setUltraSonicPortAndAddressState({
+          port: data.port,
+          address: data.address
+        });
+
+        setIsUltraSonicOpenState(true);
+        return response;
+      } else {
+        deviceConnectedRef.current.ultrasonic = false;
+      }
+    } catch (error) {
+      console.error('UltraSonic 連線錯誤:', error);
+      deviceConnectedRef.current.ultrasonic = false;
+      setDevices(prev => ({
+        ...prev,
+        ultrasonic: {
+          ...prev.ultrasonic,
+          loading: false
+        }
+      }));
+      setAlertDetail({
+        show: true,
+        message: 'UltraSonic連線過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail(prev => ({ ...prev, show: false }));
+      }, 1000);
+    }
+  };
+
   // 自動連線 functrion
   const autoConnectApi = async () => {
     setIsAutoConnecting(true);
@@ -394,6 +467,35 @@ const useHooks = () => {
                       });
 
                       if (deviceConnectedRef.current['heater']) {
+                        deviceConnected = true;
+                        usedPorts.add(portInfo.port);
+                        setConnectionResults(prev => [{
+                          deviceId: device.id,
+                          deviceName: device.name,
+                          message: `連接成功: Address: ${address}, Port: ${portInfo.port}`,
+                          timestamp: new Date().toLocaleTimeString(),
+                          success: true
+                        }, ...prev]);
+                        break;
+                      }
+                    } catch (error) {
+                      setConnectionResults(prev => [{
+                        deviceId: device.id,
+                        deviceName: device.name,
+                        message: `連接錯誤 Address: ${address}, Port: ${portInfo.port} - ${error.message}`,
+                        timestamp: new Date().toLocaleTimeString(),
+                        success: false
+                      }, ...prev]);
+                    }
+                    break;
+                  case 'ultrasonic':
+                    try {
+                      await connectUltraSonicApi({
+                        port: portInfo.port,
+                        address
+                      });
+
+                      if (deviceConnectedRef.current['ultrasonic']) {
                         deviceConnected = true;
                         usedPorts.add(portInfo.port);
                         setConnectionResults(prev => [{
@@ -746,6 +848,73 @@ const useHooks = () => {
     }
   };
 
+  // disconnect ultrasonic device
+  const disconnectUltraSonicApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        ultrasonic: {
+          ...prev.ultrasonic,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/ultrasonic/disconnect', 'POST', data, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: 'UltraSonic已取消連線',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          ultrasonic: {
+            ...prev.ultrasonic,
+            connected: false,
+            loading: false
+          }
+        }));
+
+        setIsUltraSonicOpenState(false);
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: 'UltraSonic取消連線失敗',
+          type: 'failure'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          ultrasonic: {
+            ...prev.ultrasonic,
+            loading: false
+          }
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      setDevices(prev => ({
+        ...prev,
+        ultrasonic: {
+          ...prev.ultrasonic,
+          loading: false
+        }
+      }));
+      setAlertDetail({
+        show: true,
+        message: 'UltraSonic取消連線過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail(prev => ({ ...prev, show: false }));
+      }, 1000);
+    }
+  };
+
   // 斷開所有設備連接
   const disconnectAllDevicesApi = async () => {
     try {
@@ -765,6 +934,12 @@ const useHooks = () => {
             break;
           case 'co2Laser':
             await disconnectCo2LaserApi();
+            break;
+          case 'ultrasonic':
+            await disconnectUltraSonicApi({
+              port: devices[device.id].port,
+              address: devices[device.id].address
+            });
             break;
           default:
             break;
@@ -794,7 +969,7 @@ const useHooks = () => {
   // -------------------api function-------------------
 
   // --------------------event handler--------------------
-  // 修改連接處理函數
+  // 修改連接處理函數，單獨連線每個設備
   const handleConnect = async (deviceId) => {
     switch (deviceId) {
       case 'carrierGas':
@@ -829,6 +1004,19 @@ const useHooks = () => {
         } else {
           await connectCo2LaserApi({
             port: devices[deviceId].port
+          });
+        }
+        break;
+      case 'ultrasonic':
+        if (devices[deviceId].connected) {
+          await disconnectUltraSonicApi({
+            port: devices[deviceId].port,
+            address: devices[deviceId].address
+          });
+        } else {
+          await connectUltraSonicApi({
+            port: devices[deviceId].port,
+            address: devices[deviceId].address
           });
         }
         break;
@@ -925,7 +1113,20 @@ const useHooks = () => {
         }
       }));
     }
-  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState, heaterPortAndAddressState, isHeaterOpenState]);
+
+    if (isUltraSonicOpenState || ultraSonicPortAndAddressState?.port || ultraSonicPortAndAddressState?.address) {
+      setDevices(prev => ({
+        ...prev,
+        ultrasonic: {
+          ...prev.ultrasonic,
+          port: ultraSonicPortAndAddressState.port,
+          address: ultraSonicPortAndAddressState.address,
+          connected: isUltraSonicOpenState,
+          selected: isUltraSonicOpenState
+        }
+      }));
+    }
+  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState, heaterPortAndAddressState, isHeaterOpenState, ultraSonicPortAndAddressState, isUltraSonicOpenState]);
 
   useEffect(() => {
     getPortsListApi();
@@ -944,6 +1145,7 @@ const useHooks = () => {
     isCarrierGasOpenState,
     isCo2LaserOpenState,
     isHeaterOpenState,
+    isUltraSonicOpenState,
     setIpAddress,
     handleConnect,
     handleAutoConnect,
@@ -957,7 +1159,7 @@ const useHooks = () => {
 const PortAutoConnectPage = () => {
   const {
     deviceList, devices, ipAddress, isAutoConnecting, connectionResults, usefulPorts, alertDetail, isCarrierGasOpenState, isCo2LaserOpenState,
-    isHeaterOpenState,
+    isHeaterOpenState, isUltraSonicOpenState,
     setIpAddress, handleConnect, handleAutoConnect, toggleDeviceSelection, setAlertDetail,
     onPortOrAddressChange
   } = useHooks();
@@ -1021,7 +1223,7 @@ const PortAutoConnectPage = () => {
                     checked={devices[device.id]?.selected}
                     onChange={() => toggleDeviceSelection(device.id)}
                     label={device.name}
-                    disabled={isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState}
+                    disabled={isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltraSonicOpenState}
                   />
                   <Label
                     htmlFor={device.id}
@@ -1034,7 +1236,7 @@ const PortAutoConnectPage = () => {
             }
           </div>
           {
-            isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState ? (
+            isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltraSonicOpenState ? (
             <Button
               onClick={handleAutoConnect}
               disabled={isAutoConnecting}

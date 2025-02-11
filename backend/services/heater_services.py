@@ -94,30 +94,43 @@ class ModbusService:
             print(f"讀取異常: {type(e).__name__} - {str(e)}")
             return None
 
-    def read_modbus_data(self):
-        """ 讀取所有 Modbus 參數 """
+    def read_register(self, reg_addr):
+        """ 讀取 Modbus Holding Register """
+        if not self.client:
+            print("Modbus未初始化")
+            return None
         try:
-            data = ModbusData(
-                SV=self.read_register(0x0023) or 0,
-                PV=self.read_register(0x0041) or 0,
-                SV2=self.read_register(0x0027) or 0,
-                Gain=self.read_register(0x0016) or 0,
-                P=self.read_register(0x0013) or 0,
-                I=self.read_register(0x0014) or 0,
-                D=self.read_register(0x0015) or 0,
-                M=self.read_register(0x0025) or 0,
-                rAP=self.read_register(0x000D) or 0,
-                SLH=self.read_register(0x0007) or 0
+            response = self.client.read_holding_registers(
+                address=reg_addr, 
+                count=1, 
+                slave=self.address
             )
             
-            return {
-                "data": data.__dict__,
-            }
+            if response is None:
+                return None
+                
+            if hasattr(response, 'isError') and response.isError():
+                print(f"讀取錯誤: {response}")
+                return None
+                
+            value = response.registers[0] if hasattr(response, 'registers') else None
             
+            if value is not None:
+                if reg_addr == 0x0023:  # SV
+                    decimal_point = self.read_register(0x0019)
+                    if decimal_point == 1:  # 有小數點
+                        return value / 10.0  # 355 -> 35.5
+                elif reg_addr == 0x0016:  # Gain
+                    return value / 10.0
+                elif reg_addr == 0x000D:  # rAP
+                    return value / 100.0
+                    
+            return value
+                
         except Exception as e:
-            print(f"讀取全部數據時發生錯誤: {str(e)}")
+            print(f"讀取異常: {type(e).__name__} - {str(e)}")
             return None
-
+    
     def update_modbus_data(self, data: ModbusData):
         """ 更新 Modbus 設備參數 """
         if not self.client:
@@ -146,7 +159,8 @@ class ModbusService:
             'D': (0x0015, "D"),
             'M': (0x0025, "M"),
             'rAP': (0x000D, "rAP"),
-            'SLH': (0x0007, "SLH")
+            'SLH': (0x0007, "SLH"),
+            'decimal_point': (0x0019, "decimal_point")
         }
         
         # 只更新提供的參數
@@ -161,7 +175,10 @@ class ModbusService:
                 "status": "failure", 
                 "message": f"這些參數更新失敗: {', '.join(failed_registers)}"
             }
-        return {"status": "success"}
+        return {
+            "status": "success",
+            "message": "溫度參數更新成功"
+            }
 
     def validate_partial_data(self, data_dict):
         """ 驗證部分數據是否在有效範圍內 """
@@ -193,28 +210,34 @@ class ModbusService:
     def write_register(self, reg_addr, value):
         """ 寫入 Modbus Holding Register """
         if not self.client:
-            print("Modbus 客戶端未初始化")
+            print("Modbus未初始化")
             return False
         try:
+            # 針對不同寄存器進行特殊處理
+            if reg_addr == 0x0023:  # SV
+                decimal_point = self.read_register(0x0019)
+                if decimal_point == 1:  # 有小數點
+                    value = int(float(value) * 10)  # 35.5 -> 355
+                else:
+                    value = int(value)
+            elif reg_addr == 0x0016:  # Gain
+                value = int(float(value) * 10)  # 0.0~9.9 -> 0~99
+            elif reg_addr == 0x000D:  # rAP
+                value = int(float(value) * 100)  # 0.00~99.99 -> 0~9999
+            else:
+                value = int(value)
+                
             print(f"寫入寄存器 {hex(reg_addr)}:")
             print(f"  - Slave ID: {self.address}")
             print(f"  - 值: {value}")
             
             response = self.client.write_register(
                 address=reg_addr, 
-                value=int(value),  # 確保值是整數
+                value=value,
                 slave=self.address
             )
             
-            if response is None:
-                print(f"寫入超時")
-                return False
-                
-            if hasattr(response, 'isError') and response.isError():
-                print(f"寫入錯誤: {response}")
-                return False
-                
-            return True
+            return not (response.isError() if hasattr(response, 'isError') else True)
             
         except Exception as e:
             print(f"寫入異常: {type(e).__name__} - {str(e)}")

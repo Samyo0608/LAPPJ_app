@@ -28,7 +28,7 @@ const useHooks = () => {
   // 載氣資料
   const [carrierGasDetail, setCarrierGasDetail] = useState({});
   // 載器流量設定
-  const [carrierGasFlowSetting, setCarrierGasFlowSetting] = useState("");
+  const [carrierGasFlowSetting, setCarrierGasFlowSetting] = useState(0);
   // Recipe資料
   const [recipeDetail, setRecipeDetail] = useState([]);
   const [recipeSelected, setRecipeSelected] = useState("");
@@ -41,7 +41,9 @@ const useHooks = () => {
   const [heaterDetail, setHeaterDetail] = useState({});
   const [temperature, setTemperature] = useState(0);
   const [onHeaterSettingLoading, setOnHeaterSettingLoading] = useState(false);
+  // 其他
   const [alertDetail, setAlertDetail] = React.useState({});
+  const [onAutoStartLoading, setOnAutoStartLoading] = React.useState(false);
 
   // 載氣流量監測資料
   const [carrierGasFlowData, setCarrierGasFlowData] = useState({
@@ -84,11 +86,11 @@ const useHooks = () => {
     }
   }, [setCarrierGasDetailState]);
 
-  // 修改載氣流量
-  const setCarrierGasFlowApi = async () => {
+  // 修改載氣流量 API
+  const setCarrierGasFlowApi = async (data) => {
     try {
       const response = await getApi("/alicat_api/set_flow_rate", "POST", {
-        flow_rate: carrierGasFlowSetting,
+        flow_rate: data || carrierGasFlowSetting,
       });
   
       if (response?.data?.status === "success") {
@@ -117,6 +119,38 @@ const useHooks = () => {
           ...prev,
           show: false,
         }));
+      }, 2000);
+    }
+  };
+
+  // 修改載氣氣體種類 API
+  const setCarrierGasGasTypeApi = async (data) => {
+    try {
+      const gasData = {
+        gas: data
+      };
+      const response = await getApi('/alicat_api/set_gas', 'POST', gasData);
+
+      if (response?.data?.status === 'success') {
+        console.log(response.data.message);
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '載氣氣體修改失敗',
+          type: 'failure'
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: '修改過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
       }, 2000);
     }
   };
@@ -372,14 +406,6 @@ const useHooks = () => {
     setCarrierGasFlowApi();
   };
 
-  // 關閉Alert
-  const onAlertClose = () => {
-    setAlertDetail((prev) => ({
-      ...prev,
-      show: false,
-    }));
-  };
-
   // 選擇recipe的Select option
   const onRecipeSelect = (key) => {
     setRecipeSelected(key);
@@ -390,13 +416,94 @@ const useHooks = () => {
   // 按下Recipe 套用的click事件
   const onRecipeApplyClick = async () => {
     // 載氣更改
-    setCarrierGasFlowSetting(recipeSelectedDetail.carrier_gas_flow);
+    if (isCarrierGasOpenState) {
+      setCarrierGasFlowSetting(recipeSelectedDetail.carrier_gas_flow);
+      await setCarrierGasGasTypeApi(recipeSelectedDetail.carrier_gas);
+    }
     // CO2雷射更改
-    setLaserPWM(recipeSelectedDetail.laser_power);
+    if (isCo2LaserOpenState) {
+      setLaserPWM(recipeSelectedDetail.laser_power);
+      await setCo2LaserPowerApi(recipeSelectedDetail.laser_power);
+    }
     // Heater更改
-    setTemperature(recipeSelectedDetail.temperature);
+    if (isHeaterOpenState) {
+      setTemperature(recipeSelectedDetail.temperature);
+    }
 
-    await setCo2LaserPowerApi(recipeSelectedDetail.laser_power);
+    setAlertDetail({
+      show: true,
+      message: "套用成功，若無開啟的裝置則不會套用",
+      type: "success",
+    });
+
+    setTimeout(() => {
+      setAlertDetail((prev) => ({ ...prev, show: false }));
+    }, 2000);
+  };
+
+  // 關閉Alert
+  const onAlertClose = () => {
+    setAlertDetail((prev) => ({
+      ...prev,
+      show: false,
+    }));
+  };
+
+  // 按下自動啟動的click事件
+  const onAutoStartClick = async () => {
+    try {
+      setOnAutoStartLoading(true);
+      if (isCarrierGasOpenState) {
+        await setCarrierGasFlowApi();
+      }
+      if (isCo2LaserOpenState) {
+        await setCo2LaserOpenState(true);
+      }
+      if (isHeaterOpenState) {
+        await setHeaterTemperatureApi();
+      }
+
+      setAlertDetail({
+        show: true,
+        message: "自動啟動成功",
+        type: "success",
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setOnAutoStartLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
+
+  // 按下全部關閉的click事件
+  const onAllCloseClick = async () => {
+    try {
+      setOnAutoStartLoading(true);
+      if (isCarrierGasOpenState) {
+        await setCarrierGasFlowApi(0);
+      }
+      if (isCo2LaserOpenState) {
+        await setCo2LaserOpenState(false);
+      }
+      setAlertDetail({
+        show: true,
+        message: "全部關閉成功",
+        type: "success",
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setOnAutoStartLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 2000);
+    }
   };
 
   // 載氣流量監測，每3秒更新一次
@@ -590,6 +697,7 @@ const useHooks = () => {
     heaterTemperatureData,
     isHeaterOpenState,
     alertDetail,
+    onAutoStartLoading,
     onCarrierFlowSettingChange,
     onCarrierFlowSettingClick,
     onRecipeSelect,
@@ -600,6 +708,8 @@ const useHooks = () => {
     onAlertClose,
     setTemperature,
     setHeaterTemperatureApi,
+    onAutoStartClick,
+    onAllCloseClick,
   };
 };
 
@@ -607,10 +717,10 @@ const ControllerPage = () => {
   const {
     isCarrierGasOpenState, carrierGasDetail, carrierGasFlowData, carrierGasFlowSetting, carrierGasPressureData, carrierGasTemperatureData,
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
-    alertDetail,  temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState,
+    alertDetail,  temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, onAutoStartLoading,
     onCarrierFlowSettingChange, onCarrierFlowSettingClick, onRecipeSelect, onRecipeApplyClick,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM,
-    onAlertClose, setTemperature, setHeaterTemperatureApi,
+    onAlertClose, setTemperature, setHeaterTemperatureApi, onAutoStartClick, onAllCloseClick,
   } = useHooks();
 
   return (
@@ -735,7 +845,7 @@ const ControllerPage = () => {
                   <input
                     type="number"
                     step="0.001"
-                    value={carrierGasFlowSetting}
+                    value={Number(carrierGasFlowSetting).toFixed(3)}
                     readOnly={!isCarrierGasOpenState}
                     className={`${
                       !isCarrierGasOpenState && "bg-gray-50"
@@ -1101,6 +1211,42 @@ const ControllerPage = () => {
                 />
               </div>
             </div>
+          </div>
+          {/* 自動啟動按鈕 */}
+          <div className="flex flex-col justify-center mt-4">
+            <h3 className="font-bold mb-2 text-blue-800 text-center text-lg">
+              一鍵自動啟動
+            </h3>
+            <h5
+              className="text-sm text-center text-gray-500 mb-2"
+            >
+              按下按鈕後，將會目前有連線的裝置全部自動啟用，若無連線則不會啟用
+            </h5>
+            <ButtonComponent
+              onClick={onAutoStartClick}
+              label="自動啟動 (Auto Start)"
+              otherCss="w-full max-w-md"
+              isDisabled={!isHeaterOpenState || !isCo2LaserOpenState || !isCarrierGasOpenState}
+              loading={onAutoStartLoading}
+            />
+          </div>
+          {/* 一鍵全部關閉 */}
+          <div className="flex flex-col justify-center mt-4">
+            <h3 className="font-bold mb-2 text-blue-800 text-center text-lg">
+              一鍵自動關閉
+            </h3>
+            <h5
+              className="text-sm text-center text-gray-500 mb-2"
+            >
+              按下按鈕後，將會目前有連線的裝置全部關閉，包含霧化器(這個不是中斷連線，只是關閉開關，不含加熱器)
+            </h5>
+            <ButtonComponent
+              onClick={onAllCloseClick}
+              label="全部關閉 (All Close)"
+              otherCss="w-full max-w-md"
+              isDisabled={!isHeaterOpenState || !isCo2LaserOpenState || !isCarrierGasOpenState}
+              loading={onAutoStartLoading}
+            />
           </div>
         </div>
       </div>

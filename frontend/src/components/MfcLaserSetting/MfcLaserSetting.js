@@ -150,7 +150,7 @@ const useHooks = () => {
   // Heater設定相關
   const [heaterDetail, setHeaterDetail] = React.useState({});
   const [heaterInputList, setHeaterInputList] = React.useState({
-    sv2: 0,
+    SV2: 0,
     SLH: 0,
     rAP: 0,
     Gain: 0.0,
@@ -1177,6 +1177,17 @@ const useHooks = () => {
     }
   }, [isCarrierGasOpenState, getCarrierGasDataApi]);
 
+  // 更新onchange carrierGas select or change
+  React.useEffect(() => {
+    if (carrierGasDetail) {
+      setCarrierGasCreateMixGas({
+        number: carrierGasDetail.mix_no || 0,
+        name: carrierGasDetail.name || '',
+        gases: carrierGasDetail.gases || []
+      });
+    }
+  }, [carrierGasDetail]);
+
   // 從 localStorage 取得載氣的Port及Address
   React.useEffect(() => {
     if (carrierGasPortandAddressState?.port && carrierGasPortandAddressState?.address) {
@@ -1427,7 +1438,7 @@ const MfcLaserSetting = () => {
                               className="w-full border rounded-md p-2"
                               placeholder="從236開始，請避免重複使用編號"
                               onChange={(e) => onCarrierGasCreateMixGasChange(Number(e.target.value), 'number')}
-                              value={carrierGasCreateMixGas?.number || 0}
+                              value={carrierGasCreateMixGas?.number}
                             />
                           </div><div className='flex justify-between items-center mb-2'>
                             <span className='w-48'>設定名稱</span>
@@ -1770,7 +1781,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 -9999~9999"
-                              value={Number(heaterInputList?.SV2 || 0).toFixed(2)}
+                              value={heaterInputList?.SV2 || ""}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'SV2')}
                             />
                           </div>
@@ -1780,7 +1791,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 -9999~9999"
-                              value={Number(heaterInputList?.SLH || 0).toFixed(2)}
+                              value={heaterInputList?.SLH || ""}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'SLH')}
                             />
                           </div>
@@ -1790,7 +1801,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 0~9999"
-                              value={Number(heaterInputList?.rAP || 0).toFixed(2)}
+                              value={heaterInputList?.rAP || ""}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'rAP')}
                             />
                           </div>
@@ -1805,7 +1816,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0.0~9.9"
-                              value={Number(heaterInputList?.Gain || 0.0).toFixed(1)}
+                              value={heaterInputList?.Gain || ""}
                               step={0.1}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'Gain')}
                             />
@@ -1814,7 +1825,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0~3999"
-                              value={Number(heaterInputList?.P || 0)}
+                              value={heaterInputList?.P || ""}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'P')}
                             />
                             <label className="block font-medium mb-2">積分值 (Integral)</label>
@@ -1822,7 +1833,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0~3999"
-                              value={Number(heaterInputList?.I || 0)}
+                              value={heaterInputList?.I || ""}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'I')}
                             />
                             <label className="block font-medium mb-2">微分值 (Derivative)</label>
@@ -1830,7 +1841,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 mb-2"
                               placeholder="範圍 0~3999"
-                              value={Number(heaterInputList?.D || 0)}
+                              value={heaterInputList?.D || ""}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'D')}
                             />
                             <ToggleSwitch
