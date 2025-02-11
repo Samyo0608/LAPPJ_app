@@ -7,14 +7,14 @@ modbus_service = ModbusService()
 heater_bp = Blueprint("heater", __name__)
 
 @heater_bp.route("/connect", methods=["POST"])
-async def connect():
+def connect():
     """ 連線到 Modbus 設備 """
     try:
         data = request.json
         if not data or "port" not in data or "address" not in data:
             return jsonify({"status": "failure", "message": "缺少 port 或 address"}), 400
             
-        result, status_code = await modbus_service.connect(data["port"], data["address"])
+        result, status_code = modbus_service.connect(data["port"], data["address"])
         return jsonify(result), status_code
         
     except Exception as e:
@@ -24,13 +24,13 @@ async def connect():
         }), 500
 
 @heater_bp.route("/disconnect", methods=["POST"])
-async def disconnect():
+def disconnect():
     """ 斷開 Modbus 連線 """
-    await modbus_service.disconnect()
-    return jsonify({"status": "disconnected"})
+    modbus_service.disconnect()
+    return jsonify({"status": "success"})
 
 @heater_bp.route("/status", methods=["GET"])
-async def get_modbus_data():
+def get_modbus_data():
     """ 讀取所有 Modbus 數據 """
     try:
         if not modbus_service.client:
@@ -39,7 +39,7 @@ async def get_modbus_data():
                 "message": "Modbus 未連接，請先建立連接"
             }), 400
             
-        data = await modbus_service.read_modbus_data()
+        data = modbus_service.read_modbus_data()
         if data is None:
             return jsonify({
                 "status": "failure",
@@ -48,7 +48,7 @@ async def get_modbus_data():
             
         return jsonify({
             "status": "success",
-            "data": data
+            "data": data["data"]
         })
         
     except Exception as e:
@@ -58,12 +58,13 @@ async def get_modbus_data():
         }), 500
 
 @heater_bp.route("/update", methods=["POST"])
-async def update_modbus_data():
+def update_modbus_data():
     """ 更新 Modbus 設備參數 """
     try:
         data = request.json
-        modbus_data = ModbusData(**data)
-        result = await modbus_service.update_modbus_data(modbus_data)
+        # 只傳入存在的參數
+        modbus_data = ModbusData(**{k: v for k, v in data.items() if k in ModbusData.__annotations__})
+        result = modbus_service.update_modbus_data(modbus_data)
         return jsonify(result)
     except TypeError as e:
         return jsonify({

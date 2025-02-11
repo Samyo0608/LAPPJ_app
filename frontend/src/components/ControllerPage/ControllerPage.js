@@ -296,7 +296,7 @@ const useHooks = () => {
 
   // 修改Heater溫度 API
   const setHeaterTemperatureApi = async () => {
-    if (Number(temperature) > Number(heaterDetailState?.rAP)) {
+    if (Number(temperature) > Number(heaterDetailState?.SLM)) {
       setAlertDetail({
         show: true,
         message: `超過最大溫度 - 目前設定最大值: ${heaterDetailState?.rAP}°C`,
@@ -317,19 +317,19 @@ const useHooks = () => {
     try {
       setOnHeaterSettingLoading(true);
       const response = await getApi("/heater/update", "POST", {
-        sv: temperature,
+        SV: Number(temperature),
       });
 
       if (response?.data?.status === "success") {
         setAlertDetail({
           show: true,
-          message: response.data.message,
+          message: response.data.message || "溫度設定成功",
           type: "success",
         });
       } else {
         setAlertDetail({
           show: true,
-          message: response.data.message,
+          message: response.data.message || "溫度設定失敗",
           type: "failure",
         });
       }
@@ -549,7 +549,7 @@ const useHooks = () => {
       setHeaterTemperatureData((prev) => {
         const newHistory = [
           ...prev.history,
-          Number(heaterDetail?.temperature || 0),
+          Number(heaterDetail?.SV || 0),
         ];
         const newLabels = [...prev.labels, currentTime];
         // 限制只保留 10 筆資料
@@ -851,7 +851,7 @@ const ControllerPage = () => {
                   <span className="text-sm min-w-28">設定溫度</span>
                   <input
                     type="number"
-                    value={Number(temperature).toFixed(1)}
+                    value={temperature}
                     onChange={(e) => setTemperature(e.target.value)}
                     className="p-1 border rounded"
                   />
@@ -861,7 +861,7 @@ const ControllerPage = () => {
                   <span className="text-sm min-w-28">目前設定溫度</span>
                   <input
                     type="number"
-                    value={Number(heaterDetail?.sv || 0).toFixed(1)}
+                    value={Number(heaterDetail?.SV || 0).toFixed(1)}
                     readOnly
                     className="p-1 border rounded bg-gray-50"
                   />
@@ -871,7 +871,7 @@ const ControllerPage = () => {
                   <span className="text-sm min-w-28">實際溫度</span>
                   <input
                     type="number"
-                    value={Number(heaterDetail?.pv || 0).toFixed(1)}
+                    value={Number(heaterDetail?.PV || 0).toFixed(1)}
                     readOnly
                     className="p-1 border rounded bg-gray-50"
                   />
@@ -985,7 +985,7 @@ const ControllerPage = () => {
               title="Heater溫度監測"
               dataHistory={heaterTemperatureData.history}
               timeLabels={heaterTemperatureData.labels}
-              label="Heater Temprature"
+              label="Heater Temperrature"
               yAxisLabel="Temprature (°C)"
               yAxisMax={150}
               yAxisMin={0}

@@ -1745,7 +1745,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 bg-gray-50"
                               placeholder="目前溫度數值"
-                              value={Number(heaterDetail?.pv || 0).toFixed(2)}
+                              value={Number(heaterDetail?.PV || 0).toFixed(2)}
                               readOnly
                             />
                           </div>
@@ -1755,7 +1755,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2 bg-gray-50"
                               placeholder="目前設定溫度數值"
-                              value={Number(heaterDetail?.sv || 0).toFixed(2)}
+                              value={Number(heaterDetail?.SV || 0).toFixed(2)}
                               readOnly
                             />
                           </div>
@@ -1770,7 +1770,7 @@ const MfcLaserSetting = () => {
                               type="number"
                               className="w-full border rounded-md p-2"
                               placeholder="範圍 -9999~9999"
-                              value={Number(heaterInputList?.sv2 || 0).toFixed(2)}
+                              value={Number(heaterInputList?.SV2 || 0).toFixed(2)}
                               onChange={(e) => onHeaterInputChange(Number(e.target.value), 'SV2')}
                             />
                           </div>
