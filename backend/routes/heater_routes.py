@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 import asyncio
 from services.heater_services import ModbusService
 from models.heater_model import ModbusData
+from services.connect_log_services import ConnectionLogService
+from flask_jwt_extended import get_jwt_identity
 
 modbus_service = ModbusService()
 heater_bp = Blueprint("heater", __name__)
@@ -13,8 +15,22 @@ def connect():
         data = request.json
         if not data or "port" not in data or "address" not in data:
             return jsonify({"status": "failure", "message": "缺少 port 或 address"}), 400
-            
+        
+        current_user_id = get_jwt_identity()
+        
+        # 進行設備連線
         result, status_code = modbus_service.connect(data["port"], data["address"])
+        
+        # 記錄連線日誌
+        ConnectionLogService.create_log(
+            device_id='heater',
+            device_name='加熱器',
+            port=data["port"],
+            address=data["address"],
+            status='success' if status_code == 200 else 'failure',
+            created_by=current_user_id
+        )
+        
         return jsonify(result), status_code
         
     except Exception as e:

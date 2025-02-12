@@ -167,6 +167,13 @@ const useHooks = () => {
         });
         deviceConnectedRef.current[deviceId] = false;
       } finally {
+        setDevices(prev => ({
+          ...prev,
+          [deviceId]: {
+            ...prev[deviceId],
+            loading: false
+          }
+        }));
         setTimeout(() => {
           setAlertDetail(prev => ({ ...prev, show: false }));
         }, 1000);
@@ -235,6 +242,13 @@ const useHooks = () => {
         type: 'failure'
       });
     } finally {
+      setDevices(prev => ({
+        ...prev,
+        co2Laser: {
+          ...prev.co2Laser,
+          loading: false
+        }
+      }));
       setTimeout(() => {
         setAlertDetail(prev => ({ ...prev, show: false }));
       }, 1000);
@@ -308,6 +322,13 @@ const useHooks = () => {
       });
 
     } finally {
+      setDevices(prev => ({
+        ...prev,
+        heater: {
+          ...prev.heater,
+          loading: false
+        }
+      }));
       setTimeout(() => {
         setAlertDetail(prev => ({ ...prev, show: false }));
       }, 1000);
@@ -377,6 +398,13 @@ const useHooks = () => {
         type: 'failure'
       });
     } finally {
+      setDevices(prev => ({
+        ...prev,
+        ultrasonic: {
+          ...prev.ultrasonic,
+          loading: false
+        }
+      }));
       setTimeout(() => {
         setAlertDetail(prev => ({ ...prev, show: false }));
       }, 1000);

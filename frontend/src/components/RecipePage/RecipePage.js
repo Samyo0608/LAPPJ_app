@@ -344,6 +344,7 @@ const RecipePage = () => {
                 value={newRecipe.parameter_name}
                 onChange={handleNewRecipeChange}
               />
+              <span className="w-12" />
             </div>
             <ErrorMessage
               flag={inputErrorMessages?.parameter_name}
@@ -371,6 +372,7 @@ const RecipePage = () => {
                 value={newRecipe.main_gas}
                 onChange={handleNewRecipeChange}
               />
+              <span className="w-12" />
             </div>
             <ErrorMessage
               flag={inputErrorMessages?.main_gas}
@@ -399,6 +401,7 @@ const RecipePage = () => {
                 value={newRecipe.carrier_gas}
                 onChange={handleNewRecipeChange}
               />
+              <span className="w-12" />
             </div>
             <p className="text-sm text-blue-500 text-bold col-span-12 lg:col-span-12">* 設定前請先確認該流量計是否有支援，未設定將預設為Ar</p>
             <div className="flex items-center gap-2 col-span-6 lg:col-span-12">

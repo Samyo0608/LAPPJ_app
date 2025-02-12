@@ -393,6 +393,7 @@ const useHooks = () => {
       const response = await getApi("/ultrasonic/turn_on", "POST");
 
       if (response?.data?.status === "success") {
+        setUltrasonicOpenFlag(true);
         setAlertDetail({
           show: true,
           message: response.data.message || "霧化器開啟成功",
@@ -428,6 +429,7 @@ const useHooks = () => {
       const response = await getApi("/ultrasonic/turn_off", "POST");
 
       if (response?.data?.status === "success") {
+        setUltrasonicOpenFlag(false);
         setAlertDetail({
           show: true,
           message: response.data.message || "霧化器關閉成功",
@@ -534,6 +536,9 @@ const useHooks = () => {
       if (isHeaterOpenState) {
         await setHeaterTemperatureApi();
       }
+      if (isUltrasonicOpenState && !ultrasonicOpenFlag) {
+        await setUltrasonicOpen();
+      }
 
       setAlertDetail({
         show: true,
@@ -562,6 +567,9 @@ const useHooks = () => {
       }
       if (isCo2LaserOpenState) {
         await setCo2LaserOpenState(false);
+      }
+      if (isUltrasonicOpenState && ultrasonicOpenFlag) {
+        await setUltrasonicClose();
       }
       setAlertDetail({
         show: true,
@@ -768,6 +776,8 @@ const useHooks = () => {
     onHeaterSettingLoading,
     heaterTemperatureData,
     isHeaterOpenState,
+    isUltrasonicOpenState,
+    ultrasonicOpenFlag,
     alertDetail,
     onAutoStartLoading,
     onCarrierFlowSettingChange,
@@ -791,7 +801,8 @@ const ControllerPage = () => {
   const {
     isCarrierGasOpenState, carrierGasDetail, carrierGasFlowData, carrierGasFlowSetting, carrierGasPressureData, carrierGasTemperatureData,
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
-    alertDetail,  temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, onAutoStartLoading,
+    alertDetail,  temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, isUltrasonicOpenState, ultrasonicOpenFlag,
+    onAutoStartLoading,
     onCarrierFlowSettingChange, onCarrierFlowSettingClick, onRecipeSelect, onRecipeApplyClick,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM,
     onAlertClose, setTemperature, setHeaterTemperatureApi, setUltrasonicOpen, setUltrasonicClose,
@@ -808,15 +819,15 @@ const ControllerPage = () => {
       />
       <div className="grid grid-cols-3 gap-4 p-2 bg-white shadow mb-4 rounded">
         <div className="flex items-center gap-2">
+        <span className="w-4 h-4 bg-red-500 rounded-full"></span>
+          <span className="text-sm">Mass Flow Controller - Main Gas</span>
+        </div>
+        <div className="flex items-center gap-2">
           <span
             className={`${
               isCarrierGasOpenState ? "bg-green-500" : "bg-red-500"
             } w-4 h-4 bg-green-500 rounded-full`}
           />
-          <span className="text-sm">Mass Flow Controller - Main Gas</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-green-500 rounded-full"></span>
           <span className="text-sm">Mass Flow Controller - Carrier Gas</span>
         </div>
         <div className="flex items-center gap-2">
@@ -828,8 +839,8 @@ const ControllerPage = () => {
           <span className="text-sm">Co2 Laser</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-green-500 rounded-full"></span>
-          <span className="text-sm">Plasma</span>
+          <span className="w-4 h-4 bg-red-500 rounded-full"></span>
+          <span className="text-sm">Power supply</span>
         </div>
         <div className="flex items-center gap-2">
           <span
@@ -840,12 +851,16 @@ const ControllerPage = () => {
           <span className="text-sm">Heater</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-green-500 rounded-full"></span>
+          <span
+            className={`${
+              isUltrasonicOpenState ? "bg-green-500" : "bg-red-500"
+            } w-4 h-4 bg-green-500 rounded-full`}
+          />
           <span className="text-sm">Ultrasonic</span>
         </div>
       </div>
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 md:grid-cols-2 gap-4">
         {/* Left Column - MPC */}
         <div className="bg-white p-4 rounded shadow">
           <div className="space-y-4">
@@ -914,9 +929,9 @@ const ControllerPage = () => {
                   className="w-full p-1 border rounded bg-gray-50 mt-2"
                 />
               </div>
-              <div className="mb-2 flex items-center gap-2 flex-wrap justify-between">
+              <div className="mb-2 flex items-center gap-2 flex-wrap">
                 <div className="flex justify-between items-center gap-2 flex-wrap">
-                  <span className="text-sm w-72">流量設定 (Flow Setting)</span>
+                  <span className="text-sm w-32">流量設定 (Flow Setting)</span>
                   <input
                     type="number"
                     step="0.001"
@@ -934,14 +949,14 @@ const ControllerPage = () => {
                   isDisabled={!isCarrierGasOpenState}
                 />
               </div>
-              <div className="mb-2 flex items-center gap-2 flex-wrap justify-between">
+              <div className="mb-2 flex items-center gap-2 flex-wrap">
                 <div className="flex justify-between items-center gap-2 flex-wrap">
-                  <span className="text-sm w-72">目前流量設定值</span>
+                  <span className="text-sm w-32">目前流量設定值</span>
                   <input
                     type="number"
                     value={carrierGasDetail?.setpoint || 0}
                     readOnly
-                    className="p-1 border rounded bg-gray-50 mb-2"
+                    className="p-1 border rounded bg-gray-50"
                   />
                 </div>
                 <span className="text-md">slm</span>
@@ -1016,15 +1031,20 @@ const ControllerPage = () => {
             </div>
             <div className="border p-4 border-red-300 rounded shadow">
               <h3 className="font-bold mb-2">超音波震盪器 (Ultrasonic)</h3>
-              <div className="flex items-center gap-2 mb-2"></div>
+              <p className="flex items-center gap-2 mb-2 text-sm">
+                目前震盪器狀態: <span className='font-bold text-purple-500'>{ultrasonicOpenFlag ? "開啟" : "關閉"}</span>
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 <ButtonComponent
                   label="ON"
                   onClick={setUltrasonicOpen}
+                  isOpen={ultrasonicOpenFlag}
+                  isDisabled={!isUltrasonicOpenState || ultrasonicOpenFlag}
                 />
                 <ButtonComponent
                   label="OFF"
                   onClick={setUltrasonicClose}
+                  isDisabled={!isUltrasonicOpenState || !ultrasonicOpenFlag}
                 />
               </div>
             </div>
@@ -1038,7 +1058,7 @@ const ControllerPage = () => {
             <div className="border p-4 border-blue-300 rounded shadow">
               <h3 className="font-bold mb-2">溫度控制器 (Heater)</h3>
               <div className="space-y-2">
-                <div className="flex items-center gap-2 justify-between flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm min-w-28">設定溫度</span>
                   <input
                     type="number"
@@ -1048,7 +1068,7 @@ const ControllerPage = () => {
                   />
                   <span className="text-sm">°C</span>
                 </div>
-                <div className="flex items-center gap-2 justify-between flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm min-w-28">目前設定溫度</span>
                   <input
                     type="number"
@@ -1058,7 +1078,7 @@ const ControllerPage = () => {
                   />
                   <span className="text-sm">°C</span>
                 </div>
-                <div className="flex items-center gap-2 justify-between flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm min-w-28">實際溫度</span>
                   <input
                     type="number"
@@ -1113,77 +1133,6 @@ const ControllerPage = () => {
                 <ButtonComponent label="OFF" />
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-      {/* 這邊為下一層的內容 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-        <div className="col-span-1 lg:col-span-2 md:col-span-2 bg-white p-4 rounded-lg shadow-md">
-          <h3 className="font-bold mb-2">
-            流量 / 電壓監測 (Flow / Voltage / Pressure monitor)
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-4">
-            <LineChartComponent
-              title="載氣流量監測"
-              data={carrierGasDetail?.mass_flow || 0}
-              dataHistory={carrierGasFlowData.history}
-              timeLabels={carrierGasFlowData.labels}
-              label="Carrier Gas flow"
-              yAxisLabel="Flow Rate (slm)"
-              yAxisMax={1}
-              yAxisMin={0}
-              yAxisStep={0.1}
-              lineColor="rgb(192, 108, 75)"
-              backgroundColor="rgba(192, 79, 75, 0.2)"
-            />
-            <LineChartComponent
-              title="載氣溫度監測"
-              dataHistory={carrierGasTemperatureData.history}
-              timeLabels={carrierGasTemperatureData.labels}
-              label="Carrier Gas Temperature"
-              yAxisLabel="Temperature (°C)"
-              yAxisMax={50}
-              yAxisMin={0}
-              yAxisStep={5}
-              lineColor="rgb(75, 192, 75)"
-              backgroundColor="rgba(75, 192, 75, 0.2)"
-            />
-            <LineChartComponent
-              title="載氣壓力監測"
-              dataHistory={carrierGasPressureData.history}
-              timeLabels={carrierGasPressureData.labels}
-              label="Carrier Gas Pressure"
-              yAxisLabel="Pressure (PSI)"
-              yAxisMax={20}
-              yAxisMin={0}
-              yAxisStep={2}
-              lineColor="rgb(75, 75, 192)"
-              backgroundColor="rgba(75, 75, 192, 0.2)"
-            />
-            <LineChartComponent
-              title="CO2雷射PWM功率監測"
-              dataHistory={co2LaserPWMData.history}
-              timeLabels={co2LaserPWMData.labels}
-              label="CO2 Laser PWM Power (%)"
-              yAxisLabel="Percentage (%)"
-              yAxisMax={100}
-              yAxisMin={0}
-              yAxisStep={5}
-              lineColor="rgb(15, 16, 15)"
-              backgroundColor="rgba(75, 75, 192, 0.2)"
-            />
-            <LineChartComponent
-              title="Heater溫度監測"
-              dataHistory={heaterTemperatureData.history}
-              timeLabels={heaterTemperatureData.labels}
-              label="Heater Temperrature"
-              yAxisLabel="Temprature (°C)"
-              yAxisMax={150}
-              yAxisMin={0}
-              yAxisStep={10}
-              lineColor="rgb(230, 46, 178)"
-              backgroundColor="rgba(75, 75, 192, 0.2)"
-            />
           </div>
         </div>
         {/* Recipe 調整 */}
@@ -1294,7 +1243,7 @@ const ControllerPage = () => {
             </div>
           </div>
           {/* 自動啟動按鈕 */}
-          <div className="flex flex-col justify-center mt-4">
+          <div className="flex flex-col justify-center mt-4 items-center">
             <h3 className="font-bold mb-2 text-blue-800 text-center text-lg">
               一鍵自動啟動
             </h3>
@@ -1312,7 +1261,7 @@ const ControllerPage = () => {
             />
           </div>
           {/* 一鍵全部關閉 */}
-          <div className="flex flex-col justify-center mt-4">
+          <div className="flex flex-col justify-center mt-4 items-center">
             <h3 className="font-bold mb-2 text-blue-800 text-center text-lg">
               一鍵自動關閉
             </h3>
@@ -1327,6 +1276,77 @@ const ControllerPage = () => {
               otherCss="w-full max-w-md"
               isDisabled={!isHeaterOpenState || !isCo2LaserOpenState || !isCarrierGasOpenState}
               loading={onAutoStartLoading}
+            />
+          </div>
+        </div>
+      </div>
+      {/* 這邊為下一層的內容 */}
+      <div className="grid grid-cols-4 lg:grid-cols-4 gap-4 mt-4">
+        <div className="col-span-4 lg:col-span-4 md:col-span-4 bg-white p-4 rounded-lg shadow-md">
+          <h3 className="font-bold mb-2">
+            流量 / 電壓監測 (Flow / Voltage / Pressure monitor)
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <LineChartComponent
+              title="載氣流量監測"
+              data={carrierGasDetail?.mass_flow || 0}
+              dataHistory={carrierGasFlowData.history}
+              timeLabels={carrierGasFlowData.labels}
+              label="Carrier Gas flow"
+              yAxisLabel="Flow Rate (slm)"
+              yAxisMax={1}
+              yAxisMin={0}
+              yAxisStep={0.1}
+              lineColor="rgb(192, 108, 75)"
+              backgroundColor="rgba(192, 79, 75, 0.2)"
+            />
+            <LineChartComponent
+              title="載氣溫度監測"
+              dataHistory={carrierGasTemperatureData.history}
+              timeLabels={carrierGasTemperatureData.labels}
+              label="Carrier Gas Temperature"
+              yAxisLabel="Temperature (°C)"
+              yAxisMax={50}
+              yAxisMin={0}
+              yAxisStep={5}
+              lineColor="rgb(75, 192, 75)"
+              backgroundColor="rgba(75, 192, 75, 0.2)"
+            />
+            <LineChartComponent
+              title="載氣壓力監測"
+              dataHistory={carrierGasPressureData.history}
+              timeLabels={carrierGasPressureData.labels}
+              label="Carrier Gas Pressure"
+              yAxisLabel="Pressure (PSI)"
+              yAxisMax={20}
+              yAxisMin={0}
+              yAxisStep={2}
+              lineColor="rgb(75, 75, 192)"
+              backgroundColor="rgba(75, 75, 192, 0.2)"
+            />
+            <LineChartComponent
+              title="CO2雷射PWM功率監測"
+              dataHistory={co2LaserPWMData.history}
+              timeLabels={co2LaserPWMData.labels}
+              label="CO2 Laser PWM Power (%)"
+              yAxisLabel="Percentage (%)"
+              yAxisMax={100}
+              yAxisMin={0}
+              yAxisStep={5}
+              lineColor="rgb(15, 16, 15)"
+              backgroundColor="rgba(75, 75, 192, 0.2)"
+            />
+            <LineChartComponent
+              title="Heater溫度監測"
+              dataHistory={heaterTemperatureData.history}
+              timeLabels={heaterTemperatureData.labels}
+              label="Heater Temperrature"
+              yAxisLabel="Temprature (°C)"
+              yAxisMax={150}
+              yAxisMin={0}
+              yAxisStep={10}
+              lineColor="rgb(230, 46, 178)"
+              backgroundColor="rgba(75, 75, 192, 0.2)"
             />
           </div>
         </div>

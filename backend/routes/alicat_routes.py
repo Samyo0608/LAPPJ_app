@@ -1,4 +1,6 @@
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from services.connect_log_services import ConnectionLogService
 import asyncio
 from models.alicat_model import FlowControllerModel
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
@@ -18,27 +20,39 @@ def connect():
     if not port:
         return jsonify({"status": "failure", "message": "需要提供端口號"}), 400
 
+    # 嘗試獲取用戶 ID，如果沒有則設為 None
+    try:
+        current_user_id = get_jwt_identity()
+    except:
+        current_user_id = None
+
     try:
         async def async_connect():
             global flow_controller
             
-            # 如果已有連接的設備，先斷開
             try:
                 if flow_controller:
                     await flow_controller.disconnect()
                     print(f"已關閉先前的連接 {flow_controller.port}")
             except Exception as e:
                 print(f"斷開先前連接時發生錯誤: {e}")
-                # 繼續執行，因為我們要建立新連接
 
-            # 創建新的控制器實例
             flow_controller = FlowControllerModel(port, address)
             initial_status = await flow_controller.connect()
             
             return flow_controller.format_status_data(initial_status)
 
-        # 使用 asyncio.run 執行異步操作
         formatted_status = asyncio.run(async_connect())
+        
+        # 記錄連線日誌
+        ConnectionLogService.create_log(
+            device_id='carrierGas',
+            device_name='Alicat 載氣MFC',
+            port=port,
+            address=address,
+            status='success',
+            created_by=current_user_id
+        )
         
         return jsonify({
             "message": f"Alicat 載氣MFC連接成功，端口: {port}",
@@ -48,7 +62,18 @@ def connect():
         }), 200
 
     except Exception as e:
-        # 確保在發生錯誤時清理資源
+        try:
+            ConnectionLogService.create_log(
+                device_id='carrierGas',
+                device_name='Alicat 載氣MFC',
+                port=port,
+                address=address,
+                status='failure',
+                created_by=current_user_id
+            )
+        except Exception as log_error:
+            print(f"記錄連線日誌失敗: {log_error}")
+
         global flow_controller
         try:
             if flow_controller:
@@ -56,9 +81,11 @@ def connect():
         except:
             pass
         flow_controller = None
-        return jsonify({"status": "failure", "message": str(e)}), 500
-    except Exception as e:
-        return jsonify({"status": "failure", "message": str(e)}), 500
+        
+        return jsonify({
+            "status": "failure", 
+            "message": str(e)
+        }), 500
 
 def is_port_available(port):
     """檢查指定的端口是否有效"""

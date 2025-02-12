@@ -10,7 +10,7 @@ export const UltrasonicProvider = ({ children }) => {
   // 從 localStorage 讀取數據時需要解析 JSON
   const [ultrasonicOpenFlag, setUltrasonicOpenFlag] = useState(() => {
     const savedDetail = localStorage.getItem("ultrasonicOpenFlag");
-    return savedDetail ? JSON.parse(savedDetail) : {};
+    return savedDetail === "true";
   });
   
   const [isUltrasonicOpenState, setIsUltrasonicOpenState] = useState(() => {

@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from config import Config
+from models.connect_log_model import ConnectionLog
 from txt_to_transmittance_data import txt_to_transmittance
 from transmittance_to_figure import plot_data, plot_data_filter
 from routes.alicat_routes import alicat_bp
