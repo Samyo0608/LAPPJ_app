@@ -20,7 +20,7 @@ const useHooks = () => {
     setHeaterDetailState, isHeaterOpenState, setIsHeaterOpenState, heaterPortAndAddressState, setHeaterPortAndAddressState
   } = useHeaterContext();
   const {
-    isUltraSonicOpenState, setIsUltraSonicOpenState, ultraSonicPortAndAddressState, setUltraSonicPortAndAddressState
+    isUltrasonicOpenState, setIsUltrasonicOpenState, ultrasonicPortAndAddressState, setUltrasonicPortAndAddressState
   } = useUltrasonicContext();
 
   // 設備列表
@@ -351,12 +351,12 @@ const useHooks = () => {
           }
         }));
 
-        setUltraSonicPortAndAddressState({
+        setUltrasonicPortAndAddressState({
           port: data.port,
           address: data.address
         });
 
-        setIsUltraSonicOpenState(true);
+        setIsUltrasonicOpenState(true);
         return response;
       } else {
         deviceConnectedRef.current.ultrasonic = false;
@@ -877,7 +877,7 @@ const useHooks = () => {
           }
         }));
 
-        setIsUltraSonicOpenState(false);
+        setIsUltrasonicOpenState(false);
       } else {
         console.error(response?.data?.status);
         setAlertDetail({
@@ -942,7 +942,7 @@ const useHooks = () => {
             }
             break;
           case 'ultrasonic':
-            if(isUltraSonicOpenState) {
+            if(isUltrasonicOpenState) {
               await disconnectUltraSonicApi({
                 port: devices[device.id].port,
                 address: devices[device.id].address
@@ -1122,19 +1122,19 @@ const useHooks = () => {
       }));
     }
 
-    if (isUltraSonicOpenState || ultraSonicPortAndAddressState?.port || ultraSonicPortAndAddressState?.address) {
+    if (isUltrasonicOpenState || ultrasonicPortAndAddressState?.port || ultrasonicPortAndAddressState?.address) {
       setDevices(prev => ({
         ...prev,
         ultrasonic: {
           ...prev.ultrasonic,
-          port: ultraSonicPortAndAddressState.port,
-          address: ultraSonicPortAndAddressState.address,
-          connected: isUltraSonicOpenState,
-          selected: isUltraSonicOpenState
+          port: ultrasonicPortAndAddressState.port,
+          address: ultrasonicPortAndAddressState.address,
+          connected: isUltrasonicOpenState,
+          selected: isUltrasonicOpenState
         }
       }));
     }
-  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState, heaterPortAndAddressState, isHeaterOpenState, ultraSonicPortAndAddressState, isUltraSonicOpenState]);
+  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState, heaterPortAndAddressState, isHeaterOpenState, ultrasonicPortAndAddressState, isUltrasonicOpenState]);
 
   useEffect(() => {
     getPortsListApi();
@@ -1153,7 +1153,7 @@ const useHooks = () => {
     isCarrierGasOpenState,
     isCo2LaserOpenState,
     isHeaterOpenState,
-    isUltraSonicOpenState,
+    isUltrasonicOpenState,
     setIpAddress,
     handleConnect,
     handleAutoConnect,
@@ -1167,7 +1167,7 @@ const useHooks = () => {
 const PortAutoConnectPage = () => {
   const {
     deviceList, devices, ipAddress, isAutoConnecting, connectionResults, usefulPorts, alertDetail, isCarrierGasOpenState, isCo2LaserOpenState,
-    isHeaterOpenState, isUltraSonicOpenState,
+    isHeaterOpenState, isUltrasonicOpenState,
     setIpAddress, handleConnect, handleAutoConnect, toggleDeviceSelection, setAlertDetail,
     onPortOrAddressChange
   } = useHooks();
@@ -1231,7 +1231,7 @@ const PortAutoConnectPage = () => {
                     checked={devices[device.id]?.selected}
                     onChange={() => toggleDeviceSelection(device.id)}
                     label={device.name}
-                    disabled={isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltraSonicOpenState}
+                    disabled={isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState}
                   />
                   <Label
                     htmlFor={device.id}
@@ -1244,7 +1244,7 @@ const PortAutoConnectPage = () => {
             }
           </div>
           {
-            isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltraSonicOpenState ? (
+            isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState ? (
             <Button
               onClick={handleAutoConnect}
               disabled={isAutoConnecting}

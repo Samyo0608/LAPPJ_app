@@ -967,12 +967,20 @@ const useHooks = () => {
     setIsHeaterLoading(true);
 
     try {
+      const setSvValue = () => {
+        if ((Number(heaterDetailState?.decimal_point) === 1 && Number(heaterInputList?.decimal_point) === 0)) {
+          return Number(heaterDetail?.SV*0.1);
+        } else if (Number(heaterDetailState?.decimal_point) === 0 && Number(heaterInputList?.decimal_point) === 1) {
+          return Number(heaterDetail?.SV*10);
+        }  else {
+          return  Number(heaterDetail?.SV);
+        }
+      };
+
       const response = await getApi('/heater/update', 'POST', {
         ...heaterInputList,
-        SV: (Number(heaterDetailState?.decimal_point) === 1 && Number(heaterInputList?.decimal_point) === 0) ? Number(heaterDetail?.SV*0.1) : Number(heaterDetail?.SV)
+        SV: setSvValue()
       });
-
-      console.log('heaterInputList', heaterInputList);
 
       if (response?.data?.status === 'success') {
         setAlertDetail({

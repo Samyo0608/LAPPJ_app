@@ -22,17 +22,17 @@ const App = () => {
           <Co2LaserProvider>
               <HeaterProvider>
                 <UltrasonicProvider>
-            <Navbar />
-            <Routes>
-                <Route index element={<ControllerPage />} />
-                <Route path='/controllerPage' element={<ControllerPage />} />
-                <Route path='/mfcLaserSetting' element={<MfcLaserSetting />} />
-                <Route path='/transmittancePage' element={<TransmittancePage />} />
-                <Route path='/LabWeb' element={<LabWeb />} />
-                <Route path='/recipePage' element={<RecipePage />} />
-                <Route path='/portAutoConnectPage' element={<PortAutoConnectPage />} />
-                {/* <Route path='*' element={<NoMatch />} /> */}
-            </Routes>
+                  <Navbar />
+                  <Routes>
+                      <Route index element={<ControllerPage />} />
+                      <Route path='/controllerPage' element={<ControllerPage />} />
+                      <Route path='/mfcLaserSetting' element={<MfcLaserSetting />} />
+                      <Route path='/transmittancePage' element={<TransmittancePage />} />
+                      <Route path='/LabWeb' element={<LabWeb />} />
+                      <Route path='/recipePage' element={<RecipePage />} />
+                      <Route path='/portAutoConnectPage' element={<PortAutoConnectPage />} />
+                      {/* <Route path='*' element={<NoMatch />} /> */}
+                  </Routes>
                 </UltrasonicProvider>
               </HeaterProvider>
           </Co2LaserProvider>

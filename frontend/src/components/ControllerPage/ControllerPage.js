@@ -7,6 +7,7 @@ import LineChartComponent from "../Chart/Chart";
 import { useAlicatContext } from "../../Contexts/AlicatContext";
 import { useCo2LaserContext } from "../../Contexts/Co2LaserContext";
 import { useHeaterContext } from "../../Contexts/HeaterContext";
+import { useUltrasonicContext } from "../../Contexts/UltrasonicContext";
 
 // Button Component
 const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen }) => (
@@ -25,6 +26,7 @@ const useHooks = () => {
   const { isCarrierGasOpenState, setCarrierGasDetailState } = useAlicatContext();
   const { isCo2LaserOpenState, co2LaserDetailState, setCo2LaserDetailState } = useCo2LaserContext();
   const { isHeaterOpenState, heaterDetailState, setHeaterDetailState } = useHeaterContext();
+  const { isUltrasonicOpenState, ultrasonicOpenFlag, setUltrasonicOpenFlag } = useUltrasonicContext();
   // 載氣資料
   const [carrierGasDetail, setCarrierGasDetail] = useState({});
   // 載器流量設定
@@ -385,6 +387,76 @@ const useHooks = () => {
     }
   }
 
+  // 開啟霧化器
+  const setUltrasonicOpen = async () => {
+    try {
+      const response = await getApi("/ultrasonic/turn_on", "POST");
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message || "霧化器開啟成功",
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message || "霧化器開啟失敗",
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  }
+
+  // 關閉霧化器
+  const setUltrasonicClose = async () => {
+    try {
+      const response = await getApi("/ultrasonic/turn_off", "POST");
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message || "霧化器關閉成功",
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message || "霧化器關閉失敗",
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  }
+
   // 取得Recipe資料 API
   const getRecipeDataApi = async () => {
     const response = await getApi("/recipe_api/get_recipes", "GET");
@@ -708,6 +780,8 @@ const useHooks = () => {
     onAlertClose,
     setTemperature,
     setHeaterTemperatureApi,
+    setUltrasonicOpen,
+    setUltrasonicClose,
     onAutoStartClick,
     onAllCloseClick,
   };
@@ -720,7 +794,8 @@ const ControllerPage = () => {
     alertDetail,  temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, onAutoStartLoading,
     onCarrierFlowSettingChange, onCarrierFlowSettingClick, onRecipeSelect, onRecipeApplyClick,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM,
-    onAlertClose, setTemperature, setHeaterTemperatureApi, onAutoStartClick, onAllCloseClick,
+    onAlertClose, setTemperature, setHeaterTemperatureApi, setUltrasonicOpen, setUltrasonicClose,
+    onAutoStartClick, onAllCloseClick,
   } = useHooks();
 
   return (
@@ -943,8 +1018,14 @@ const ControllerPage = () => {
               <h3 className="font-bold mb-2">超音波震盪器 (Ultrasonic)</h3>
               <div className="flex items-center gap-2 mb-2"></div>
               <div className="grid grid-cols-2 gap-2">
-                <ButtonComponent label="ON" />
-                <ButtonComponent label="OFF" />
+                <ButtonComponent
+                  label="ON"
+                  onClick={setUltrasonicOpen}
+                />
+                <ButtonComponent
+                  label="OFF"
+                  onClick={setUltrasonicClose}
+                />
               </div>
             </div>
           </div>
