@@ -16,20 +16,20 @@ def connect():
         if not data or "port" not in data or "address" not in data:
             return jsonify({"status": "failure", "message": "缺少 port 或 address"}), 400
         
-        current_user_id = get_jwt_identity()
+        # current_user_id = get_jwt_identity()
         
         # 進行設備連線
         result, status_code = modbus_service.connect(data["port"], data["address"])
         
         # 記錄連線日誌
-        ConnectionLogService.create_log(
-            device_id='heater',
-            device_name='加熱器',
-            port=data["port"],
-            address=data["address"],
-            status='success' if status_code == 200 else 'failure',
-            created_by=current_user_id
-        )
+        # ConnectionLogService.create_log(
+        #     device_id='heater',
+        #     device_name='加熱器',
+        #     port=data["port"],
+        #     address=data["address"],
+        #     status='success' if status_code == 200 else 'failure',
+        #     created_by=current_user_id
+        # )
         
         return jsonify(result), status_code
         

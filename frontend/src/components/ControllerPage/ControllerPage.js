@@ -935,7 +935,7 @@ const ControllerPage = () => {
                   <input
                     type="number"
                     step="0.001"
-                    value={Number(carrierGasFlowSetting).toFixed(3)}
+                    value={Number(carrierGasFlowSetting)}
                     readOnly={!isCarrierGasOpenState}
                     className={`${
                       !isCarrierGasOpenState && "bg-gray-50"
@@ -1256,7 +1256,6 @@ const ControllerPage = () => {
               onClick={onAutoStartClick}
               label="自動啟動 (Auto Start)"
               otherCss="w-full max-w-md"
-              isDisabled={!isHeaterOpenState || !isCo2LaserOpenState || !isCarrierGasOpenState}
               loading={onAutoStartLoading}
             />
           </div>
@@ -1274,7 +1273,6 @@ const ControllerPage = () => {
               onClick={onAllCloseClick}
               label="全部關閉 (All Close)"
               otherCss="w-full max-w-md"
-              isDisabled={!isHeaterOpenState || !isCo2LaserOpenState || !isCarrierGasOpenState}
               loading={onAutoStartLoading}
             />
           </div>
