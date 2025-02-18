@@ -185,6 +185,7 @@ class UC2000:
                     'power_percentage': response[4] / 2
                 }
 
+                print(response.hex())
                 print(f"Status: {status}")
                 return status
 

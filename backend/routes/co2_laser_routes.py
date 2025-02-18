@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request
 from services.co2_laser_services import UC2000Service
+from services.connect_log_services import ConnectionLogService
+from flask_jwt_extended import get_jwt_identity
 
 uc2000_bp = Blueprint('uc2000', __name__)
 controller_service = UC2000Service()
@@ -13,12 +15,103 @@ async def connect():
     if not port:
         return jsonify({"status": "error", "message": "請提供 port"}), 400
 
-    return await controller_service.connect(port)
+    try:
+        try:
+            current_user_id = get_jwt_identity()
+        except:
+            current_user_id = None
+        
+        # 進行設備連線
+        result, status_code = await controller_service.connect(port)
+        
+        if status_code == 200:
+            # 記錄連線日誌
+            ConnectionLogService.create_log(
+                device_id='uc2000',
+                device_name='UC-2000 CO2雷射控制器',
+                port=port,
+                address='- -',
+                status='connected',
+                created_by=current_user_id
+            )
+        else:
+            ConnectionLogService.create_log(
+                device_id='uc2000',
+                device_name='UC-2000 CO2雷射控制器',
+                port=port,
+                address='- -',
+                status='connected failed',
+                created_by=current_user_id
+            )
+            
+        return jsonify(result), status_code
+    
+    except Exception as e:
+        ConnectionLogService.create_log(
+            device_id='uc2000',
+            device_name='UC-2000 CO2雷射控制器',
+            port=port,
+            address='- -',
+            status='connected failed',
+            created_by=current_user_id
+        )
+        return jsonify({
+            "status": "error",
+            "message": f"連接請求處理失敗: {str(e)}"
+        }), 500
 
 @uc2000_bp.route('/disconnect', methods=['POST'])
 async def disconnect():
     """斷開 UC-2000 連線"""
-    return await controller_service.disconnect()
+    data = request.get_json()
+    port = data.get('port')
+
+    if not port:
+        return jsonify({"status": "error", "message": "請提供 port"}), 400
+    
+    try:
+        try:
+            current_user_id = get_jwt_identity()
+        except:
+            current_user_id = None
+            
+        result, status_code = await controller_service.disconnect()
+        
+        if status_code == 200:
+            # 記錄斷開連線日誌
+            ConnectionLogService.create_log(
+                device_id='uc2000',
+                device_name='UC-2000 CO2雷射控制器',
+                port=port,
+                address='- -',
+                status='disconnected',
+                created_by=current_user_id
+            )
+        else:
+            ConnectionLogService.create_log(
+                device_id='uc2000',
+                device_name='UC-2000 CO2雷射控制器',
+                port=port,
+                address='- -',
+                status='disconnected failed',
+                created_by=current_user_id
+            )
+            
+        return jsonify(result), status_code
+    
+    except Exception as e:
+        ConnectionLogService.create_log(
+            device_id='uc2000',
+            device_name='UC-2000 CO2雷射控制器',
+            port=port,
+            address='- -',
+            status='disconnected failed',
+            created_by=current_user_id
+        )
+        return jsonify({
+            "status": "error",
+            "message": f"斷開連線請求處理失敗: {str(e)}"
+        }), 500
 
 @uc2000_bp.route('/status', methods=['GET'])
 async def get_status():

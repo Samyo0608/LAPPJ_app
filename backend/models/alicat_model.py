@@ -137,7 +137,15 @@ class FlowControllerModel:
                     timeout=self.timeout
                 )
                 
+                await asyncio.sleep(1)
+                
                 response = self._send_command(self.address)
+                
+                if not response:
+                    print("⚠️ 第一次喚醒失敗，重試...")
+                    await asyncio.sleep(1)  # **等待 1 秒**
+                    response = self._send_command(self.address)
+                
                 if response:
                     status = self._parse_response(response)
                     if status:

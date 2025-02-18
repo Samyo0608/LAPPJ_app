@@ -16,24 +16,35 @@ def connect():
         if not data or "port" not in data or "address" not in data:
             return jsonify({"status": "failure", "message": "缺少 port 或 address"}), 400
         
-        # current_user_id = get_jwt_identity()
+        try:
+            current_user_id = get_jwt_identity()
+        except:
+            current_user_id = None
         
         # 進行設備連線
         result, status_code = modbus_service.connect(data["port"], data["address"])
         
         # 記錄連線日誌
-        # ConnectionLogService.create_log(
-        #     device_id='heater',
-        #     device_name='加熱器',
-        #     port=data["port"],
-        #     address=data["address"],
-        #     status='success' if status_code == 200 else 'failure',
-        #     created_by=current_user_id
-        # )
+        ConnectionLogService.create_log(
+            device_id='heater',
+            device_name='加熱控制器',
+            port=data["port"],
+            address=data["address"],
+            status='connected' if status_code == 200 else 'connected failed',
+            created_by=current_user_id
+        )
         
         return jsonify(result), status_code
         
     except Exception as e:
+        ConnectionLogService.create_log(
+            device_id='heater',
+            device_name='加熱控制器',
+            port=data["port"],
+            address=data["address"],
+            status='connected failed',
+            created_by=current_user_id
+        )
         return jsonify({
             "status": "failure",
             "message": f"連接請求處理失敗: {str(e)}"
@@ -41,6 +52,24 @@ def connect():
 
 @heater_bp.route("/disconnect", methods=["POST"])
 def disconnect():
+    data = request.json
+    if not data or "port" not in data or "address" not in data:
+        return jsonify({"status": "failure", "message": "缺少 port 或 address"}), 400
+    
+    try:
+        current_user_id = get_jwt_identity()
+    except:
+        current_user_id = None
+        
+    ConnectionLogService.create_log(
+        device_id='heater',
+        device_name='加熱控制器',
+        port=data['port'],
+        address=data['address'],
+        status='disconnected',
+        created_by=current_user_id
+    )
+    
     """ 斷開 Modbus 連線 """
     modbus_service.disconnect()
     return jsonify({"status": "success"})

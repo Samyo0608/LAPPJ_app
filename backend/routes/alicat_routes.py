@@ -50,7 +50,7 @@ def connect():
             device_name='Alicat 載氣MFC',
             port=port,
             address=address,
-            status='success',
+            status='connected',
             created_by=current_user_id
         )
         
@@ -68,7 +68,7 @@ def connect():
                 device_name='Alicat 載氣MFC',
                 port=port,
                 address=address,
-                status='failure',
+                status='connect failed',
                 created_by=current_user_id
             )
         except Exception as log_error:
@@ -102,14 +102,44 @@ def disconnect():
     global flow_controller
     if not flow_controller:
         return jsonify({"status": "failure", "message": "Device not connected"}), 400
+    
+    connected_port = flow_controller.port
+    connected_address = flow_controller.address
+    
+    # 嘗試獲取用戶 ID，如果沒有則設為 None
+    try:
+        current_user_id = get_jwt_identity()
+    except:
+        current_user_id = None
 
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(flow_controller.disconnect())
         flow_controller = None
+        
+        # 記錄連線日誌
+        ConnectionLogService.create_log(
+            device_id='carrierGas',
+            device_name='Alicat 載氣MFC',
+            port=connected_port,
+            address=connected_address,
+            status='disconnected',
+            created_by=current_user_id
+        )
+        
         return jsonify({"status": "success", "message": "Disconnected"}), 200
     except Exception as e:
+        # 記錄連線日誌
+        ConnectionLogService.create_log(
+            device_id='carrierGas',
+            device_name='Alicat 載氣MFC',
+            port=connected_port,
+            address=connected_address,
+            status='disconnected failed',
+            created_by=current_user_id
+        )
+        
         return jsonify({"status": "failure", "message": str(e)}), 500
 
 @alicat_bp.route('/status', methods=['GET'])
