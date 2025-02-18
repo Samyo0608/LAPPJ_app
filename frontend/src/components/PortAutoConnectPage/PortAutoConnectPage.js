@@ -918,7 +918,10 @@ const useHooks = () => {
 
   // disconnect co2 laser
   const disconnectCo2LaserApi = async (data) => {
+<<<<<<< HEAD
     console.log(data)
+=======
+>>>>>>> 4e465cda1011aae60262f91d1f5732969d185d05
     try {
       setDevices(prev => ({
         ...prev,
