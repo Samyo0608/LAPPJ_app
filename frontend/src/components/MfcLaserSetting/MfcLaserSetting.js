@@ -7,6 +7,7 @@ import { parseGasMixture } from '../../utils/mixGasUtil';
 import { useAlicatContext } from '../../Contexts/AlicatContext';
 import { useCo2LaserContext } from '../../Contexts/Co2LaserContext';
 import { useHeaterContext } from '../../Contexts/HeaterContext';
+import { useAzbilContext } from '../../Contexts/AzbilContext';
 
 // 將 SingleConnectComponent 改為獨立的函數組件
 const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConnectPortChange, onConnectAddressChange, devicesData }) => {
@@ -86,10 +87,11 @@ const useHooks = () => {
   const { isCarrierGasOpenState, setIsCarrierOpenState, setCarrierGasPortandAddressState, carrierGasPortandAddressState, carrierGasTypeState, setCarrierGasTypeState } = useAlicatContext();
   const { setCo2LaserDetailState, isCo2LaserOpenState, setIsCo2LaserOpenState, co2LaserPortState, setCo2LaserPortState } = useCo2LaserContext();
   const { isHeaterOpenState, setIsHeaterOpenState, setHeaterPortAndAddressState, heaterPortAndAddressState, heaterDetailState, setHeaterDetailState } = useHeaterContext();
+  const { mainGasDetailState, setMainGasDetailState, isMainGasOpenState, setIsMainGasOpenState, mainGasPortAndAddressState, setMainGasPortAndAddressState } = useAzbilContext();
   // 單獨連線的項目整合
   const deviceList = [{
     title: '主氣流量控制器 - Main Gas',
-    company: 'Azbil',
+    company: 'Azbil - F4Q0050B6SN1000D0',
     deviceId: 'mainGas',
     port: '',
     address: ''
@@ -125,6 +127,72 @@ const useHooks = () => {
         }
       };
     }, {});
+  });
+
+//   REGISTERS = {
+//     'GAS_TYPE': 0x07E2,             # 氣體類型寄存器，讀寫皆可，0: 用戶設定, 1: Air/N2, 2: O2, 3: Ar, 4: CO2, 6: 丙烷100%, 7: 甲烷100%, 8: 丁烷100%, 11: 城市煤氣13A，寫入後需要等2秒才能生效
+//     'FLOW_DECIMAL': 0x07F6,        # 流量小數點寄存器，0~3(小數點)，讀寫皆可
+//     'TOTAL_FLOW_DECIMAL': 0x0803,  # 總流量小數點寄存器，0~3(小數點)，讀寫皆可
+//     'FLOW_UNIT': 0x07F5,           # 流量單位寄存器，0: mL/min, 1: L/min, 2: m^3/h，讀寫皆可
+//     'TOTAL_FLOW_UNIT': 0x07FB,     # 總流量單位寄存器，0: mL, 1: L, 2: m^3，讀寫皆可
+//     'GATE_CONTROL': 0x04B4,        # 閘閥控制寄存器，0: 閥門全關, 1: 閥門控制, 2: 閥門全開，讀寫皆可
+//     'SP_NO_SETTING': 0x04B5,       # SP No 設定寄存器，讀寫皆可，0~7(共8個檔位可以設定)
+//     'SP_0_SETTING': 0x0579,        # SP 0 設定值，讀寫皆可
+//     'SP_1_SETTING': 0x057A,        # SP 1 設定值，讀寫皆可
+//     'SP_2_SETTING': 0x057B,        # SP 2 設定值，讀寫皆可
+//     'SP_3_SETTING': 0x057C,        # SP 3 設定值，讀寫皆可
+//     'SP_4_SETTING': 0x057D,        # SP 4 設定值，讀寫皆可
+//     'SP_5_SETTING': 0x057E,        # SP 5 設定值，讀寫皆可
+//     'SP_6_SETTING': 0x057F,        # SP 6 設定值，讀寫皆可
+//     'SP_7_SETTING': 0x0580,        # SP 7 設定值，讀寫皆可
+//     'SETTING_SP_FLOW': 0x04B6,     # 使用中的流量值，只能讀取
+//     'PV_FLOW': 0x04B7,             # 當前流量值，只能讀取
+//     'FLOW_RATE': 0x04B9,           # 流量讀取/設定寄存器，讀寫皆可
+//     'KEY_LOCK': 0x07D1,            # 鍵盤鎖定寄存器，0: 無鎖定, 1: 特定按鍵鎖定, 2: 全部按鍵鎖定，讀寫皆可
+//     'FLOW_CONTROL_SETTING': 0x07D3,# 流量控制方法設定寄存器，0: 透過設定SP0~7, 1: 模擬設定, 2: 直接調整流量值，讀寫皆可
+//     'SIMULATION_FLOW': 0x07D6,     # 模擬流量值，0: 0~5V(PV輸出), 1: 1~5V(PV輸出), 3: 4~20mA(PV輸出), 5: 1~5V(SP輸出), 7: 4~20mA(SP輸出)，讀寫皆可
+//     'FLOW_LIMIT': 0x07DF,          # 流量上限設定寄存器，0: 無效, 1: 僅上限, 2: 僅下限, 3: 上下限皆成立，讀寫皆可
+//     'GATE_ERROR_FIX': 0x07E0,      # 閘閥異常時的做動寄存器，1: 無變化, 2: 強制全關, 3: 強制全開，讀寫皆可
+//     'FLOW_INITIAL_TEMP': 0x07E3,   # 流量初始溫度設定寄存器，0: 20, 1: 0, 2: 25, 3: 35，讀寫皆可，單位皆為攝氏度
+//     'DEVICE_ID_SETTING': 0x07EE,   # 設備 ID 設定寄存器，0: 不使用通訊功能, 1~127: 設備地址選擇，讀寫皆可
+//     'DEVICE_INSTALL_DIR': 0x07F2,  # 設備安裝方向設定寄存器，0: 水平, 1: 垂直向上, 2: 垂直向下，讀寫皆可
+//     'FLOW_INPUT_LIMIT': 0x07F3,    # 流量輸入上限設定寄存器，0: 無效, 1: 僅上限, 2: 僅下限, 3: 上下限皆有，讀寫皆可
+//     'FLOW_SENSOR_TYPE': 0x07F4,    # 流量感測器類型設定寄存器，0: 快速到達SV, 1: 標準, 2: 穩定優先, 3: 自訂PID，讀寫皆可
+//     'KEY_DIRECTION': 0x0804        # 按鍵方向，0: LED: 左 KEY: 右, 1: LED: 下 KEY: 上, 2: LED: 上 KEY: 下, 3: LED: 右 KEY: 左，讀寫皆可
+// }
+
+  // 主氣流量控制器相關
+  const [mainGasDetail, setMainGasDetail] = React.useState({});
+  const [mainGasSelectOrChangeList, setMainGasSelectOrChangeList] = React.useState({
+    gasType: 0,
+    flowDecimal: 0,
+    totalFlowDecimal: 0,
+    flowUnit: 0,
+    totalFlowUnit: 0,
+    gateControl: 0,
+    spNoSetting: 0,
+    sp0Setting: 0,
+    sp1Setting: 0,
+    sp2Setting: 0,
+    sp3Setting: 0,
+    sp4Setting: 0,
+    sp5Setting: 0,
+    sp6Setting: 0,
+    sp7Setting: 0,
+    settingSpFlow: 0,
+    pvFlow: 0.000,
+    flowRate: 0.000,
+    keyLock: 0,
+    flowControlSetting: 0,
+    simulationFlow: 0,
+    flowLimit: 0,
+    gateErrorFix: 0,
+    flowInitialTemp: 0,
+    deviceIdSetting: 0,
+    deviceInstallDir: 0,
+    flowInputLimit: 0,
+    flowSensorType: 0,
+    keyDirection: 0
   });
   // 載氣設定相關
   const [carrierGasDetail, setCarrierGasDetail] = React.useState({});
@@ -165,7 +233,157 @@ const useHooks = () => {
   // Alert相關
   const [alertDetail, setAlertDetail] = React.useState({});
 
-  // -----------------------------api function--------------------------------
+  // -----------------------------main gas api function--------------------------------
+  // 取得主氣流量控制器數據
+  const getMainGasDataApi = React.useCallback(async () => {
+    const response = await getApi('/azbil_api/get_status', 'GET');
+    if (response?.data?.status === 'success') {
+      setMainGasDetail(response.data);
+      setMainGasDetailState(response.data);
+    } else {
+      setIsMainGasOpenState(false);
+      console.error(response?.data?.status);
+    }
+  }, [setIsMainGasOpenState, setMainGasDetailState]);
+
+  // 主氣連線api
+  const connectMainGasApi = async (data, deviceId) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        [deviceId]: {
+          ...prev[deviceId],
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/azbil_api/connect', 'POST', data, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: response?.data?.message || '主氣連線成功',
+          type: 'success'
+        });
+        setDevices(prev => ({
+          ...prev,
+          [deviceId]: {
+            ...prev[deviceId],
+            connected: true,
+            loading: false
+          }
+        }));
+        setIsMainGasOpenState(true);
+
+        setDevices(prev => ({
+          ...prev,
+          mainGas: {
+            ...prev.mainGas,
+            port: data.port,
+            address: data.address
+          }
+        }));
+
+        setMainGasPortAndAddressState({
+          port: data.port,
+          address: data.address
+        });
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: response?.data?.message || '連線失敗',
+          type: 'failure'
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: '連線過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 3000);
+    }
+  };
+
+  // 主氣取消連線api
+  const disconnectMainGasApi = async (data, deviceId) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        [deviceId]: {
+          ...prev[deviceId],
+          loading: true
+        }
+      }));
+  
+      const response = await getApi('/azbil_api/disconnect', 'POST', data, localStorage.getItem('token'));
+  
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '主氣流量計已取消連線',
+          type: 'success'
+        });
+        
+        setDevices(prev => ({
+          ...prev,
+          [deviceId]: {
+            ...prev[deviceId],
+            connected: false,
+            loading: false
+          }
+        }));
+        
+        setIsMainGasOpenState(false);
+
+        setMainGasPortAndAddressState({
+          port: devices[deviceId].port,
+          address: devices[deviceId].address
+        });
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '主氣流量計取消連線失敗',
+          type: 'failure'
+        });
+        
+        setDevices(prev => ({
+          ...prev,
+          [deviceId]: {
+            ...prev[deviceId],
+            loading: false
+          }
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      setDevices(prev => ({
+        ...prev,
+        [deviceId]: {
+          ...prev[deviceId],
+          loading: false
+        }
+      }));
+  
+      setAlertDetail({
+        show: true,
+        message: '取消連線過程發生錯誤',
+        type: 'failure'
+      });
+  
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 3000);
+    }
+  };
+
+  // -----------------------------carrier gas api function--------------------------------
   // 取得載氣資料，使用 useCallback 避免無限迴圈
   const getCarrierGasDataApi = React.useCallback(async () => {
     const response = await getApi('/alicat_api/status', 'GET');
@@ -375,7 +593,7 @@ const useHooks = () => {
         }
       }));
   
-      const response = await getApi('/alicat_api/connect', 'POST', data);
+      const response = await getApi('/alicat_api/connect', 'POST', data, localStorage.getItem('token'));
   
       if (response?.data?.status === 'success') {
         setAlertDetail({
@@ -426,11 +644,6 @@ const useHooks = () => {
           }
         }));
       }
-  
-      setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
-  
     } catch (error) {
       console.error(error);
       setDevices(prev => ({
@@ -464,7 +677,7 @@ const useHooks = () => {
         }
       }));
   
-      const response = await getApi('/alicat_api/disconnect', 'POST', data);
+      const response = await getApi('/alicat_api/disconnect', 'POST', data, localStorage.getItem('token'));
   
       if (response?.data?.status === 'success') {
         setAlertDetail({
@@ -507,11 +720,6 @@ const useHooks = () => {
           }
         }));
       }
-  
-      setTimeout(() => {
-        setAlertDetail({ show: false });
-      }, 3000);
-  
     } catch (error) {
       console.error(error);
       setDevices(prev => ({
@@ -533,7 +741,7 @@ const useHooks = () => {
       }, 3000);
     }
   };
-  // -----------------------------------------------------------------------
+  // -----------------------------------carrier gas api function------------------------------------
 
   // -------------------------co2 co2Laser api function-----------------------------
   // 取得CO2雷射設備資料
@@ -583,7 +791,7 @@ const useHooks = () => {
           loading: true
         }
       }));
-      const response = await getApi('/uc2000/connect', 'POST', data);
+      const response = await getApi('/uc2000/connect', 'POST', data, localStorage.getItem('token'));
 
       if (response?.data?.status === 'success') {
         setAlertDetail({
@@ -646,7 +854,7 @@ const useHooks = () => {
   };
 
   // disconnect co2 co2Laser
-  const disconnectCo2LaserApi = async () => {
+  const disconnectCo2LaserApi = async (data) => {
     try {
       setDevices(prev => ({
         ...prev,
@@ -656,7 +864,7 @@ const useHooks = () => {
         }
       }));
 
-      const response = await getApi('/uc2000/disconnect', 'POST');
+      const response = await getApi('/uc2000/disconnect', 'POST', data, localStorage.getItem('token'));
 
       if (response?.data?.status === 'success') {
         setAlertDetail({
@@ -822,7 +1030,7 @@ const useHooks = () => {
         }
       }));
 
-      const response = await getApi('/heater/connect', 'POST', data);
+      const response = await getApi('/heater/connect', 'POST', data, localStorage.getItem('token'));
 
       if (response?.data?.status === 'success') {
         setAlertDetail({
@@ -885,7 +1093,7 @@ const useHooks = () => {
   };
 
   // 斷開Heater設備連線api
-  const disconnectHeaterApi = async () => {
+  const disconnectHeaterApi = async (data) => {
     try {
       setDevices(prev => ({
         ...prev,
@@ -895,7 +1103,7 @@ const useHooks = () => {
         }
       }));
 
-      const response = await getApi('/heater/disconnect', 'POST');
+      const response = await getApi('/heater/disconnect', 'POST', data, localStorage.getItem('token'));
 
       if (response?.data?.status === 'success') {
         setAlertDetail({
@@ -1042,14 +1250,17 @@ const useHooks = () => {
     
     if (devices[deviceId]?.connected) {
       switch (deviceId) {
+        case 'mainGas':
+          await disconnectMainGasApi(devices[deviceId], deviceId);
+          break;
         case 'carrierGas':
           await disconnectCarrierGasApi(devices[deviceId], deviceId);
           break;
         case 'co2Laser':
-          await disconnectCo2LaserApi();
+          await disconnectCo2LaserApi(devices[deviceId]);
           break;
         case 'heater':
-          await disconnectHeaterApi();
+          await disconnectHeaterApi(devices[deviceId]);
           break;
         default:
           break;
@@ -1107,6 +1318,9 @@ const useHooks = () => {
     }
 
     switch (deviceId) {
+      case 'mainGas':
+        await connectMainGasApi(data, deviceId);
+        break;
       case 'carrierGas':
         await connectCarrierGasApi(data, deviceId);
         break;
@@ -1166,6 +1380,44 @@ const useHooks = () => {
   const onCarrierGasCreateMixGasClick = () => {
     addCarrierGasGasTypeApi();
   };
+
+  // 從 localStorage 取得主氣是否開啟，如果開啟則取得主氣資料
+  React.useEffect(() => {
+    if (isMainGasOpenState) {
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          connected: true
+        }
+      }));
+  
+      getMainGasDataApi();
+  
+    } else {
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          connected: false
+        }
+      }));
+    }
+  }, [isMainGasOpenState, getMainGasDataApi]);
+
+  // 從 localStorage 取得主氣的Port及Address
+  React.useEffect(() => {
+    if (mainGasPortAndAddressState?.port && mainGasPortAndAddressState?.address) {
+      setDevices(prev => ({
+        ...prev,
+        carrierGas: {
+          ...prev.carrierGas,
+          port: mainGasPortAndAddressState.port,
+          address: mainGasPortAndAddressState.address
+        }
+      }));
+    }
+  }, [mainGasPortAndAddressState]);
 
   // 從 localStorage 取得載氣是否開啟，如果開啟則取得載氣資料
   React.useEffect(() => {
@@ -1350,9 +1602,11 @@ const useHooks = () => {
 
   return {
     devices,
-    carrierGasDetail,
     alertDetail,
     deviceList,
+    mainGasDetail,
+    isMainGasOpenState,
+    carrierGasDetail,
     carrierGasTypeListLoading,
     carrierGasTypeList,
     carrierGasCreateMixGas,
@@ -1386,7 +1640,8 @@ const useHooks = () => {
 
 const MfcLaserSetting = () => {
   const {
-    devices, carrierGasDetail, alertDetail, deviceList, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas, isCarrierGasOpenState,
+    devices, alertDetail, deviceList, mainGasDetail, isMainGasOpenState,
+    carrierGasDetail, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas, isCarrierGasOpenState,
     carrierGasTypeSetting, carrierGasMixGas, co2SelectOrChangeList, co2LaserDetail, isCo2LaserOpenState, isCo2LaserLoading,
     heaterDetail, isHeaterOpenState, isHeaterLoading, heaterInputList,
     onAlertClose, onConnectPortChange, onConnectAddressChange, onConnectClick, onGetCarrierGasTypeClick, onSetCarrierGasGasTypeClick,
@@ -1685,7 +1940,7 @@ const MfcLaserSetting = () => {
                   return (
                     <div
                       key={device.deviceId}
-                      className="shadow-md rounded-lg p-4 flex flex-col justify-between bg-red-200"
+                      className="shadow-md rounded-lg p-4 flex flex-col justify-between bg-white"
                     >
                       <div className="shadow-md rounded-lg p-4 mb-2">
                         <h2 className="text-lg font-semibold mb-3">主氣流量控制 (Main gas Flow Control - Azbil)</h2>

@@ -6,22 +6,21 @@ class ConnectionLog(db.Model):
     __tablename__ = 'connection_logs'
     
     @staticmethod
-    def format_tw_time(utc_time):
-        if not utc_time:
-            return None
+    def get_tw_time():
+        """獲取當前台灣時間"""
         tw_timezone = timezone(timedelta(hours=8))
-        return utc_time.astimezone(tw_timezone).strftime('%Y-%m-%d %H:%M:%S')
+        return datetime.now(tw_timezone)
     
     id = db.Column(db.Integer, primary_key=True)
     device_id = db.Column(db.String(50), nullable=False)
     device_name = db.Column(db.String(100), nullable=False)
     port = db.Column(db.String(20), nullable=False)
     address = db.Column(db.String(20))
-    connected_time = db.Column(db.DateTime, default=format_tw_time(datetime.now()))
+    # 修改這裡，使用 get_tw_time 作為預設值
+    connected_time = db.Column(db.DateTime, default=get_tw_time)
     status = db.Column(db.String(20), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
-    # 添加使用者關聯
     user = db.relationship('User', backref=db.backref('connection_logs', lazy=True))
     
     def to_dict(self):
@@ -31,15 +30,14 @@ class ConnectionLog(db.Model):
             'device_name': self.device_name,
             'port': self.port,
             'address': self.address,
-            'connected_time': self.format_tw_time(self.connected_time),
+            'connected_time': self.connected_time.strftime('%Y-%m-%d %H:%M:%S'),  # 直接格式化，因為已經是台灣時間
             'status': self.status,
             'created_by': self.created_by,
-            'username': self.user.username if self.user else None  # 添加使用者名稱
+            'username': self.user.username if self.user else None
         }
 
     @staticmethod
     def create_log(device_id, device_name, port, address, status, created_by=None):
-        # 可以檢查使用者是否存在
         from models.auth_model import User
         user = None if created_by is None else User.query.get(created_by)
         
@@ -49,7 +47,8 @@ class ConnectionLog(db.Model):
             port=port,
             address=address,
             status=status,
-            created_by=created_by
+            created_by=created_by,
+            connected_time=ConnectionLog.get_tw_time()  # 明確設置台灣時間
         )
         try:
             db.session.add(log)

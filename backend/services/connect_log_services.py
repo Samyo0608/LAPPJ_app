@@ -5,9 +5,9 @@ from database import db
 class ConnectionLogService:
     @staticmethod
     def create_log(device_id, device_name, port, address, status, created_by=None):
-        """創建連線日誌"""
+        print(f"正在創建連線日誌... 設備: {device_id}")  # 添加除錯訊息
         try:
-            return ConnectionLog.create_log(
+            log = ConnectionLog(
                 device_id=device_id,
                 device_name=device_name,
                 port=port,
@@ -15,7 +15,13 @@ class ConnectionLogService:
                 status=status,
                 created_by=created_by
             )
+            db.session.add(log)
+            db.session.commit()
+            print(f"日誌創建成功，ID: {log.id}")  # 添加除錯訊息
+            return log, None
         except Exception as e:
+            db.session.rollback()
+            print(f"日誌創建失敗: {str(e)}")  # 添加除錯訊息
             return None, str(e)
 
     @staticmethod

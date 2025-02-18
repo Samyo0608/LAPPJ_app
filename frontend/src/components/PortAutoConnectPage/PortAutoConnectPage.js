@@ -7,6 +7,7 @@ import { useAlicatContext } from '../../Contexts/AlicatContext';
 import { useCo2LaserContext } from '../../Contexts/Co2LaserContext';
 import { useHeaterContext } from '../../Contexts/HeaterContext';
 import { useUltrasonicContext } from '../../Contexts/UltrasonicContext';
+import { useAzbilContext } from '../../Contexts/AzbilContext';
 
 const useHooks = () => {
   const deviceConnectedRef = React.useRef({});
@@ -22,6 +23,9 @@ const useHooks = () => {
   const {
     isUltrasonicOpenState, setIsUltrasonicOpenState, ultrasonicPortAndAddressState, setUltrasonicPortAndAddressState
   } = useUltrasonicContext();
+  const {
+    isMainGasOpenState, setIsMainGasOpenState, mainGasPortAndAddressState, setMainGasPortAndAddressState
+  } = useAzbilContext();
 
   // 設備列表
   const deviceList = React.useMemo(() => [
@@ -59,7 +63,7 @@ const useHooks = () => {
 
   // 定義每個設備可能會用到的address
   const deviceAddress = {
-    mainGas: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'],
+    mainGas: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
     carrierGas: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'],
     co2Laser: [],
     powerSupply: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
@@ -179,6 +183,81 @@ const useHooks = () => {
         }, 1000);
       }
     };
+
+  // 連線主氣設備api
+  const connectMainGasApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/azbil_api/connect', 'POST', data, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        deviceConnectedRef.current = {
+          ...deviceConnectedRef.current,
+          mainGas: true
+        };
+
+        setAlertDetail({
+          show: true,
+          message: response.data.message || '主氣連線成功',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          mainGas: {
+            ...prev.mainGas,
+            connected: true,
+            loading: false,
+            port: data.port,
+            address: data.address,
+            selected: true
+          }
+        }));
+
+        setMainGasPortAndAddressState({
+          port: data.port,
+          address: data.address
+        });
+
+        setIsMainGasOpenState(true);
+        return response;
+      }
+    } catch (error) {
+      console.error('主氣連線錯誤:', error);
+      deviceConnectedRef.current.mainGas = false;
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          loading: false
+        }
+      }));
+
+      setAlertDetail({
+        show: true,
+        message: '主氣連線過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          loading: false
+        }
+      }));
+      setTimeout(() => {
+        setAlertDetail(prev => ({ ...prev, show: false }));
+      }, 1000);
+    }
+  };
 
   // 連線CO2雷射設備api
   const connectCo2LaserApi = async (data) => {
@@ -487,6 +566,35 @@ const useHooks = () => {
                       }, ...prev]);
                     }
                     break;
+                  case 'mainGas':
+                    try {
+                      await connectMainGasApi({
+                        port: portInfo.port,
+                        address
+                      });
+
+                      if (deviceConnectedRef.current['mainGas']) {
+                        deviceConnected = true;
+                        usedPorts.add(portInfo.port);
+                        setConnectionResults(prev => [{
+                          deviceId: device.id,
+                          deviceName: device.name,
+                          message: `連接成功: Address: ${address}, Port: ${portInfo.port}`,
+                          timestamp: new Date().toLocaleTimeString(),
+                          success: true
+                        }, ...prev]);
+                        break;
+                      }
+                    } catch (error) {
+                      setConnectionResults(prev => [{
+                        deviceId: device.id,
+                        deviceName: device.name,
+                        message: `連接錯誤 Address: ${address}, Port: ${portInfo.port} - ${error.message}`,
+                        timestamp: new Date().toLocaleTimeString(),
+                        success: false
+                      }, ...prev]);
+                    }
+                    break;
                   case 'heater':
                     try {
                       await connectHeaterApi({
@@ -683,7 +791,7 @@ const useHooks = () => {
         }
       }));
 
-      const response = await getApi('/alicat_api/disconnect', 'POST', data);
+      const response = await getApi('/alicat_api/disconnect', 'POST', data, localStorage.getItem('token'));
   
       if (response?.data?.status === 'success') {
         setAlertDetail({
@@ -740,8 +848,76 @@ const useHooks = () => {
     };
   };
 
+  // disconnect main gas device
+  const disconnectMainGasApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/azbil_api/disconnect', 'POST', data, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '主氣質量流量控制器已取消連線',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          mainGas: {
+            ...prev.mainGas,
+            connected: false,
+            loading: false
+          }
+        }));
+
+        setIsMainGasOpenState(false);
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '主氣質量流量控制器取消連線失敗',
+          type: 'failure'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          mainGas: {
+            ...prev.mainGas,
+            loading: false
+          }
+        }));
+
+      }
+    } catch (error) {
+      console.error(error);
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          loading: false
+        }
+      }));
+      setAlertDetail({
+        show: true,
+        message: '主氣質量流量控制器取消連線過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail(prev => ({ ...prev, show: false }));
+      }, 1000);
+    }
+  };
+
   // disconnect co2 laser
-  const disconnectCo2LaserApi = async () => {
+  const disconnectCo2LaserApi = async (data) => {
     try {
       setDevices(prev => ({
         ...prev,
@@ -751,7 +927,7 @@ const useHooks = () => {
         }
       }));
 
-      const response = await getApi('/uc2000/disconnect', 'POST');
+      const response = await getApi('/uc2000/disconnect', 'POST', data, localStorage.getItem('token'));
 
       if (response?.data?.status === 'success') {
         setAlertDetail({
@@ -956,6 +1132,14 @@ const useHooks = () => {
               }, device.id);
             }
             break;
+          case 'mainGas':
+            if (isMainGasOpenState) {
+              await disconnectMainGasApi({
+                port: devices[device.id].port,
+                address: devices[device.id].address
+              });
+            }
+            break;
           case 'heater':
             if (isHeaterOpenState) {
               await disconnectHeaterApi({
@@ -966,7 +1150,9 @@ const useHooks = () => {
             break;
           case 'co2Laser':
             if (isCo2LaserOpenState) {
-              await disconnectCo2LaserApi();
+              await disconnectCo2LaserApi({
+                port: devices[device.id].port
+              });
             }
             break;
           case 'ultrasonic':
@@ -1019,6 +1205,19 @@ const useHooks = () => {
             port: devices[deviceId].port,
             address: devices[deviceId].address
           }, deviceId);
+        }
+        break;
+      case 'mainGas':
+        if (devices[deviceId].connected) {
+          await disconnectMainGasApi({
+            port: devices[deviceId].port,
+            address: devices[deviceId].address
+          });
+        } else {
+          await connectMainGasApi({
+            port: devices[deviceId].port,
+            address: devices[deviceId].address
+          });
         }
         break;
       case 'heater':
@@ -1125,6 +1324,19 @@ const useHooks = () => {
       }));
     }
 
+    if (isMainGasOpenState || mainGasPortAndAddressState?.port || mainGasPortAndAddressState?.address) {
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          port: mainGasPortAndAddressState.port,
+          address: mainGasPortAndAddressState.address,
+          connected: isMainGasOpenState,
+          selected: isMainGasOpenState
+        }
+      }));
+    }
+
     if (isCo2LaserOpenState || co2LaserPortState?.port) {
       setDevices(prev => ({
         ...prev,
@@ -1162,7 +1374,7 @@ const useHooks = () => {
         }
       }));
     }
-  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState, heaterPortAndAddressState, isHeaterOpenState, ultrasonicPortAndAddressState, isUltrasonicOpenState]);
+  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState, heaterPortAndAddressState, isHeaterOpenState, ultrasonicPortAndAddressState, isUltrasonicOpenState, mainGasPortAndAddressState, isMainGasOpenState]);
 
   useEffect(() => {
     getPortsListApi();
