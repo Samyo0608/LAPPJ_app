@@ -71,7 +71,6 @@ def connect_modbus() -> Dict[str, Any]:
 def disconnect_modbus() -> Dict[str, Any]:
     """API: 斷開霧化器"""
     result = modbus_service.disconnect()
-<<<<<<< HEAD
     data = request.get_json()
     port = data.get("port")
     device_id = data.get("address")
@@ -82,14 +81,6 @@ def disconnect_modbus() -> Dict[str, Any]:
         current_user_id = None
     
     if result["status"] == "success":
-=======
-    
-    if result["status"] == "success":
-        data = request.get_json()
-        port = data.get("port")
-        device_id = data.get("address")
-        current_user_id = get_jwt_identity()
->>>>>>> 4e465cda1011aae60262f91d1f5732969d185d05
         
         ConnectionLogService.create_log(
             device_id='ultrasonic',
