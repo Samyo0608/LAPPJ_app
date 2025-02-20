@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, Tuple, TypedDict
 import serial
 import struct
 import asyncio
+from enum import Enum
 
 class MFCData(TypedDict, total=False):
     GAS_TYPE: str
@@ -34,12 +35,18 @@ class MFCData(TypedDict, total=False):
     FLOW_INPUT_LIMIT: Optional[int]
     FLOW_SENSOR_TYPE: Optional[int]
     KEY_DIRECTION: Optional[int]
+    TOTAL_FLOW_LOW: Optional[int]
+    TOTAL_FLOW_HIGH: Optional[int]
+    TOTAL_FLOW_RESTART: Optional[int]
     
 class MFCStatus(TypedDict, total=False):
     status: str
     message: str
     data: MFCData
-
+    
+class OperationType(Enum):
+    READ = "read"
+    WRITE = "write"
 @dataclass
 class AzbilMFC:
     port: str = "COM1"
@@ -77,7 +84,10 @@ class AzbilMFC:
         'DEVICE_INSTALL_DIR': 0x07F2,  # 設備安裝方向設定寄存器，0: 水平, 1: 垂直向上, 2: 垂直向下，讀寫皆可
         'FLOW_INPUT_LIMIT': 0x07F3,    # 流量輸入上限設定寄存器，0: 無效, 1: 僅上限, 2: 僅下限, 3: 上下限皆有，讀寫皆可
         'FLOW_SENSOR_TYPE': 0x07F4,    # 流量感測器類型設定寄存器，0: 快速到達SV, 1: 標準, 2: 穩定優先, 3: 自訂PID，讀寫皆可
-        'KEY_DIRECTION': 0x0804        # 按鍵方向，0: LED: 左 KEY: 右, 1: LED: 下 KEY: 上, 2: LED: 上 KEY: 下, 3: LED: 右 KEY: 左，讀寫皆可
+        'KEY_DIRECTION': 0x0804,       # 按鍵方向，0: LED: 左 KEY: 右, 1: LED: 下 KEY: 上, 2: LED: 上 KEY: 下, 3: LED: 右 KEY: 左，讀寫皆可
+        'TOTAL_FLOW_LOW': 0x0643,      # 總流量低位字節，只能讀取
+        'TOTAL_FLOW_HIGH': 0x0644,     # 總流量高位字節，只能讀取
+        'TOTAL_FLOW_RESTART': 0x270C   # 總流量重啟寄存器，只能讀取
     }
     
     # 新增寄存器的值範圍定義
@@ -100,6 +110,7 @@ class AzbilMFC:
         'FLOW_INPUT_LIMIT': (0, 3),     # 0-3 的值範圍
         'FLOW_SENSOR_TYPE': (0, 3),     # 0-3 的值範圍
         'KEY_DIRECTION': (0, 3),        # 0-3 的值範圍
+        'FLOW_RATE': (0, 50000)         # 0-50000 的值範圍
     }
 
     # 寄存器的中文描述
@@ -128,6 +139,20 @@ class AzbilMFC:
         """確保初始化時數值型別正確"""
         self.baudrate = int(self.baudrate)
         self.device_id = int(self.device_id)
+        self.write_queue = asyncio.Queue()
+        self.is_writing = False  # 標記寫入狀態
+        self.is_reading = False  # 標記讀取狀態
+        
+    async def process_write_queue(self):
+        """處理等待中的寫入操作"""
+        while not self.write_queue.empty():
+            func, args, kwargs = await self.write_queue.get()
+            self.current_operation = OperationType.WRITE
+            try:
+                await func(*args, **kwargs)
+            finally:
+                self.current_operation = None
+                self.write_queue.task_done()
 
     def calculate_crc(self, data: bytes) -> int:
         """計算 CRC16 Modbus"""
@@ -155,55 +180,80 @@ class AzbilMFC:
 
     async def send_modbus_command(self, function_code: int, register_address: int, values: Optional[int] = None) -> bytes:
         """發送 Modbus RTU 指令並等待回應"""
-        try:
-            # 構建請求
-            request = bytearray([self.device_id, function_code])
-            request += struct.pack(">H", register_address)
-            
-            if function_code == 0x03:  # 讀取寄存器
-                request += struct.pack(">H", 1)  # 讀取1個寄存器
-            elif function_code == 0x06:  # 寫入寄存器
-                request += struct.pack(">H", values if values is not None else 0)
-            
-            crc = self.calculate_crc(request)
-            request += struct.pack('<H', crc)
-            
-            # 清空接收緩衝區
-            self.client.reset_input_buffer()
-            
-            self.client.write(request)
-            await asyncio.sleep(0.1)
-            
-            # 讀取回應 (完整的回應包括 CRC)
-            if function_code == 0x03:  # 讀取指令回應
-                response = self.client.read(7)  # addr(1) + func(1) + len(1) + data(2) + crc(2)
-            else:  # 寫入指令回應
-                response = self.client.read(8)  # addr(1) + func(1) + addr(2) + data(2) + crc(2)
-            
-            if response:
-                # 驗證 CRC
-                if not self.verify_crc(response):
-                    print("CRC 校驗失敗")
-                    return b''
+        is_write = function_code == 0x06
 
-            # 檢查異常回應
-            if len(response) >= 3 and response[1] == (function_code | 0x80):
-                error_code = response[2]
-                error_msg = {
-                    1: "非法功能",
-                    2: "非法數據地址",
-                    3: "非法數據值",
-                    4: "設備故障",
-                    5: "確認",
-                    6: "設備忙",
-                }.get(error_code, f"未知錯誤碼: {error_code}")
-                raise Exception(f"Modbus 異常: {error_msg}")
-            
-            return response
-                
-        except Exception as e:
-            print(f"命令執行錯誤: {str(e)}")
-            raise
+        # 如果是寫入操作，等待任何讀取操作完成
+        while is_write and self.is_reading:
+            await asyncio.sleep(0.1)
+
+        # 如果是讀取操作，等待任何寫入操作完成
+        while not is_write and self.is_writing:
+            await asyncio.sleep(0.1)
+
+        try:
+            if is_write:
+                self.is_writing = True
+            else:
+                self.is_reading = True
+
+            async with asyncio.timeout(1):
+                try:
+                    # 構建請求
+                    request = bytearray([self.device_id, function_code])
+                    request += struct.pack(">H", register_address)
+                    
+                    if function_code == 0x03:  # 讀取寄存器
+                        request += struct.pack(">H", 1)  # 讀取1個寄存器
+                    elif function_code == 0x06:  # 寫入寄存器
+                        request += struct.pack(">H", values if values is not None else 0)
+                    
+                    crc = self.calculate_crc(request)
+                    request += struct.pack('<H', crc)
+                    
+                    # 清空接收緩衝區
+                    self.client.reset_input_buffer()
+                    
+                    self.client.write(request)
+                    await asyncio.sleep(0.1)
+                    
+                    # 讀取回應
+                    if function_code == 0x03:  
+                        response = self.client.read(7)
+                    else:  
+                        response = self.client.read(8)
+
+                    if response:
+                        if not self.verify_crc(response):
+                            print("CRC 校驗失敗")
+                            return b''
+
+                    if len(response) >= 3 and response[1] == (function_code | 0x80):
+                        error_code = response[2]
+                        error_msg = {
+                            1: "非法功能",
+                            2: "非法數據地址",
+                            3: "非法數據值",
+                            4: "設備故障",
+                            5: "確認",
+                            6: "設備忙",
+                        }.get(error_code, f"未知錯誤碼: {error_code}")
+                        raise Exception(f"Modbus 異常: {error_msg}")
+                    
+                    return response
+                        
+                except Exception as e:
+                    print(f"命令執行錯誤: {str(e)}")
+                    raise
+                finally:
+                    # 確保緩衝區被清空
+                    self.client.reset_input_buffer()
+                    self.client.reset_output_buffer()
+
+        finally:
+            if is_write:
+                self.is_writing = False
+            else:
+                self.is_reading = False
 
     async def read_flow_rate(self) -> Dict[str, Any]:
         """讀取當前流量值"""
@@ -224,6 +274,42 @@ class AzbilMFC:
             return {"status": "failure", "message": "讀取流量失敗"}
         except Exception as e:
             return {"status": "failure", "message": f"讀取流量時發生錯誤: {str(e)}"}
+          
+    async def read_accumulated_flow(self) -> Dict[str, Any]:
+      """讀取累計流量 (Total Flow)"""
+      try:
+          if not self.is_connected():
+              return {"status": "failure", "message": "設備未連接"}
+
+          # 讀取低位和高位數據
+          low_response = await self.send_modbus_command(0x03, self.REGISTERS['TOTAL_FLOW_LOW'])
+          high_response = await self.send_modbus_command(0x03, self.REGISTERS['TOTAL_FLOW_HIGH'])
+
+          if not low_response or not high_response or len(low_response) < 5 or len(high_response) < 5:
+              return {"status": "failure", "message": "讀取累計流量失敗"}
+
+          # 解析低位和高位
+          low_word = struct.unpack('>H', low_response[3:5])[0]
+          high_word = struct.unpack('>H', high_response[3:5])[0]
+
+          # 合併數據 (高16位 + 低16位)
+          accumulated_flow = (high_word << 16) | low_word
+
+          # 讀取小數點位數
+          decimal_response = await self.send_modbus_command(0x03, self.REGISTERS['TOTAL_FLOW_DECIMAL'])
+          decimal_places = struct.unpack('>H', decimal_response[3:5])[0] if decimal_response and len(decimal_response) >= 5 else 0
+
+          # 處理小數點
+          final_flow = accumulated_flow / (10 ** decimal_places)
+
+          return {
+              "status": "success",
+              "message": "成功讀取累計流量",
+              "value": final_flow
+          }
+
+      except Exception as e:
+          return {"status": "failure", "message": f"讀取累計流量時發生錯誤: {str(e)}"}
 
     async def verify_device(self) -> Tuple[bool, str]:
         """確認設備是否可用"""
@@ -261,8 +347,6 @@ class AzbilMFC:
             if is_valid:
                 flow_result = await self.read_flow_rate()
                 if flow_result["status"] == "success":
-                    status = await self.get_status()
-                    print("status", status)
                     return {
                         "status": "success", 
                         "message": f"已成功連接 Azbil MFC (Port: {self.port})"
@@ -297,6 +381,12 @@ class AzbilMFC:
                 if response and len(response) >= 5:
                     value = struct.unpack('>H', response[3:5])[0]
                     status_data[key] = value
+            
+            read_accumulated_flow = await self.read_accumulated_flow()
+            if read_accumulated_flow["status"] == "success":
+                status_data["TOTAL_FLOW"] = read_accumulated_flow["value"]
+            else:
+                status_data["TOTAL_FLOW"] = 0
 
             return {
                 "status": "success",
@@ -304,30 +394,7 @@ class AzbilMFC:
             }
         except Exception as e:
             return {"status": "failure", "message": f"讀取設備狀態時發生錯誤: {str(e)}"}
-          
-    async def set_flow_rate(self, flow_value: int) -> Dict[str, Any]:
-      """設定流量值"""
-      try:
-          flow_value = int(flow_value)
-          if not self.is_connected():
-              return {"status": "failure", "message": "設備未連接"}
 
-          response = await self.send_modbus_command(0x06, self.REGISTERS['FLOW_RATE'], flow_value)
-          
-          if response:
-              # 讀取設定後的值進行確認
-              verify_response = await self.read_flow_rate()
-              if verify_response["status"] == "success":
-                  return {
-                      "status": "success",
-                      "message": f"成功設定流量: {flow_value}，當前值: {verify_response['value']}"
-                  }
-          return {"status": "failure", "message": "設定流量失敗"}
-      except ValueError as e:
-          return {"status": "failure", "message": f"流量值格式錯誤: {str(e)}"}
-      except Exception as e:
-          return {"status": "failure", "message": f"設定流量時發生錯誤: {str(e)}"}      
-    
     async def update_settings(self, settings: Dict[str, int]) -> Dict[str, Any]:
         """
         更新多個設定值
@@ -369,35 +436,36 @@ class AzbilMFC:
                     continue
 
             try:
-                # 發送設定命令
-                response = await self.send_modbus_command(
-                    0x06,
-                    self.REGISTERS[register_name],
-                    value
-                )
-
-                if response:
-                    # 驗證設定
-                    verify_response = await self.send_modbus_command(
-                        0x03,
-                        self.REGISTERS[register_name]
+                async with asyncio.timeout(2):
+                    # 發送設定命令
+                    response = await self.send_modbus_command(
+                        0x06,
+                        self.REGISTERS[register_name],
+                        value
                     )
-                    
-                    if verify_response and len(verify_response) >= 5:
-                        actual_value = struct.unpack('>H', verify_response[3:5])[0]
-                        if actual_value == value:
-                            desc = self.REGISTER_DESCRIPTIONS.get(register_name, register_name)
-                            successes.append(desc)
-                            results["data"][register_name] = actual_value
+
+                    if response:
+                        # 驗證設定
+                        verify_response = await self.send_modbus_command(
+                            0x03,
+                            self.REGISTERS[register_name]
+                        )
+                        
+                        if verify_response and len(verify_response) >= 5:
+                            actual_value = struct.unpack('>H', verify_response[3:5])[0]
+                            if actual_value == value:
+                                desc = self.REGISTER_DESCRIPTIONS.get(register_name, register_name)
+                                successes.append(desc)
+                                results["data"][register_name] = actual_value
+                            else:
+                                desc = self.REGISTER_DESCRIPTIONS.get(register_name, register_name)
+                                errors.append(f"{desc}驗證失敗")
                         else:
                             desc = self.REGISTER_DESCRIPTIONS.get(register_name, register_name)
                             errors.append(f"{desc}驗證失敗")
                     else:
                         desc = self.REGISTER_DESCRIPTIONS.get(register_name, register_name)
-                        errors.append(f"{desc}驗證失敗")
-                else:
-                    desc = self.REGISTER_DESCRIPTIONS.get(register_name, register_name)
-                    errors.append(f"{desc}設定失敗")
+                        errors.append(f"{desc}設定失敗")
 
             except Exception as e:
                 desc = self.REGISTER_DESCRIPTIONS.get(register_name, register_name)
@@ -406,10 +474,111 @@ class AzbilMFC:
         # 更新結果狀態
         if errors:
             results["status"] = "failure" if not successes else "success"
-            results["message"] = "設定過程發生錯誤" if not successes else "部分設定更新成功"
+            results["message"] = "設備繁忙中，請重新再試一次" if not successes else "部分設定更新成功"
             results["errors"] = errors
         
         if successes:
             results["successes"] = successes
 
         return results
+
+    async def get_main_status(self) -> MFCStatus:
+        """獲取主要設備狀態 (減少讀取寄存器數量，加快速度)"""
+        if not self.is_connected():
+            return {
+                "status": "failure",
+                "message": "設備未連接",
+                "data": {}
+            }
+
+        try:
+            # 主要需要讀取的寄存器
+            main_registers = [
+                "FLOW_DECIMAL",
+                "TOTAL_FLOW_DECIMAL",
+                "FLOW_UNIT",
+                "TOTAL_FLOW_UNIT",
+                "SETTING_SP_FLOW",
+                "GATE_CONTROL",
+                "PV_FLOW",
+                "FLOW_CONTROL_SETTING"
+            ]
+
+            status_data: MFCData = {}
+
+            # 讀取主要寄存器
+            for key in main_registers:
+                response = await self.send_modbus_command(0x03, self.REGISTERS[key])
+                if response and len(response) >= 5:
+                    value = struct.unpack('>H', response[3:5])[0]
+                    status_data[key] = value
+
+            # 判斷是否需要讀取 SP 設定
+            if status_data.get("FLOW_CONTROL_SETTING") == 0:
+                sp_registers = [
+                    "SP_NO_SETTING", "SP_0_SETTING", "SP_1_SETTING", "SP_2_SETTING",
+                    "SP_3_SETTING", "SP_4_SETTING", "SP_5_SETTING", "SP_6_SETTING",
+                    "SP_7_SETTING"
+                ]
+                for key in sp_registers:
+                    response = await self.send_modbus_command(0x03, self.REGISTERS[key])
+                    if response and len(response) >= 5:
+                        value = struct.unpack('>H', response[3:5])[0]
+                        status_data[key] = value
+
+            read_accumulated_flow = await self.read_accumulated_flow()
+            if read_accumulated_flow["status"] == "success":
+                status_data["TOTAL_FLOW"] = read_accumulated_flow["value"]
+            else:
+                status_data["TOTAL_FLOW"] = 0
+
+            return {
+                "status": "success",
+                "message": "成功讀取設備狀態",
+                "data": status_data
+            }
+        except Exception as e:
+            return {
+                "status": "failure",
+                "message": f"讀取設備狀態時發生錯誤: {str(e)}",
+                "data": {}
+            }
+            
+    async def set_flow(self, flow_value: int) -> Dict[str, Any]:
+        """設定流量值"""
+        if not self.is_connected():
+            return {"status": "failure", "message": "設備未連接"}
+
+        try:
+            # 移除 operation_type 參數
+            response = await self.send_modbus_command(
+                0x06, 
+                self.REGISTERS['FLOW_RATE'], 
+                flow_value
+            )
+            
+            if response:
+                return {"status": "success", "message": f"成功設定流量"}
+            return {"status": "failure", "message": "設備繁忙中，請重新再試一次"}
+            
+        except Exception as e:
+            return {"status": "failure", "message": f"設定流量值時發生錯誤: {str(e)}"}
+        
+    async def reset_accumulated_flow(self) -> Dict[str, Any]:
+        """重設累計流量"""
+        if not self.is_connected():
+            return {"status": "failure", "message": "設備未連接"}
+
+        try:
+            response = await self.send_modbus_command(
+                0x06,
+                self.REGISTERS['TOTAL_FLOW_RESTART'],
+                0x3039
+            )
+            
+            if response:
+                return {"status": "success", "message": "成功重設累計流量"}
+            return {"status": "failure", "message": "重設累計流量失敗"}
+            
+        except Exception as e:
+            return {"status": "failure", "message": f"重設累計流量時發生錯誤: {str(e)}"}

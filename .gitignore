@@ -16,10 +16,12 @@ ENV/
 env/
 *.egg-info/
 *.whl
+dist/
 
 # Electron
 out/
 *.asar
+dist/
 
 # VSCode
 .vscode/

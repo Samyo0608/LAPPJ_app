@@ -1,17 +1,56 @@
 {
   "name": "electron",
   "main": "main.js",
+  "description": "LAPPJ system",
+  "author": "Sam",
+  "version": "1.0.0",
   "scripts": {
     "start": "electron .",
     "dev": "concurrently --kill-others \"npm start --prefix ../frontend\" \"npm run electron-start\"",
-    "electron-start": "electron ."
+    "electron-start": "electron .",
+    "build": "electron-builder",
+    "build-all": "cd ../frontend && npm run build && cd ../electron && npm run build"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "build": {
+    "appId": "lappj",
+    "productName": "LAPPJ system",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "microchip-solid.ico",
+      "microchip-solid.png"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/build",
+        "to": "frontend/build"
+      },
+      {
+        "from": "../backend/dist",
+        "to": "backend",
+        "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc", "!**/*.pyo"]
+      },
+      {
+        "from": "../backend/recipes.xlsx",
+        "to": "recipes.xlsx"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "microchip-solid.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true
+    }
+  },
   "devDependencies": {
     "concurrently": "^9.0.1",
-    "electron": "^32.1.2"
+    "electron": "^32.1.2",
+    "electron-builder": "^25.1.8"
   }
 }

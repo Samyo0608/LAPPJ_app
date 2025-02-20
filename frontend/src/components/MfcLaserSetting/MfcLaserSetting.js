@@ -9,6 +9,39 @@ import { useCo2LaserContext } from '../../Contexts/Co2LaserContext';
 import { useHeaterContext } from '../../Contexts/HeaterContext';
 import { useAzbilContext } from '../../Contexts/AzbilContext';
 
+// 主氣參數轉換
+const mainGasParams = {
+  gasType: 'GAS_TYPE',
+  flowDecimal: 'FLOW_DECIMAL',
+  totalFlowDecimal: 'TOTAL_FLOW_DECIMAL',
+  flowUnit: 'FLOW_UNIT',
+  totalFlowUnit: 'TOTAL_FLOW_UNIT',
+  gateControl: 'GATE_CONTROL',
+  spNoSetting: 'SP_NO_SETTING',
+  sp0Setting: 'SP_0_SETTING',
+  sp1Setting: 'SP_1_SETTING',
+  sp2Setting: 'SP_2_SETTING',
+  sp3Setting: 'SP_3_SETTING',
+  sp4Setting: 'SP_4_SETTING',
+  sp5Setting: 'SP_5_SETTING',
+  sp6Setting: 'SP_6_SETTING',
+  sp7Setting: 'SP_7_SETTING',
+  settingSpFlow: 'SETTING_SP_FLOW',
+  pvFlow: 'PV_FLOW',
+  flowRate: 'FLOW_RATE',
+  keyLock: 'KEY_LOCK',
+  flowControlSetting: 'FLOW_CONTROL_SETTING',
+  simulationFlow: 'SIMULATION_FLOW',
+  flowLimit: 'FLOW_LIMIT',
+  gateErrorFix: 'GATE_ERROR_FIX',
+  flowInitialTemp: 'FLOW_INITIAL_TEMP',
+  deviceIdSetting: 'DEVICE_ID_SETTING',
+  deviceInstallDir: 'DEVICE_INSTALL_DIR',
+  flowInputLimit: 'FLOW_INPUT_LIMIT',
+  flowSensorType: 'FLOW_SENSOR_TYPE',
+  keyDirection: 'KEY_DIRECTION'
+};
+
 // 將 SingleConnectComponent 改為獨立的函數組件
 const SingleConnectComponent = React.memo(({ company, deviceId, onClick, onConnectPortChange, onConnectAddressChange, devicesData }) => {
   // 使用 local state 管理輸入值
@@ -129,40 +162,7 @@ const useHooks = () => {
     }, {});
   });
 
-//   REGISTERS = {
-//     'GAS_TYPE': 0x07E2,             # 氣體類型寄存器，讀寫皆可，0: 用戶設定, 1: Air/N2, 2: O2, 3: Ar, 4: CO2, 6: 丙烷100%, 7: 甲烷100%, 8: 丁烷100%, 11: 城市煤氣13A，寫入後需要等2秒才能生效
-//     'FLOW_DECIMAL': 0x07F6,        # 流量小數點寄存器，0~3(小數點)，讀寫皆可
-//     'TOTAL_FLOW_DECIMAL': 0x0803,  # 總流量小數點寄存器，0~3(小數點)，讀寫皆可
-//     'FLOW_UNIT': 0x07F5,           # 流量單位寄存器，0: mL/min, 1: L/min, 2: m^3/h，讀寫皆可
-//     'TOTAL_FLOW_UNIT': 0x07FB,     # 總流量單位寄存器，0: mL, 1: L, 2: m^3，讀寫皆可
-//     'GATE_CONTROL': 0x04B4,        # 閘閥控制寄存器，0: 閥門全關, 1: 閥門控制, 2: 閥門全開，讀寫皆可
-//     'SP_NO_SETTING': 0x04B5,       # SP No 設定寄存器，讀寫皆可，0~7(共8個檔位可以設定)
-//     'SP_0_SETTING': 0x0579,        # SP 0 設定值，讀寫皆可
-//     'SP_1_SETTING': 0x057A,        # SP 1 設定值，讀寫皆可
-//     'SP_2_SETTING': 0x057B,        # SP 2 設定值，讀寫皆可
-//     'SP_3_SETTING': 0x057C,        # SP 3 設定值，讀寫皆可
-//     'SP_4_SETTING': 0x057D,        # SP 4 設定值，讀寫皆可
-//     'SP_5_SETTING': 0x057E,        # SP 5 設定值，讀寫皆可
-//     'SP_6_SETTING': 0x057F,        # SP 6 設定值，讀寫皆可
-//     'SP_7_SETTING': 0x0580,        # SP 7 設定值，讀寫皆可
-//     'SETTING_SP_FLOW': 0x04B6,     # 使用中的流量值，只能讀取
-//     'PV_FLOW': 0x04B7,             # 當前流量值，只能讀取
-//     'FLOW_RATE': 0x04B9,           # 流量讀取/設定寄存器，讀寫皆可
-//     'KEY_LOCK': 0x07D1,            # 鍵盤鎖定寄存器，0: 無鎖定, 1: 特定按鍵鎖定, 2: 全部按鍵鎖定，讀寫皆可
-//     'FLOW_CONTROL_SETTING': 0x07D3,# 流量控制方法設定寄存器，0: 透過設定SP0~7, 1: 模擬設定, 2: 直接調整流量值，讀寫皆可
-//     'SIMULATION_FLOW': 0x07D6,     # 模擬流量值，0: 0~5V(PV輸出), 1: 1~5V(PV輸出), 3: 4~20mA(PV輸出), 5: 1~5V(SP輸出), 7: 4~20mA(SP輸出)，讀寫皆可
-//     'FLOW_LIMIT': 0x07DF,          # 流量上限設定寄存器，0: 無效, 1: 僅上限, 2: 僅下限, 3: 上下限皆成立，讀寫皆可
-//     'GATE_ERROR_FIX': 0x07E0,      # 閘閥異常時的做動寄存器，1: 無變化, 2: 強制全關, 3: 強制全開，讀寫皆可
-//     'FLOW_INITIAL_TEMP': 0x07E3,   # 流量初始溫度設定寄存器，0: 20, 1: 0, 2: 25, 3: 35，讀寫皆可，單位皆為攝氏度
-//     'DEVICE_ID_SETTING': 0x07EE,   # 設備 ID 設定寄存器，0: 不使用通訊功能, 1~127: 設備地址選擇，讀寫皆可
-//     'DEVICE_INSTALL_DIR': 0x07F2,  # 設備安裝方向設定寄存器，0: 水平, 1: 垂直向上, 2: 垂直向下，讀寫皆可
-//     'FLOW_INPUT_LIMIT': 0x07F3,    # 流量輸入上限設定寄存器，0: 無效, 1: 僅上限, 2: 僅下限, 3: 上下限皆有，讀寫皆可
-//     'FLOW_SENSOR_TYPE': 0x07F4,    # 流量感測器類型設定寄存器，0: 快速到達SV, 1: 標準, 2: 穩定優先, 3: 自訂PID，讀寫皆可
-//     'KEY_DIRECTION': 0x0804        # 按鍵方向，0: LED: 左 KEY: 右, 1: LED: 下 KEY: 上, 2: LED: 上 KEY: 下, 3: LED: 右 KEY: 左，讀寫皆可
-// }
-
   // 主氣流量控制器相關
-  const [mainGasDetail, setMainGasDetail] = React.useState({});
   const [mainGasSelectOrChangeList, setMainGasSelectOrChangeList] = React.useState({
     gasType: 0,
     flowDecimal: 0,
@@ -171,15 +171,15 @@ const useHooks = () => {
     totalFlowUnit: 0,
     gateControl: 0,
     spNoSetting: 0,
-    sp0Setting: 0,
-    sp1Setting: 0,
-    sp2Setting: 0,
-    sp3Setting: 0,
-    sp4Setting: 0,
-    sp5Setting: 0,
-    sp6Setting: 0,
-    sp7Setting: 0,
-    settingSpFlow: 0,
+    sp0Setting: '',
+    sp1Setting: '',
+    sp2Setting: '',
+    sp3Setting: '',
+    sp4Setting: '',
+    sp5Setting: '',
+    sp6Setting: '',
+    sp7Setting: '',
+    settingSpFlow: 0.000,
     pvFlow: 0.000,
     flowRate: 0.000,
     keyLock: 0,
@@ -194,6 +194,7 @@ const useHooks = () => {
     flowSensorType: 0,
     keyDirection: 0
   });
+  const [isMainGasLoading, setIsMainGasLoading] = React.useState(false);
   // 載氣設定相關
   const [carrierGasDetail, setCarrierGasDetail] = React.useState({});
   const [carrierGasTypeList, setCarrierGasTypeList] = React.useState(isCarrierGasOpenState && carrierGasTypeState?.length > 0 ? carrierGasTypeState : []);
@@ -236,13 +237,35 @@ const useHooks = () => {
   // -----------------------------main gas api function--------------------------------
   // 取得主氣流量控制器數據
   const getMainGasDataApi = React.useCallback(async () => {
-    const response = await getApi('/azbil_api/get_status', 'GET');
-    if (response?.data?.status === 'success') {
-      setMainGasDetail(response.data);
-      setMainGasDetailState(response.data);
-    } else {
-      setIsMainGasOpenState(false);
-      console.error(response?.data?.status);
+    try {
+      setIsMainGasLoading(true);
+      const response = await getApi('/azbil_api/get_status', 'GET');
+
+      if (response?.data?.status === 'success') {
+        setMainGasDetailState(response.data.data);
+  
+        // 轉換key值，將response.data的key值轉換成mainGasParams的key值
+        const processMainGasData = (apiData) => {
+          if (!apiData) return {};
+          
+          return Object.entries(apiData).reduce((acc, [key, value]) => {
+            return {
+              ...acc,
+              [Object.keys(mainGasParams).find(param => mainGasParams[param] === key)]: value
+            };
+          }, {});
+        };
+        
+        setMainGasSelectOrChangeList(processMainGasData(response.data.data));
+        
+      } else {
+        setIsMainGasOpenState(false);
+        console.error(response?.data?.status);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsMainGasLoading(false);
     }
   }, [setIsMainGasOpenState, setMainGasDetailState]);
 
@@ -377,6 +400,73 @@ const useHooks = () => {
         type: 'failure'
       });
   
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 3000);
+    }
+  };
+
+  // 修改主氣流量控制器設定api
+  const setMainGasSettingApi = async (data) => {
+    try {
+      setIsMainGasLoading(true);
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          loading: true
+        }
+      }));
+
+      const filterData = {};
+
+      Object.entries(data).forEach(([key, value]) => {
+          const mappedKey = mainGasParams[key]; // 轉換為 mainGasDetailState 的鍵
+          const oldValue = mainGasDetailState[mappedKey];
+      
+          // 確保 oldValue 不為 undefined，並進行數字比較
+          if (oldValue !== undefined && Number(oldValue) !== Number(value)) {
+              filterData[mappedKey] = Number(value);
+          }
+      });
+
+      const response = await getApi('/azbil_api/update', 'POST', filterData);
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '主氣流量控制器設定成功',
+          type: 'success'
+        });
+
+        await getMainGasDataApi();
+
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '主氣流量控制器設定失敗',
+          type: 'failure'
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: '設定過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setDevices(prev => ({
+        ...prev,
+        mainGas: {
+          ...prev.mainGas,
+          loading: false
+        }
+      }));
+  
+      setIsMainGasLoading(false);
+
       setTimeout(() => {
         setAlertDetail((prev) => ({ ...prev, show: false }));
       }, 3000);
@@ -1381,6 +1471,19 @@ const useHooks = () => {
     addCarrierGasGasTypeApi();
   };
 
+  // 修改主氣input/select的t事件
+  const onMainGasChangeClick = (value, flag) => {
+    setMainGasSelectOrChangeList(prev => ({
+      ...prev,
+      [flag]: value
+    }));
+  };
+
+  // 主氣設定的Click事件
+  const onMainGasSettingClick = async (data) => {
+    await setMainGasSettingApi(data);
+  };
+
   // 從 localStorage 取得主氣是否開啟，如果開啟則取得主氣資料
   React.useEffect(() => {
     if (isMainGasOpenState) {
@@ -1410,8 +1513,8 @@ const useHooks = () => {
     if (mainGasPortAndAddressState?.port && mainGasPortAndAddressState?.address) {
       setDevices(prev => ({
         ...prev,
-        carrierGas: {
-          ...prev.carrierGas,
+        mainGas: {
+          ...prev.mainGas,
           port: mainGasPortAndAddressState.port,
           address: mainGasPortAndAddressState.address
         }
@@ -1604,8 +1707,9 @@ const useHooks = () => {
     devices,
     alertDetail,
     deviceList,
-    mainGasDetail,
     isMainGasOpenState,
+    mainGasSelectOrChangeList,
+    isMainGasLoading,
     carrierGasDetail,
     carrierGasTypeListLoading,
     carrierGasTypeList,
@@ -1634,19 +1738,21 @@ const useHooks = () => {
     onChangeCo2SelectOrChange,
     onCo2LaserSettingClick,
     onHeaterSettingClick,
-    onHeaterInputChange
+    onHeaterInputChange,
+    onMainGasChangeClick,
+    onMainGasSettingClick
   };
 };
 
 const MfcLaserSetting = () => {
   const {
-    devices, alertDetail, deviceList, mainGasDetail, isMainGasOpenState,
+    devices, alertDetail, deviceList, isMainGasOpenState, mainGasSelectOrChangeList, isMainGasLoading,
     carrierGasDetail, carrierGasTypeListLoading, carrierGasTypeList, carrierGasCreateMixGas, isCarrierGasOpenState,
     carrierGasTypeSetting, carrierGasMixGas, co2SelectOrChangeList, co2LaserDetail, isCo2LaserOpenState, isCo2LaserLoading,
     heaterDetail, isHeaterOpenState, isHeaterLoading, heaterInputList,
     onAlertClose, onConnectPortChange, onConnectAddressChange, onConnectClick, onGetCarrierGasTypeClick, onSetCarrierGasGasTypeClick,
     onCarrierGasMixGasClick, onCarrierGasCreateMixGasChange, onCarrierGasCreateMixGasClick, onDeleteCarrierGasGasTypeClick, onChangeCo2SelectOrChange,
-    onCo2LaserSettingClick, onHeaterInputChange, onHeaterSettingClick
+    onCo2LaserSettingClick, onHeaterInputChange, onHeaterSettingClick, onMainGasChangeClick, onMainGasSettingClick
   } = useHooks();
 
   return (
@@ -1940,72 +2046,256 @@ const MfcLaserSetting = () => {
                   return (
                     <div
                       key={device.deviceId}
-                      className="shadow-md rounded-lg p-4 flex flex-col justify-between bg-white"
+                      className="shadow-md rounded-lg p-4 flex flex-col justify-between bg-white md:col-span-2"
                     >
                       <div className="shadow-md rounded-lg p-4 mb-2">
                         <h2 className="text-lg font-semibold mb-3">主氣流量控制 (Main gas Flow Control - Azbil)</h2>
-                        <h2 className="text-lg font-semibold mb-3">(尚未有設備)</h2>
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div>
-                            <label className="block font-medium mb-2">壓力 (Pressure)</label>
-                            <input
-                              type="number"
-                              className="w-full border rounded-md p-2"
-                              placeholder="輸入設定壓力"
-                            />
-                          </div>
-                          <div>
-                            <label className="block font-medium mb-2">建立混合氣體種類 (Create mix gas)</label>
-                            <div className='flex justify-between items-center mb-2'>
-                              <span className='w-48'>設定編號</span>
-                              <input
-                                type="number"
-                                className="w-full border rounded-md p-2"
-                                placeholder="從236開始，請避免重複使用編號"
-                              />
-                            </div><div className='flex justify-between items-center mb-2'>
-                              <span className='w-48'>設定名稱</span>
-                              <input
-                                type="text"
-                                className="w-full border rounded-md p-2"
-                                placeholder="英文，8個字母內"
-                              />
+                            <div>
+                              <label className="block font-medium mb-2">氣體類型</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'gasType')}
+                                value={mainGasSelectOrChangeList?.gasType}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={1}>Air/N2</option>
+                                <option value={2}>O2</option>
+                                <option value={3}>Ar</option>
+                                <option value={4}>CO2</option>
+                                <option value={6}>丙烷100%</option>
+                                <option value={7}>甲烷100%</option>
+                                <option value={8}>丁烷100%</option>
+                                <option value={11}>城市煤氣13A</option>
+                              </select>
                             </div>
-                            <div className='flex justify-between items-center mb-2'>
-                              <span className='w-48'>設定參數</span>
-                              <input
-                                type="text"
-                                className="w-full border rounded-md p-2"
-                                placeholder="總和為100, 請輸入ex: N2: 50, H2: 30, Ar: 20"
-                              />
+                            <div>
+                              <label className="block font-medium mb-2">流量控制模式</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'flowControlSetting')}
+                                value={mainGasSelectOrChangeList?.flowControlSetting || 0}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={0}>透過設定SP0~7</option>
+                                <option value={1}>模擬設定</option>
+                                <option value={2}>直接調整流量值</option>
+                              </select>
+                              {
+                                mainGasSelectOrChangeList?.flowControlSetting === 0 && (
+                                  <div>
+                                    <label className="block font-medium mb-2">SP No 設定值</label>
+                                    <select
+                                      className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                      onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'spNoSetting')}
+                                      value={mainGasSelectOrChangeList?.spNoSetting || 0}
+                                      disabled={!isMainGasOpenState || isMainGasLoading}
+                                    >
+                                      <option value={0}>SP 0</option>
+                                      <option value={1}>SP 1</option>
+                                      <option value={2}>SP 2</option>
+                                      <option value={3}>SP 3</option>
+                                      <option value={4}>SP 4</option>
+                                      <option value={5}>SP 5</option>
+                                      <option value={6}>SP 6</option>
+                                      <option value={7}>SP 7</option>
+                                    </select>
+                                    <label className="block font-medium mb-2">SP{mainGasSelectOrChangeList?.spNoSetting || 0} 設定值</label>
+                                    <input
+                                      type="number"
+                                      className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                      onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'sp' + mainGasSelectOrChangeList?.spNoSetting + 'Setting')}
+                                      value={mainGasSelectOrChangeList["sp" + mainGasSelectOrChangeList?.spNoSetting + "Setting"] || ''}
+                                      disabled={!isMainGasOpenState || isMainGasLoading}
+                                    />
+                                  </div>
+                                )
+                              }
+                              {
+                                mainGasSelectOrChangeList?.flowControlSetting === 2 && (
+                                  <div>
+                                    <label className="block font-medium mb-2">目前流量設定值 (SV)</label>
+                                    <input
+                                      type="number"
+                                      className="w-full border rounded-md p-2 bg-gray-50 mb-2"
+                                      value={mainGasSelectOrChangeList?.settingSpFlow || 0.000}
+                                      readOnly
+                                    />
+                                    <label className="block font-medium mb-2">目前流量值 (PV)</label>
+                                    <input
+                                      type="number"
+                                      className="w-full border rounded-md p-2 bg-gray-50 mb-2"
+                                      value={mainGasSelectOrChangeList?.pvFlow || 0}
+                                      readOnly
+                                    />
+                                  </div>
+                                )
+                              }
+                              <div>
+                                <label className="block font-medium mb-2">流量單位</label>
+                                <select
+                                  className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                  onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'flowUnit')}
+                                  value={mainGasSelectOrChangeList?.flowUnit || 0}
+                                  disabled={!isMainGasOpenState || isMainGasLoading}
+                                >
+                                  <option value={0}>mL/min</option>
+                                  <option value={1}>L/min</option>
+                                  <option value={2}>m^3/h</option>
+                                </select>
+                                <label className="block font-medium mb-2">流量小數點</label>
+                                <select
+                                  className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                  onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'flowDecimal')}
+                                  value={mainGasSelectOrChangeList?.flowDecimal || 0}
+                                  disabled={!isMainGasOpenState || isMainGasLoading}
+                                >
+                                  <option value={0}>0</option>
+                                  <option value={1}>1</option>
+                                  <option value={2}>2</option>
+                                  <option value={3}>3</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block font-medium mb-2">累計流量單位</label>
+                                <select
+                                  className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                  onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'totalFlowUnit')}
+                                  value={mainGasSelectOrChangeList?.totalFlowUnit || 0}
+                                  disabled={!isMainGasOpenState || isMainGasLoading}
+                                >
+                                  <option value={0}>mL</option>
+                                  <option value={1}>L</option>
+                                  <option value={2}>m^3</option>
+                                </select>
+                                <label className="block font-medium mb-2">累計流量小數點</label>
+                                <select
+                                  className="w-full border rounded-md p-2 disabled:bg-gray-200"
+                                  onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'totalFlowDecimal')}
+                                  value={mainGasSelectOrChangeList?.totalFlowDecimal || 0}
+                                  disabled={!isMainGasOpenState || isMainGasLoading}
+                                >
+                                  <option value={0}>0</option>
+                                  <option value={1}>1</option>
+                                  <option value={2}>2</option>
+                                  <option value={3}>3</option>
+                                </select>
+                              </div>
                             </div>
                           </div>
-                          <div className='flex justify-center items-center mb-2'>              
-                            <button
-                              className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300"
-                            >
-                              新增混合氣體 (Create mix gas)
-                            </button>
-                          </div>
                           <div>
-                            <label className="block font-medium mb-2">氣體類型 (Gas Type)</label>
-                            <select className="w-full border rounded-md p-2">
-                              <option value="N2">N2</option>
-                              <option value="O2">O2</option>
-                              <option value="Ar">Ar</option>
-                              <option value="">Others</option>
-                            </select>
+                            <div>
+                              <label className="block font-medium mb-2">鍵盤鎖定 (Key Lock)</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'keyLock')}
+                                value={mainGasSelectOrChangeList?.keyLock || 0}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={0}>無鎖定</option>
+                                <option value={1}>特定按鍵鎖定</option>
+                                <option value={2}>全部按鍵鎖定</option>
+                              </select>
+                              <label className="block font-medium mb-2">設備安裝方向 (Device Install Direction)</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'deviceInstallDir')}
+                                value={mainGasSelectOrChangeList?.deviceInstallDir || 0}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={0}>水平</option>
+                                <option value={1}>垂直向上</option>
+                                <option value={2}>垂直向下</option>
+                              </select>
+                              <label className="block font-medium mb-2">按鍵方向 (Key Direction)</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'keyDirection')}
+                                value={mainGasSelectOrChangeList?.keyDirection || 0}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={0}>LED: 左 KEY: 右</option>
+                                <option value={1}>LED: 下 KEY: 上</option>
+                                <option value={2}>LED: 上 KEY: 下</option>
+                                <option value={3}>LED: 右 KEY: 左</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block font-medium mb-2">流量顯示上限設定 (Flow Limit)</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'flowLimit')}
+                                value={mainGasSelectOrChangeList?.flowLimit || 0}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={0}>無效</option>
+                                <option value={1}>僅上限</option>
+                                <option value={2}>僅下限</option>
+                                <option value={3}>上下限皆成立</option>
+                              </select>
+                              <label className="block font-medium mb-2">閘閥異常時動作 (Gate Error Fix)</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'gateErrorFix')}
+                                value={mainGasSelectOrChangeList?.gateErrorFix || 0}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={1}>無變化</option>
+                                <option value={2}>強制全關</option>
+                                <option value={3}>強制全開</option>
+                              </select>
+                              <label className="block font-medium mb-2">流量初始溫度設定 (Flow Initial Temp)</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'flowInitialTemp')}
+                                value={mainGasSelectOrChangeList?.flowInitialTemp || 0}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={0}>20</option>
+                                <option value={1}>0</option>
+                                <option value={2}>25</option>
+                                <option value={3}>35</option>
+                              </select>
+                              <label className="block font-medium mb-2">流量輸入上限設定 (Flow Input Limit)</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'flowInputLimit')}
+                                value={mainGasSelectOrChangeList?.flowInputLimit || 0}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={0}>無效</option>
+                                <option value={1}>僅上限</option>
+                                <option value={2}>僅下限</option>
+                                <option value={3}>上下限皆有</option>
+                              </select>
+                              <label className="block font-medium mb-2">流量感測器類型設定 (Flow Sensor Type)</label>
+                              <select
+                                className="w-full border rounded-md p-2 mb-2 disabled:bg-gray-200"
+                                onChange={(e) => onMainGasChangeClick(Number(e.target.value), 'flowSensorType')}
+                                value={mainGasSelectOrChangeList?.flowSensorType || 0}
+                                disabled={!isMainGasOpenState || isMainGasLoading}
+                              >
+                                <option value={0}>快速</option>
+                                <option value={1}>標準</option>
+                                <option value={2}>穩定優先</option>
+                                <option value={3}>自訂PID</option>
+                              </select>
+                            </div>
                           </div>
-                          <input
-                            type="number"
-                            className="w-full border rounded-md p-2"
-                            placeholder="輸入其餘氣體種類，ex: 236, or Carrier (編號/名稱擇一)"
-                          />
-                          <div className='flex justify-center items-center mb-2'>
-                            <button className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300">
-                              修改 (Setting)
-                            </button>
-                          </div>
+                        </div>
+                        <div className='flex justify-center items-center mb-2 mt-2'>
+                          <button 
+                            className="w-72 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-400"
+                            onClick={() => onMainGasSettingClick(mainGasSelectOrChangeList)}
+                            disabled={isMainGasLoading || !isMainGasOpenState}
+                          >
+                            {isMainGasLoading ? (
+                              <CommonLoading />
+                            ) : (
+                              '設定 (Setting)'
+                            )}
+                        </button>
                         </div>
                       </div>
                       <CommonComponent />

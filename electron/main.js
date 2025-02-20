@@ -2,118 +2,170 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const http = require('http');
 const process = require('process');
+const { exec } = require('child_process');
+const fs = require('fs');
 
-let win;
+const logFilePath = path.join(app.getPath('userData'), 'log.txt');
 
-// 等待前端伺服器啟動的函數
-async function waitForFrontend(url, timeout = 20000) {
-  const interval = 500; // 每 500 毫秒檢查一次
+let mainWindow;
+let backendProcess;
+const isDev = !app.isPackaged; // 是否為開發模式
+
+// 啟動 Flask 後端（僅在打包模式啟動）
+function startBackend() {
+  if (isDev) return; // 在開發模式下不啟動 Flask
+
+  // 🔥 確保正確取得 `app.exe` 的路徑
+  const backendPath = path.join(process.resourcesPath, 'backend', 'app.exe');
+  console.log(`🔍 嘗試啟動 Flask 伺服器: ${backendPath}`);
+
+  // 🔥 確保 Flask 正確執行
+  backendProcess = exec(`"${backendPath}"`, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`❌ Flask 伺服器啟動失敗: ${error.message}`);
+      return;
+    }
+    console.log(`✅ Flask 伺服器輸出: ${stdout}`);
+  });
+
+  backendProcess.stdout?.on('data', (data) => {
+    console.log(`📌 Flask: ${data}`);
+  });
+
+  backendProcess.stderr?.on('data', (data) => {
+    console.error(`⚠️ Flask 錯誤: ${data}`);
+  });
+}
+
+// 等待前端啟動（僅在開發模式啟動）
+async function waitForFrontend(url, timeout = 30000) {
+  if (!isDev) return; // 打包模式不等待前端
+  const checkInterval = 1000;
   let elapsedTime = 0;
 
   return new Promise((resolve, reject) => {
-    const checkFrontend = () => {
-      http.get(url, () => {
-        resolve(); // 如果前端伺服器已啟動，繼續執行
-      }).on('error', () => {
-        elapsedTime += interval;
-        if (elapsedTime >= timeout) {
-          reject(new Error(`前端伺服器在 ${timeout / 1000} 秒內未啟動。`));
+    const checkServer = () => {
+      http.get(url, (res) => {
+        if (res.statusCode === 200) {
+          resolve();
         } else {
-          setTimeout(checkFrontend, interval);
+          setTimeout(checkServer, checkInterval);
+        }
+      }).on('error', () => {
+        elapsedTime += checkInterval;
+        if (elapsedTime >= timeout) {
+          reject(new Error(`前端服務器在 ${timeout / 1000} 秒內未啟動`));
+        } else {
+          setTimeout(checkServer, checkInterval);
         }
       });
     };
-    checkFrontend();
+    checkServer();
   });
 }
 
-// 建立視窗的函數
-async function createWindow() {
-  win = new BrowserWindow({
+// 確保載入正確的前端
+function getFrontendPath() {
+  if (isDev) {
+    return 'http://localhost:3000';
+  } else {
+    const frontendPath = path.join(process.resourcesPath, 'frontend', 'build', 'index.html');
+
+    console.log('🔍 React 應用程式應該在:', frontendPath);
+
+    return `file://${frontendPath.replace(/\\/g, '/')}`; // ✅ 修正 Windows file:// 路徑
+  }
+}
+
+// 創建主視窗
+async function createMainWindow() {
+  mainWindow = new BrowserWindow({
     width: 1920,
     height: 1080,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'), // 載入 preload 腳本
-      contextIsolation: true, // 啟用上下文隔離，提升安全性
-      enableRemoteModule: false, // 禁用 remote 模組
-      nodeIntegration: false, // 禁用 Node.js API，提升安全性
-      webviewTag: true
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      enableRemoteModule: false,
+      nodeIntegration: false,
+      webviewTag: true,
+      webSecurity: false
     },
-    show: false, // 隱藏視窗，直到前端準備完成
-    // 更改 icon
-    icon: path.join(__dirname, process.platform === 'win32' 
-      ? 'microchip-solid.ico' 
-      : 'microchip-solid.png'),
-    title: 'LAPPJ 控制系統',
+    show: false,
+    icon: path.join(__dirname, process.platform === 'win32' ? 'microchip-solid.ico' : 'microchip-solid.png'),
+    frame: true,
+    autoHideMenuBar: true,
+    fullscreenable: true,
   });
 
-  win.setTitle('LAPPJ 控制系統'); // 設定視窗標題
+  mainWindow.setMenu(null);
+  mainWindow.setTitle('LAPPJ 控制系統');
+  mainWindow.maximize();
 
-  win.maximize(); // 最大化視窗
-  
-  win.once('ready-to-show', () => {
-    win.setTitle('LAPPJ 控制系統');
+  // 添加 F12 及其他開發者工具快捷鍵
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // F12 開啟開發者工具
+    if (input.key === 'F12') {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+    // Ctrl+R 重新載入頁面
+    if (input.control && input.key === 'r') {
+      mainWindow.reload();
+      event.preventDefault();
+    }
+    // Ctrl+Shift+R 強制重新載入頁面
+    if (input.control && input.shift && input.key === 'R') {
+      mainWindow.webContents.reloadIgnoringCache();
+      event.preventDefault();
+    }
   });
 
   try {
-    app.commandLine.appendSwitch("disable-http-cache");
-    // 等待前端伺服器啟動
-    await waitForFrontend('http://localhost:3000');
-    console.log("前端伺服器已啟動，正在載入...");
-    await win.loadURL('http://localhost:3000'); // 載入前端頁面
-    win.show(); // 顯示視窗
-  } catch (error) {
-    console.error("錯誤：", error.message);
+    console.log('🔄 Loading application...');
+    const frontendPath = getFrontendPath();
+    console.log(`📂 載入前端: ${frontendPath}`);
 
-    // 確認錯誤頁面存在
-    const errorPagePath = path.join(__dirname, 'error.html');
-    if (fs.existsSync(errorPagePath)) {
-      await win.loadFile(errorPagePath); // 如果前端未啟動，載入錯誤頁面
-    } else {
-      console.error("錯誤頁面未找到：", errorPagePath);
+    if (isDev) {
+      await waitForFrontend(frontendPath); // 確保 React Dev Server 啟動
     }
-    win.show(); // 顯示錯誤頁面
-  }
 
-  // 當視窗被關閉時清理資源
-  win.on('closed', function () {
-    win = null;
-  });
+    await mainWindow.loadURL(frontendPath);
+    mainWindow.webContents.on('did-finish-load', () => {
+      mainWindow.setTitle('LAPPJ 控制系統');
+    });
+
+    mainWindow.show();
+  } catch (error) {
+    console.error('❌ 應用啟動失敗:', error);
+    dialog.showErrorBox('啟動錯誤', `應用程式啟動失敗: ${error.message}`);
+    app.quit();
+  }
 }
 
-// 當 Electron 準備好時執行
-app.whenReady().then(() => {
-  console.log("Electron 已準備就緒");
-  createWindow();
-
-  // macOS 專屬邏輯：當應用程式被重新啟動時，重新建立視窗
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+// 應用程式啟動流程
+app.whenReady().then(async () => {
+  process.env.LANG = 'zh-TW'; // 設置語言
+  startBackend(); // 啟動 Flask (僅限打包模式)
+  await createMainWindow();
+}).catch((error) => {
+  console.error('❌ Failed to start application:', error);
+  app.quit();
 });
 
-// 當所有視窗關閉時退出應用程式
+// 確保 Flask 也關閉
 app.on('window-all-closed', () => {
+  if (backendProcess) {
+    backendProcess.kill();
+  }
   if (process.platform !== 'darwin') {
-    app.quit(); // 完全退出應用程式
+    app.quit();
   }
 });
 
-// 捕捉未捕捉的 Promise Rejection
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('未捕捉的 Promise Rejection:', reason);
-});
-
-// IPC 處理：處理資料夾選擇的對話框
+// IPC 處理
 ipcMain.handle('select-folder', async () => {
-  const result = await dialog.showOpenDialog(win, {
+  const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory']
   });
-
-  if (!result.canceled) {
-    return result.filePaths[0]; // 返回選擇的資料夾路徑
-  }
-  return null;
+  return result.canceled ? null : result.filePaths[0];
 });

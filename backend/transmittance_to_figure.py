@@ -3,7 +3,6 @@ matplotlib.use('Agg')  # 設置後端為 'Agg'，避免啟動 GUI
 import matplotlib.pyplot as plt
 import io
 import pandas as pd
-import scienceplots
 
 plt.rcParams.update({
     'font.size': 16,          # 整體字體大小

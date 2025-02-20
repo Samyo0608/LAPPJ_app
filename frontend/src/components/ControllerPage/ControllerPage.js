@@ -8,11 +8,13 @@ import { useAlicatContext } from "../../Contexts/AlicatContext";
 import { useCo2LaserContext } from "../../Contexts/Co2LaserContext";
 import { useHeaterContext } from "../../Contexts/HeaterContext";
 import { useUltrasonicContext } from "../../Contexts/UltrasonicContext";
+import { useAzbilContext } from "../../Contexts/AzbilContext";
+import azbil_code_detail from "./azbil_code_detail.json"
 
 // Button Component
 const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen }) => (
   <Button
-    className={`${otherCss} text-sm border rounded`}
+    className={`${otherCss} text-sm border rounded disabled:bg-blue-700`}
     color={isOpen ? "purple" : "blue"}
     size="sm"
     onClick={onClick}
@@ -27,6 +29,13 @@ const useHooks = () => {
   const { isCo2LaserOpenState, co2LaserDetailState, setCo2LaserDetailState } = useCo2LaserContext();
   const { isHeaterOpenState, heaterDetailState, setHeaterDetailState } = useHeaterContext();
   const { isUltrasonicOpenState, ultrasonicOpenFlag, setUltrasonicOpenFlag } = useUltrasonicContext();
+  const { isMainGasOpenState, setMainGasDetailState, mainGasDetailState } = useAzbilContext();
+  // 主氣資料
+  const [mainGasDetail, setMainGasDetail] = useState({});
+  // 主氣流量設定
+  const [mainGasFlowSetting, setMainGasFlowSetting] = useState('');
+  // 主氣loading
+  const [onMainGasLoading, setOnMainGasLoading] = useState(false);
   // 載氣資料
   const [carrierGasDetail, setCarrierGasDetail] = useState({});
   // 載器流量設定
@@ -46,6 +55,18 @@ const useHooks = () => {
   // 其他
   const [alertDetail, setAlertDetail] = React.useState({});
   const [onAutoStartLoading, setOnAutoStartLoading] = React.useState(false);
+
+  // 主氣流量監測資料
+  const [mainGasFlowData, setMainGasFlowData] = useState({
+    history: [],
+    labels: [],
+  });
+
+  // 主氣累積流量監測資料
+  const [mainGasAccumulatedFlowData, setMainGasAccumulatedFlowData] = useState({
+    history: [],
+    labels: [],
+  });
 
   // 載氣流量監測資料
   const [carrierGasFlowData, setCarrierGasFlowData] = useState({
@@ -72,6 +93,253 @@ const useHooks = () => {
     history: [],
     labels: [],
   });
+
+  // 取得主氣資料 API
+  const getMainGasDataApi = React.useCallback(async () => {
+    try {
+      const response = await getApi("/azbil_api/get_main_status", "GET");
+      if (response?.data?.status === "success") {
+        // 比較response.data.data與azbil_code_detail的value，並轉換成azbil_code_detail內的value
+        const newMainGasDetail = response.data.data;
+        // 對PV_FLOW和SETTING_SP_FLOW進行小數點處理以及單位轉換
+        let newSettingSp = (Number(newMainGasDetail.SETTING_SP_FLOW) * 0.1).toFixed(Number(newMainGasDetail.FLOW_DECIMAL));
+        let newPvFlow = Number(newMainGasDetail.PV_FLOW) * 0.1;
+
+        switch (Number(newMainGasDetail.FLOW_UNIT)) {
+          case 0:
+            newSettingSp = newSettingSp * 1000;
+            newPvFlow = newPvFlow * 1000;
+            break;
+          case 2:
+            newSettingSp = newSettingSp * 0.06;
+            newPvFlow = newPvFlow * 0.06;
+            break;
+          default:
+            break;
+        }
+
+        // 對TOTAL_FLOW進行小數點處理以及單位轉換 0: mL, 1: L, 2: m^3
+        let newTotalFlow = (Number(newMainGasDetail.TOTAL_FLOW * 0.1 ).toFixed(newMainGasDetail.TOTAL_FLOW_DECIMAL));
+        switch (Number(newMainGasDetail.TOTAL_FLOW_UNIT)) {
+          case 0:
+            newTotalFlow = newTotalFlow * 1000;
+            break;
+          case 2:
+            newTotalFlow = newTotalFlow / 1000;
+            break;
+          default:
+            break;
+        }
+
+        const flowUnit = azbil_code_detail.FLOW_UNIT_MAP[newMainGasDetail.FLOW_UNIT];
+        const totalFlowUnit = azbil_code_detail.TOTAL_FLOW_UNIT_MAP[newMainGasDetail.TOTAL_FLOW_UNIT];
+        newMainGasDetail.FLOW_UNIT = flowUnit;
+        newMainGasDetail.TOTAL_FLOW_UNIT = totalFlowUnit;
+        newMainGasDetail.SETTING_SP_FLOW = newSettingSp;
+        newMainGasDetail.PV_FLOW = newPvFlow;
+        newMainGasDetail.TOTAL_FLOW = newTotalFlow;
+
+        setMainGasDetail(newMainGasDetail);
+        setMainGasDetailState({
+          ...mainGasDetailState,
+          ...response.data.data,
+        });
+      } else {
+        console.error(response?.data?.status);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+  , [setMainGasDetailState, mainGasDetailState]);
+
+  // 修改主氣流量 API
+  const setMainGasFlowApi = async (data) => {
+    setOnMainGasLoading(true);
+
+    try {
+      // 修改回傳的值
+      // 規則和取得主氣資料一樣
+      let newSettingSp = mainGasFlowSetting || data;
+
+      switch (mainGasDetailState.FLOW_UNIT) {
+        case "mL/min":
+          newSettingSp = Number(mainGasFlowSetting || data) / 100;
+          break;
+        case "L/min":
+          newSettingSp = Number(mainGasFlowSetting || data) * 10;
+          break;
+        case "m^3/h":
+          newSettingSp = Number(mainGasFlowSetting || data) / 0.06 * 10;
+          break;
+        default:
+          newSettingSp = Number(mainGasFlowSetting || data);
+          break;
+      }
+
+      const response = await getApi("/azbil_api/set_flow", "POST", {
+        flow: newSettingSp,
+      });
+  
+      if (response?.data?.status === "success") {
+        getMainGasDataApi();
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnMainGasLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
+
+  // 開啟主氣閥門 api
+  const setMainGasOpenApi = async () => {
+    setOnMainGasLoading(true);
+    try {
+      const response = await getApi("/azbil_api/flow_turn_on", "POST");
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnMainGasLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 2000);
+    }
+  };
+
+  // 關閉主氣閥門 api
+  const setMainGasCloseApi = async () => {
+    setOnMainGasLoading(true);
+    try {
+      const response = await getApi("/azbil_api/flow_turn_off", "POST");
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnMainGasLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 2000);
+    }
+  }
+
+  // 全開主氣閥門 api
+  const setMainGasFullOpenApi = async () => {
+    setOnMainGasLoading(true);
+    try {
+      const response = await getApi("/azbil_api/flow_turn_full", "POST");
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnMainGasLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 2000);
+    }
+  }
+
+  // 重製主氣累積流量 api
+  const resetMainGasTotalFlowApi = async () => {
+    try {
+      const response = await getApi("/azbil_api/restart_accumlated_flow", "POST");
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail((prev) => ({ ...prev, show: false }));
+      }, 2000);
+    }
+  };
 
   // 取得載氣資料 API
   const getCarrierGasDataApi = React.useCallback(async () => {
@@ -134,7 +402,11 @@ const useHooks = () => {
       const response = await getApi('/alicat_api/set_gas', 'POST', gasData);
 
       if (response?.data?.status === 'success') {
-        console.log(response.data.message);
+        setAlertDetail({
+          show: true,
+          message: '載氣氣體修改成功',
+          type: 'success'
+        });
       } else {
         console.error(response?.data?.status);
         setAlertDetail({
@@ -480,6 +752,33 @@ const useHooks = () => {
     setCarrierGasFlowApi();
   };
 
+  // 主氣流量設定的Change事件
+  const onMainGasFlowSettingChange = (e) => {
+    setMainGasFlowSetting(e.target.value);
+  };
+
+  // 主氣流量設定的Click事件
+  const onMainGasFlowSettingClick = () => {
+    setMainGasFlowApi();
+  }
+
+  // 主氣閥門(控制、全開、關閉)的Click事件
+  const onMainGasClick = async (type) => {
+    switch (type) {
+      case "open":
+        await setMainGasOpenApi();
+        break;
+      case "close":
+        await setMainGasCloseApi();
+        break;
+      case "fullOpen":
+        await setMainGasFullOpenApi();
+        break;
+      default:
+        break;
+    }
+  }
+
   // 選擇recipe的Select option
   const onRecipeSelect = (key) => {
     setRecipeSelected(key);
@@ -502,6 +801,12 @@ const useHooks = () => {
     // Heater更改
     if (isHeaterOpenState) {
       setTemperature(recipeSelectedDetail.temperature);
+    }
+
+    // 主氣更改
+    if (isMainGasOpenState) {
+      setMainGasFlowSetting(recipeSelectedDetail.main_gas_flow);
+      await setMainGasFlowApi(recipeSelectedDetail.main_gas_flow);
     }
 
     setAlertDetail({
@@ -539,6 +844,9 @@ const useHooks = () => {
       if (isUltrasonicOpenState && !ultrasonicOpenFlag) {
         await setUltrasonicOpen();
       }
+      if (isMainGasOpenState) {
+        await setMainGasOpenApi();
+      }
 
       setAlertDetail({
         show: true,
@@ -571,6 +879,13 @@ const useHooks = () => {
       if (isUltrasonicOpenState && ultrasonicOpenFlag) {
         await setUltrasonicClose();
       }
+      if (isHeaterOpenState) {
+        await setHeaterTemperatureApi(25);
+      }
+      if (isMainGasOpenState) {
+        await setMainGasCloseApi();
+      }
+      
       setAlertDetail({
         show: true,
         message: "全部關閉成功",
@@ -586,26 +901,69 @@ const useHooks = () => {
     }
   };
 
+  // 主氣流量監測，每3秒更新一次
+  React.useEffect(() => {
+    if (isMainGasOpenState) {
+
+      const intervalId = setInterval(() => {
+        getMainGasDataApi();
+      }, 3000);
+
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  }, [isMainGasOpenState, getMainGasDataApi]);
+
+  // 主氣當有新的資料時，加入最新值與當前時間
+  React.useEffect(() => {
+    if (mainGasDetail) {
+      const currentTime = new Date().toLocaleTimeString("en-GB");
+      setMainGasFlowData((prev) => {
+        const newHistory = [
+          ...prev.history,
+          Number(mainGasDetail?.PV_FLOW || 0),
+        ];
+        const newLabels = [...prev.labels, currentTime];
+        // 限制只保留 10 筆資料
+        if (newHistory.length > 10) newHistory.shift();
+        if (newLabels.length > 10) newLabels.shift();
+        return {
+          history: newHistory,
+          labels: newLabels,
+        };
+      });
+      setMainGasAccumulatedFlowData((prev) => {
+        const newHistory = [
+          ...prev.history,
+          Number(mainGasDetail?.TOTAL_FLOW || 0),
+        ];
+        const newLabels = [...prev.labels, currentTime];
+        // 限制只保留 10 筆資料
+        if (newHistory.length > 10) newHistory.shift();
+        if (newLabels.length > 10) newLabels.shift();
+        return {
+          history: newHistory,
+          labels: newLabels,
+        };
+      });
+    }
+  }, [mainGasDetail]);
+
   // 載氣流量監測，每3秒更新一次
   React.useEffect(() => {
-    // 先call一次
-    if (isCarrierGasOpenState) {
-      getCarrierGasDataApi();
-    }
     let intervalId;
 
     if (isCarrierGasOpenState) {
       intervalId = setInterval(() => {
         getCarrierGasDataApi();
       }, 3000);
-      console.log("Starting interval");
     }
 
     // 清理函數
     return () => {
       if (intervalId) {
         clearInterval(intervalId);
-        console.log("Clearing interval");
       }
     };
   }, [isCarrierGasOpenState, getCarrierGasDataApi]);
@@ -682,34 +1040,24 @@ const useHooks = () => {
 
   // CO2雷射監測，每3秒更新一次
   React.useEffect(() => {
-    // 先call一次
-    if (isCo2LaserOpenState) {
-      getCo2LaserDataApi();
-    }
     let intervalId;
 
     if (isCo2LaserOpenState) {
       intervalId = setInterval(() => {
         getCo2LaserDataApi();
       }, 3000);
-      console.log("Starting interval");
     }
 
     // 清理函數
     return () => {
       if (intervalId) {
         clearInterval(intervalId);
-        console.log("Clearing interval");
       }
     };
   }, [isCo2LaserOpenState, getCo2LaserDataApi]);
 
   // Heater監測，每3秒更新一次
   React.useEffect(() => {
-    // 先call一次
-    if (isHeaterOpenState) {
-      getHeaterDataApi();
-    }
     let intervalId;
 
     if (isHeaterOpenState) {
@@ -717,14 +1065,12 @@ const useHooks = () => {
         getHeaterDataApi();
       }
       , 3000);
-      console.log("Starting interval");
     }
 
     // 清理函數
     return () => {
       if (intervalId) {
         clearInterval(intervalId);
-        console.log("Clearing interval");
       }
     }
   }, [isHeaterOpenState, getHeaterDataApi]);
@@ -755,8 +1101,31 @@ const useHooks = () => {
     getRecipeDataApi();
   }, []);
 
+  // 進入畫面時，先第一次取得所有資料
+  React.useEffect(() => {
+    if (isMainGasOpenState) {
+      getMainGasDataApi();
+    }
+    if (isCarrierGasOpenState) {
+      getCarrierGasDataApi();
+    }
+    if (isCo2LaserOpenState) {
+      getCo2LaserDataApi();
+    }
+    if (isHeaterOpenState) {
+      getHeaterDataApi();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMainGasOpenState, isCarrierGasOpenState, isCo2LaserOpenState, isHeaterOpenState]);
+
 
   return {
+    isMainGasOpenState,
+    mainGasDetail,
+    mainGasFlowData,
+    mainGasAccumulatedFlowData,
+    mainGasFlowSetting,
+    onMainGasLoading,
     isCarrierGasOpenState,
     carrierGasDetail,
     carrierGasFlowData,
@@ -780,6 +1149,10 @@ const useHooks = () => {
     ultrasonicOpenFlag,
     alertDetail,
     onAutoStartLoading,
+    onMainGasClick,
+    onMainGasFlowSettingChange,
+    onMainGasFlowSettingClick,
+    resetMainGasTotalFlowApi,
     onCarrierFlowSettingChange,
     onCarrierFlowSettingClick,
     onRecipeSelect,
@@ -799,10 +1172,11 @@ const useHooks = () => {
 
 const ControllerPage = () => {
   const {
+    isMainGasOpenState, mainGasDetail, mainGasFlowData, mainGasAccumulatedFlowData, mainGasFlowSetting, onMainGasLoading,
     isCarrierGasOpenState, carrierGasDetail, carrierGasFlowData, carrierGasFlowSetting, carrierGasPressureData, carrierGasTemperatureData,
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
     alertDetail,  temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, isUltrasonicOpenState, ultrasonicOpenFlag,
-    onAutoStartLoading,
+    onAutoStartLoading, onMainGasClick, onMainGasFlowSettingChange, onMainGasFlowSettingClick, resetMainGasTotalFlowApi,
     onCarrierFlowSettingChange, onCarrierFlowSettingClick, onRecipeSelect, onRecipeApplyClick,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM,
     onAlertClose, setTemperature, setHeaterTemperatureApi, setUltrasonicOpen, setUltrasonicClose,
@@ -819,14 +1193,18 @@ const ControllerPage = () => {
       />
       <div className="grid grid-cols-3 gap-4 p-2 bg-white shadow mb-4 rounded">
         <div className="flex items-center gap-2">
-        <span className="w-4 h-4 bg-red-500 rounded-full"></span>
+          <span
+            className={`${
+              isMainGasOpenState ? "bg-green-500" : "bg-red-500"
+            } w-4 h-4 bg-green-500 rounded-full min-w-4`}
+          />
           <span className="text-sm">Mass Flow Controller - Main Gas</span>
         </div>
         <div className="flex items-center gap-2">
           <span
             className={`${
               isCarrierGasOpenState ? "bg-green-500" : "bg-red-500"
-            } w-4 h-4 bg-green-500 rounded-full`}
+            } w-4 h-4 bg-green-500 rounded-full min-w-4`}
           />
           <span className="text-sm">Mass Flow Controller - Carrier Gas</span>
         </div>
@@ -834,19 +1212,19 @@ const ControllerPage = () => {
           <span
             className={`${
               isCo2LaserOpenState ? "bg-green-500" : "bg-red-500"
-            } w-4 h-4 bg-green-500 rounded-full`}
+            } w-4 h-4 bg-green-500 rounded-full min-w-4`}
           />
           <span className="text-sm">Co2 Laser</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-red-500 rounded-full"></span>
+          <span className="w-4 h-4 bg-red-500 rounded-full min-w-4"></span>
           <span className="text-sm">Power supply</span>
         </div>
         <div className="flex items-center gap-2">
           <span
             className={`${
               isHeaterOpenState ? "bg-green-500" : "bg-red-500"
-            } w-4 h-4 bg-green-500 rounded-full`}
+            } w-4 h-4 bg-green-500 rounded-full min-w-4`}
           />
           <span className="text-sm">Heater</span>
         </div>
@@ -854,7 +1232,7 @@ const ControllerPage = () => {
           <span
             className={`${
               isUltrasonicOpenState ? "bg-green-500" : "bg-red-500"
-            } w-4 h-4 bg-green-500 rounded-full`}
+            } w-4 h-4 bg-green-500 rounded-full min-w-4`}
           />
           <span className="text-sm">Ultrasonic</span>
         </div>
@@ -864,103 +1242,224 @@ const ControllerPage = () => {
         {/* Left Column - MPC */}
         <div className="bg-white p-4 rounded shadow">
           <div className="space-y-4">
-            <div className="border p-4 border-green-300 rounded shadow">
-              <div className="mb-2">
-                <h3 className="font-bold mb-2">主氣流量 (Main Gas Flow)</h3>
-                <input
-                  type="text"
-                  value="實際數值"
-                  readOnly
-                  className="w-full p-1 border rounded bg-gray-50 mt-2"
-                />
-              </div>
-              <div className="flex justify-between items-center gap-2">
-                <span className="text-sm w-48">
-                  流量設定 (Main Gas Setting)
-                </span>
-                <input
-                  type="number"
-                  value="0"
-                  className="w-full p-1 border rounded"
-                  readOnly
-                />
-              </div>
-              <div className="flex justify-between items-center gap-2">
-                <span className="text-sm w-48">目前氣體種類 (Gas Type)</span>
-                <input
-                  type="text"
-                  value="N2"
-                  readOnly
-                  className="w-full p-1 border rounded bg-gray-50"
-                />
-              </div>
-            </div>
-
-            <div className="border p-4 border-blue-300 rounded shadow">
-              <h3 className="font-bold mb-2">載氣流量 (Carrier Gas Flow)</h3>
-              <div className="flex justify-between items-center gap-2">
-                <span className="text-sm w-72">目前氣體種類 (Gas Type)</span>
-                <input
-                  type="text"
-                  value={carrierGasDetail?.gas || "None"}
-                  readOnly
-                  className="w-full p-1 border rounded bg-gray-50"
-                />
-              </div>
-              <div className="mb-2">
-                <span className="text-sm">MFC溫度 (Carrier Gas Temp.)</span>
-                <input
-                  type="number"
-                  value={Number(carrierGasDetail?.temperature || 0).toFixed(2)}
-                  step="0.01"
-                  readOnly
-                  className="w-full p-1 border rounded bg-gray-50 mt-2"
-                />
-              </div>
-              <div className="mb-2">
-                <span className="text-sm">
-                  即時載氣流量 (Dynamic Carrier Gas Flow)
-                </span>
-                <input
-                  type="number"
-                  value={Number(carrierGasDetail?.mass_flow || 0).toFixed(3)}
-                  step="0.01"
-                  readOnly
-                  className="w-full p-1 border rounded bg-gray-50 mt-2"
-                />
-              </div>
+            <div className="border p-4 border-green-300 rounded shadow flex items-center justify-center flex-col">
+              <h3 className="font-bold mb-2">主氣流量 (Main Gas Flow)</h3>
               <div className="mb-2 flex items-center gap-2 flex-wrap">
                 <div className="flex justify-between items-center gap-2 flex-wrap">
-                  <span className="text-sm w-32">流量設定 (Flow Setting)</span>
+                  <span className="text-sm w-32">
+                    即時主氣流量 (PV)
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="number"
+                      value={Number(mainGasDetail?.PV_FLOW || 0).toFixed(Number(mainGasDetail?.FLOW_DECIMAL))}
+                      readOnly
+                      className="p-1 border rounded bg-gray-50 w-32"
+                    />
+                    <span className="text-md w-12">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mb-2 flex items-center gap-2 flex-wrap">
+                <span className="text-sm w-32">即時流量設定 (SV)</span>
+                <div className="flex justify-between items-center gap-2 flex-wrap">
                   <input
                     type="number"
                     step="0.001"
-                    value={Number(carrierGasFlowSetting)}
-                    readOnly={!isCarrierGasOpenState}
+                    value={mainGasFlowSetting}
+                    readOnly={!isMainGasOpenState}
                     className={`${
-                      !isCarrierGasOpenState && "bg-gray-50"
-                    } p-1 border rounded`}
-                    onChange={onCarrierFlowSettingChange}
+                      !isMainGasOpenState && "bg-gray-50"
+                    } p-1 border rounded w-32`}
+                    onChange={onMainGasFlowSettingChange}
                   />
+                  <span className="text-md w-12">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
                 </div>
+              </div>
+              <ButtonComponent
+                label="流量設定"
+                onClick={onMainGasFlowSettingClick}
+                isDisabled={!isMainGasOpenState}
+                loading={onMainGasLoading}
+                otherCss={"w-full"}
+              />
+              <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
                 <ButtonComponent
-                  label="流量設定"
-                  onClick={onCarrierFlowSettingClick}
-                  isDisabled={!isCarrierGasOpenState}
+                  label="閥門控制"
+                  onClick={() => onMainGasClick("open")}
+                  isDisabled={!isMainGasOpenState}
+                  loading={onMainGasLoading}
+                  isOpen={mainGasDetail?.GATE_CONTROL_MAP === 1}
+                />
+                <ButtonComponent
+                  label="閥門全開"
+                  onClick={() => onMainGasClick("fullOpen")}
+                  isDisabled={!isMainGasOpenState}
+                  loading={onMainGasLoading}
+                  isOpen={mainGasDetail?.GATE_CONTROL_MAP === 2}
+                />
+                <ButtonComponent
+                  label="閥門關閉"
+                  onClick={() => onMainGasClick("close")}
+                  isDisabled={!isMainGasOpenState}
+                  loading={onMainGasLoading}
                 />
               </div>
-              <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-32">目前流量設定值</span>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
-                  <span className="text-sm w-32">目前流量設定值</span>
                   <input
                     type="number"
-                    value={carrierGasDetail?.setpoint || 0}
+                    value={mainGasDetail.SETTING_SP_FLOW  || 0}
                     readOnly
-                    className="p-1 border rounded bg-gray-50"
+                    className="p-1 border rounded bg-gray-50 w-32"
                   />
+                  <span className="text-md w-12">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
                 </div>
-                <span className="text-md">slm</span>
               </div>
+              <div className="mb-2 flex items-center gap-2 flex-wrap">
+                <span className="text-sm w-32">累計流量</span>
+                <div className="flex justify-between items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    value={mainGasDetail?.TOTAL_FLOW || 0}
+                    readOnly
+                    className="p-1 border rounded bg-gray-50 w-32"
+                  />
+                  <span className="text-md w-12">{mainGasDetail?.TOTAL_FLOW_UNIT || "L"}</span>
+                </div>
+              </div>
+              <ButtonComponent
+                label="累計流量重製"
+                onClick={resetMainGasTotalFlowApi}
+                isDisabled={!isMainGasOpenState}
+                otherCss={"w-full"}
+                loading={onMainGasLoading}
+              />
+            </div>
+            {/* 載氣流量設定 */}
+            <div className="border p-4 border-blue-300 rounded shadow flex items-center justify-center flex-col">
+              <h3 className="font-bold mb-2">載氣流量 (Carrier Gas Flow)</h3>
+              <div className="mb-2 flex items-center gap-2 flex-wrap">
+                <span className="text-sm w-32">氣體種類</span>
+                <div className="flex justify-between items-center gap-2">
+                  <input
+                    type="text"
+                    value={carrierGasDetail?.gas || "- -"}
+                    readOnly
+                    className="p-1 border rounded bg-gray-50 w-32"
+                  />
+                  <span className="text-md w-12"/>
+                </div>
+              </div>
+              <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-32">MFC溫度</span>
+                <div className="flex justify-between items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    value={Number(carrierGasDetail?.temperature || 0).toFixed(2)}
+                    step="0.01"
+                    readOnly
+                    className="p-1 border rounded bg-gray-50 w-32"
+                  />
+                  <span className="text-md w-12">°C</span>
+                </div>
+              </div>
+              <div className="mb-2 flex items-center gap-2 flex-wrap">
+                  <span className="text-sm w-32">即時載氣流量 (SV)</span>
+                  <div className="flex justify-between items-center gap-2 flex-wrap">
+                    <input
+                      type="number"
+                      value={Number(carrierGasDetail?.mass_flow || 0).toFixed(3)}
+                      step="0.001"
+                      readOnly
+                      className="p-1 border rounded bg-gray-50 w-32"
+                    />
+                    <span className="text-md w-12">slm</span>
+                  </div>
+              </div>
+              <div className="mb-2 flex items-center gap-2 flex-wrap">
+                  <span className="text-sm w-32">即時流量設定 (SV)</span>
+                  <div className="flex justify-between items-center gap-2 flex-wrap">
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={Number(carrierGasFlowSetting)}
+                      readOnly={!isCarrierGasOpenState}
+                      className={`${
+                        !isCarrierGasOpenState && "bg-gray-50"
+                      } p-1 border rounded w-32`}
+                      onChange={onCarrierFlowSettingChange}
+                    />
+                    <span className="text-md w-12">slm</span>
+                  </div>
+              </div>
+              <ButtonComponent
+                label="流量設定"
+                onClick={onCarrierFlowSettingClick}
+                isDisabled={!isCarrierGasOpenState}
+                otherCss={"w-full"}
+              />
+              <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
+                  <span className="text-sm w-32">目前流量設定值</span>
+                  <div className="flex justify-between items-center gap-2 flex-wrap">
+                    <input
+                      type="number"
+                      value={carrierGasDetail?.setpoint || 0}
+                      readOnly
+                      className="p-1 border rounded bg-gray-50 w-32"
+                    />
+                    <span className="text-md w-12">slm</span>
+                  </div>
+              </div>
+            </div>
+          </div>
+          <div className="border p-4 border-purple-300 rounded shadow mt-4 flex items-center justify-center flex-col">
+            <h3 className="font-bold mb-2">溫度控制器 (Heater)</h3>
+            <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm w-32">設定溫度</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="number"
+                  value={temperature}
+                  onChange={(e) => setTemperature(e.target.value)}
+                  className="p-1 border rounded"
+                />
+                <span className="text-sm">°C</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm w-32">目前設定溫度</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="number"
+                  value={Number(heaterDetail?.decimal_point) === 1 ? Number(heaterDetail?.SV*0.1 || 0).toFixed(1) : Number(heaterDetail?.SV || 0).toFixed(1)}
+                  readOnly
+                  className="p-1 border rounded bg-gray-50"
+                />
+                <span className="text-sm">°C</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm w-32">實際溫度</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="number"
+                  value={Number(heaterDetail?.PV || 0).toFixed(1)}
+                  readOnly
+                  className="p-1 border rounded bg-gray-50"
+                />
+                <span className="text-sm">°C</span>
+              </div>
+            </div>
+              <ButtonComponent
+                label="Setting"
+                otherCss={"w-full"}
+                onClick={setHeaterTemperatureApi}
+                loading={onHeaterSettingLoading}
+                isDisabled={!isHeaterOpenState}
+                />
             </div>
           </div>
         </div>
@@ -969,51 +1468,47 @@ const ControllerPage = () => {
         <div className="bg-white p-4 rounded shadow">
           <div className="space-y-4">
             {/* Laser Control */}
-            <div className="border p-4 border-orange-300 rounded shadow">
+            <div className="border p-4 border-orange-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">Co2 雷射 (Co2 Laser)</h3>
-              <div className="flex items-center gap-2 mb-2 flex-wrap justify-between">
-                <span className="text-sm whitespace-nowrap">
-                  PWM percentage (%)
-                </span>
-                <input
-                  type="number"
-                  value={laserPWM}
-                  onChange={(e) => setLaserPWM(e.target.value)}
-                  placeholder="0"
-                  className="w-full p-1 border rounded"
-                />
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm w-32">PWM 設定</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    value={laserPWM}
+                    onChange={(e) => setLaserPWM(e.target.value)}
+                    placeholder="0"
+                    className="p-1 border rounded w-32"
+                    disabled={!isCo2LaserOpenState}
+                  />
+                  <span className="text-sm w-12">%</span>
+                </div>
+              </div>
+              <div className="w-full">
                 <ButtonComponent
-                  otherCss="w-72"
                   label="設定"
                   onClick={setCo2LaserPowerApi}
                   isDisabled={!isCo2LaserOpenState}
                   loading={onLaserOpenLoading}
+                  otherCss="w-full mt-2"
                 />
               </div>
-              <span className="text-sm mb-2">目前PWM percentage (%)</span>
-              <div className="flex items-center gap-2 mb-2">
-                <input
-                  type="number"
-                  step={0.1}
-                  value={co2LaserDetail?.pwm_percentage || 0}
-                  onChange={(e) => setLaserPWM(Number(e.target.value))}
-                  placeholder="0"
-                  className="w-full p-1 border rounded bg-gray-50"
-                  readOnly
-                />
+              <div className="flex items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-32">目前PWM</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    step={0.1}
+                    value={co2LaserDetail?.pwm_percentage || 0}
+                    onChange={(e) => setLaserPWM(Number(e.target.value))}
+                    placeholder="0"
+                    className="p-1 border rounded bg-gray-50 w-32"
+                    readOnly
+                  />
+                  <span className="text-sm w-12">%</span>
+                </div>
               </div>
-              <span className="mb-2">Power percentage (%)</span>
-              <div className="flex items-center gap-2 mb-2">
-                <input
-                  type="number"
-                  value={co2LaserDetail?.power_percentage || 0}
-                  onChange={(e) => setLaserPWM(e.target.value)}
-                  placeholder="0"
-                  className="w-full p-1 border rounded bg-gray-50"
-                  readOnly
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 mt-2 w-full">
                 <ButtonComponent
                   label="ON"
                   isDisabled={!isCo2LaserOpenState || co2LaserDetail?.laser_on}
@@ -1029,12 +1524,12 @@ const ControllerPage = () => {
                 />
               </div>
             </div>
-            <div className="border p-4 border-red-300 rounded shadow">
+            <div className="border p-4 border-red-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">超音波震盪器 (Ultrasonic)</h3>
               <p className="flex items-center gap-2 mb-2 text-sm">
                 目前震盪器狀態: <span className='font-bold text-purple-500'>{ultrasonicOpenFlag ? "開啟" : "關閉"}</span>
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 w-full">
                 <ButtonComponent
                   label="ON"
                   onClick={setUltrasonicOpen}
@@ -1049,57 +1544,9 @@ const ControllerPage = () => {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Right Column - Heater & Plasma */}
-        <div className="bg-white p-4 rounded shadow">
-          <div className="space-y-4">
-            {/* DI Section */}
-            <div className="border p-4 border-blue-300 rounded shadow">
-              <h3 className="font-bold mb-2">溫度控制器 (Heater)</h3>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm min-w-28">設定溫度</span>
-                  <input
-                    type="number"
-                    value={temperature}
-                    onChange={(e) => setTemperature(e.target.value)}
-                    className="p-1 border rounded"
-                  />
-                  <span className="text-sm">°C</span>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm min-w-28">目前設定溫度</span>
-                  <input
-                    type="number"
-                    value={Number(heaterDetail?.decimal_point) === 1 ? Number(heaterDetail?.SV*0.1 || 0).toFixed(1) : Number(heaterDetail?.SV || 0).toFixed(1)}
-                    readOnly
-                    className="p-1 border rounded bg-gray-50"
-                  />
-                  <span className="text-sm">°C</span>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm min-w-28">實際溫度</span>
-                  <input
-                    type="number"
-                    value={Number(heaterDetail?.PV || 0).toFixed(1)}
-                    readOnly
-                    className="p-1 border rounded bg-gray-50"
-                  />
-                  <span className="text-sm">°C</span>
-                </div>
-                <ButtonComponent
-                  label="Setting"
-                  otherCss={"w-full"}
-                  onClick={setHeaterTemperatureApi}
-                  loading={onHeaterSettingLoading}
-                  isDisabled={!isHeaterOpenState}
-                  />
-              </div>
-            </div>
-
-            {/* Plasma Section */}
-            <div className="border p-4 border-green-300 rounded shadow">
+          <div className="space-y-4 mt-4">
+            {/* Power supply Section */}
+            <div className="border p-4 border-green-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">Power supply</h3>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm w-24">Voltage</span>
@@ -1128,12 +1575,19 @@ const ControllerPage = () => {
                   className="w-full p-1 border rounded bg-gray-50"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <ButtonComponent label="ON" />
-                <ButtonComponent label="OFF" />
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <ButtonComponent label="ON" isDisabled />
+                <ButtonComponent label="OFF" isDisabled />
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Right Column*/}
+        <div className="bg-white p-4 rounded shadow bg-red-200">
+          <h2 className="font-bold text-blue-800 text-center text-lg">
+            UV laser & SC-300 Controller 預定
+          </h2>
         </div>
         {/* Recipe 調整 */}
         <div className="col-span-1 bg-gray-300 p-4 rounded shadow w-full">
@@ -1235,9 +1689,10 @@ const ControllerPage = () => {
               {/* 套用按鈕 */}
               <div className="w-full flex justify-center">
                 <ButtonComponent
-                  label="套用 (Setting)"
+                  label="套用"
                   otherCss="w-full max-w-md"
                   onClick={onRecipeApplyClick}
+                  isDisabled={!isCarrierGasOpenState && !isMainGasOpenState && !isCo2LaserOpenState && !isHeaterOpenState && !isUltrasonicOpenState}
                 />
               </div>
             </div>
@@ -1245,7 +1700,7 @@ const ControllerPage = () => {
           {/* 自動啟動按鈕 */}
           <div className="flex flex-col justify-center mt-4 items-center">
             <h3 className="font-bold mb-2 text-blue-800 text-center text-lg">
-              一鍵自動啟動
+              一鍵啟動
             </h3>
             <h5
               className="text-sm text-center text-gray-500 mb-2"
@@ -1256,23 +1711,25 @@ const ControllerPage = () => {
               onClick={onAutoStartClick}
               label="自動啟動 (Auto Start)"
               otherCss="w-full max-w-md"
+              isDisabled={!isCarrierGasOpenState && !isMainGasOpenState && !isCo2LaserOpenState && !isHeaterOpenState && !isUltrasonicOpenState}
               loading={onAutoStartLoading}
             />
           </div>
           {/* 一鍵全部關閉 */}
           <div className="flex flex-col justify-center mt-4 items-center">
             <h3 className="font-bold mb-2 text-blue-800 text-center text-lg">
-              一鍵自動關閉
+              一鍵關閉
             </h3>
             <h5
               className="text-sm text-center text-gray-500 mb-2"
             >
-              按下按鈕後，將會目前有連線的裝置全部關閉，包含霧化器(這個不是中斷連線，只是關閉開關，不含加熱器)
+              按下按鈕後，將會目前有連線的裝置全部關閉(不是中斷連線)，包含霧化器，加熱器溫度設定為25度
             </h5>
             <ButtonComponent
               onClick={onAllCloseClick}
               label="全部關閉 (All Close)"
               otherCss="w-full max-w-md"
+              isDisabled={!isCarrierGasOpenState && !isMainGasOpenState && !isCo2LaserOpenState && !isHeaterOpenState && !isUltrasonicOpenState}
               loading={onAutoStartLoading}
             />
           </div>
@@ -1285,6 +1742,30 @@ const ControllerPage = () => {
             流量 / 電壓監測 (Flow / Voltage / Pressure monitor)
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <LineChartComponent
+              title="主氣流量監測"
+              dataHistory={mainGasFlowData.history}
+              timeLabels={mainGasFlowData.labels}
+              label="Main Gas flow"
+              yAxisLabel={`Flow Rate (${mainGasDetail?.FLOW_UNIT || "slm"})`}
+              yAxisMax={50}
+              yAxisMin={0}
+              yAxisStep={1}
+              lineColor="rgb(192, 108, 75)"
+              backgroundColor="rgba(192, 79, 75, 0.2)"
+            />
+            <LineChartComponent
+              title="主氣累積流量監測"
+              dataHistory={mainGasAccumulatedFlowData.history}
+              timeLabels={mainGasAccumulatedFlowData.labels}
+              label="Main Gas Accumulated flow"
+              yAxisLabel={`Flow Rate (${mainGasDetail?.TOTAL_FLOW_UNIT || "L"})`}
+              yAxisMax={20000}
+              yAxisMin={0}
+              yAxisStep={100}
+              lineColor="rgb(238, 186, 166)"
+              backgroundColor="rgba(114, 86, 85, 0.2)"
+            />
             <LineChartComponent
               title="載氣流量監測"
               data={carrierGasDetail?.mass_flow || 0}

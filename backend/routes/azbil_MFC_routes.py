@@ -2,9 +2,11 @@ from flask import Blueprint, request, jsonify
 from services.azbil_MFC_services import AzbilMFCService
 from services.connect_log_services import ConnectionLogService
 from flask_jwt_extended import get_jwt_identity
+import asyncio
 
 azbil_service = AzbilMFCService()
 azbil_MFC_bp = Blueprint("azbilMfc", __name__)
+write_lock = asyncio.Lock()
 
 @azbil_MFC_bp.route("/connect", methods=["POST"])
 async def connect_device():
@@ -120,7 +122,12 @@ async def disconnect_device():
 async def set_flow():
     data = request.json
     flow_rate = data.get("flow", 50)
-    result, status_code = await azbil_service.set_flow(flow_rate)
+    
+    async with write_lock:
+        await asyncio.sleep(0.1)
+        result, status_code = await azbil_service.set_flow(flow_rate)
+        await asyncio.sleep(0.1)
+        
     return jsonify(result), status_code
   
 @azbil_MFC_bp.route("/get_status", methods=["GET"])
@@ -137,4 +144,53 @@ async def get_status():
             "status": "failure",
             "message": result
         }), status_code
+        
+@azbil_MFC_bp.route("/get_main_status", methods=["GET"])
+async def get_main_status():
+    result, status_code = await azbil_service.get_main_status()
+    return jsonify(result), status_code
   
+@azbil_MFC_bp.route("/flow_turn_on", methods=["POST"])
+async def flow_turn_on():
+
+    async with write_lock:
+        await asyncio.sleep(0.1)
+        result, status_code = await azbil_service.set_flow_turn_on()
+        await asyncio.sleep(0.1)
+        
+    return jsonify(result), status_code
+  
+@azbil_MFC_bp.route("/flow_turn_off", methods=["POST"])
+async def flow_turn_off():
+  
+    async with write_lock:
+        await asyncio.sleep(0.1)
+        result, status_code = await azbil_service.set_flow_turn_off()
+        await asyncio.sleep(0.1)
+        
+    return jsonify(result), status_code
+  
+@azbil_MFC_bp.route("/flow_turn_full", methods=["POST"])
+async def flow_turn_full():
+  
+    async with write_lock:
+        await asyncio.sleep(0.1)
+        result, status_code = await azbil_service.set_flow_turn_full()
+        await asyncio.sleep(0.1)
+        
+    return jsonify(result), status_code
+  
+@azbil_MFC_bp.route("/update", methods=["POST"])
+async def update():
+    data = request.json
+    result, status_code = await azbil_service.set_setting_update(data)
+    return jsonify(result), status_code
+
+@azbil_MFC_bp.route("/restart_accumlated_flow", methods=["POST"])
+async def restart_accumlated_flow():
+    async with write_lock:
+        await asyncio.sleep(0.1)
+        result, status_code = await azbil_service.restart_accumlated_flow()
+        await asyncio.sleep(0.1)
+        
+    return jsonify(result), status_code

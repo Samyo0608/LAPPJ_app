@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const initialAddress = 'http://localhost:5000/api';
+const backendPort = "http://localhost:5555/api";
 
 // **刷新 Token**
 export const refreshToken = async () => {
@@ -8,7 +8,7 @@ export const refreshToken = async () => {
     const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) return null;
 
-    const response = await axios.post(`${initialAddress}/auth/refresh`, {}, {
+    const response = await axios.post(`${backendPort}/auth/refresh`, {}, {
       headers: { 'Authorization': `Bearer ${refreshToken}` }
     });
 
@@ -29,7 +29,7 @@ export const getApi = async (url, method, data, token) => {
   try {
     const response = await axios({
       method: method,
-      url: initialAddress + url,
+      url: backendPort + url,
       data: data,
       headers: {
         'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ export const getPlotApi = async (url, method, data) => {
   try {
     const response = await axios({
       method: method,
-      url: initialAddress + url,
+      url: backendPort + url,
       data: data,
       responseType: 'blob'
       }
@@ -84,7 +84,7 @@ export const photoApi = async (url, method, formData, token) => {
   try {
     const response = await axios({
       method: method,
-      url: initialAddress + url,
+      url: backendPort + url,
       data: formData,
       headers: {
         'Content-Type': 'application/json',

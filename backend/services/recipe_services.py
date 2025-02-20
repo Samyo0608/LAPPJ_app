@@ -5,12 +5,19 @@ from datetime import datetime
 from models.recipe_model import Recipe
 
 class RecipeService:
-    def __init__(self, excel_path='../recipes.xlsx'):
-        self.excel_path = excel_path
-        # 如果檔案不存在，建立一個新的
-        if not os.path.exists(self.excel_path):
-            self._create_empty_excel()
+    def __init__(self):
+        # 確保 `recipes.xlsx` 位於可寫入的 `process.resourcesPath`
+        self.excel_path = os.path.join(os.path.dirname(__file__), '..', 'recipes.xlsx')
+        self._ensure_excel_exists()
 
+    def _ensure_excel_exists(self):
+        if not os.path.exists(self.excel_path):
+            print(f"創建新的 Excel 檔案: {self.excel_path}")
+            df = pd.DataFrame(columns=["ID", "Name", "Ingredients"])
+            df.to_excel(self.excel_path, index=False)  # ✅ 確保只在檔案不存在時寫入
+        else:
+            print(f"Excel 檔案已存在: {self.excel_path}")
+            
     def _create_empty_excel(self):
         # """若無檔案則初始化一個空的 DataFrame，並寫入指定的欄位。"""
         columns = [

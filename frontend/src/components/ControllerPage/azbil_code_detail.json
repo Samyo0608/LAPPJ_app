@@ -1,0 +1,12 @@
+{
+  "FLOW_UNIT_MAP": {
+    "0": "mL/min",
+    "1": "L/min",
+    "2": "m^3/h"
+  },
+  "TOTAL_FLOW_UNIT_MAP": {
+    "0": "mL",
+    "1": "L",
+    "2": "m^3"
+  }
+}

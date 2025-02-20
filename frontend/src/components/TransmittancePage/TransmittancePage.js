@@ -58,7 +58,7 @@ const useHooks = () => {
       plotFlag: flagPlots
     };
     setFilterLoading(true);
-    const response = await getPlotApi('/transmittancePlotFilter', 'POST', reqData);
+    const response = await getPlotApi('/transmittance_api/transmittancePlotFilter', 'POST', reqData);
     if (response.status === 'success') {
       const imageObjectURL = URL.createObjectURL(response.data);
       setFilterPlotData(imageObjectURL);
@@ -77,7 +77,7 @@ const useHooks = () => {
       yLabel,
       selectedFiles
     };
-    const response = await getPlotApi('/transmittancePlot', 'POST', data);
+    const response = await getPlotApi('/transmittance_api/transmittancePlot', 'POST', data);
     if (response.status === 'success') {
       const imageObjectURL = URL.createObjectURL(response.data);
       setPlotData(imageObjectURL);
@@ -91,7 +91,7 @@ const useHooks = () => {
   // 從api取得穿透度平均值
   const getTransmittanceDetail = async () => {
     setLoading(true);
-    const response = await getApi('/transmittanceData', 'POST', transmittanceData);
+    const response = await getApi('/transmittance_api/transmittanceData', 'POST', transmittanceData);
     if (response.status === 'success') {
       setTransmittanceDetail(response.data);
       if (response.data.length > 0) {

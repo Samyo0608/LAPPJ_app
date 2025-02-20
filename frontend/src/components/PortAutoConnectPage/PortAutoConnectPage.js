@@ -255,7 +255,7 @@ const useHooks = () => {
       }));
       setTimeout(() => {
         setAlertDetail(prev => ({ ...prev, show: false }));
-      }, 1000);
+      }, 2000);
     }
   };
 
@@ -1235,7 +1235,9 @@ const useHooks = () => {
         break;
       case 'co2Laser':
         if (devices[deviceId].connected) {
-          await disconnectCo2LaserApi();
+          await disconnectCo2LaserApi({
+            port: devices[deviceId].port
+          });
         } else {
           await connectCo2LaserApi({
             port: devices[deviceId].port
@@ -1264,7 +1266,7 @@ const useHooks = () => {
   const handleAutoConnect = async () => {
     if (isAutoConnecting) return;
 
-    if (isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState) {
+    if (isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isMainGasOpenState) {
       const result = window.confirm('已有設備連接，是否要斷開現有連接再進行自動連接？');
       if (!result) return;
       await disconnectAllDevicesApi();
@@ -1394,6 +1396,7 @@ const useHooks = () => {
     isCo2LaserOpenState,
     isHeaterOpenState,
     isUltrasonicOpenState,
+    isMainGasOpenState,
     setIpAddress,
     handleConnect,
     handleAutoConnect,
@@ -1407,7 +1410,7 @@ const useHooks = () => {
 const PortAutoConnectPage = () => {
   const {
     deviceList, devices, ipAddress, isAutoConnecting, connectionResults, usefulPorts, alertDetail, isCarrierGasOpenState, isCo2LaserOpenState,
-    isHeaterOpenState, isUltrasonicOpenState,
+    isHeaterOpenState, isUltrasonicOpenState, isMainGasOpenState,
     setIpAddress, handleConnect, handleAutoConnect, toggleDeviceSelection, setAlertDetail,
     onPortOrAddressChange
   } = useHooks();
@@ -1471,7 +1474,7 @@ const PortAutoConnectPage = () => {
                     checked={devices[device.id]?.selected}
                     onChange={() => toggleDeviceSelection(device.id)}
                     label={device.name}
-                    disabled={isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState}
+                    disabled={isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isMainGasOpenState}
                   />
                   <Label
                     htmlFor={device.id}
@@ -1484,7 +1487,7 @@ const PortAutoConnectPage = () => {
             }
           </div>
           {
-            isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState ? (
+            isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isMainGasOpenState ? (
             <Button
               onClick={handleAutoConnect}
               disabled={isAutoConnecting}
