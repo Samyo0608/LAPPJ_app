@@ -87,7 +87,6 @@ class AzbilMFC:
         'KEY_DIRECTION': 0x0804,       # 按鍵方向，0: LED: 左 KEY: 右, 1: LED: 下 KEY: 上, 2: LED: 上 KEY: 下, 3: LED: 右 KEY: 左，讀寫皆可
         'TOTAL_FLOW_LOW': 0x0643,      # 總流量低位字節，只能讀取
         'TOTAL_FLOW_HIGH': 0x0644,     # 總流量高位字節，只能讀取
-        'TOTAL_FLOW_RESTART': 0x270C   # 總流量重啟寄存器，只能讀取
     }
     
     # 新增寄存器的值範圍定義
@@ -255,22 +254,23 @@ class AzbilMFC:
             else:
                 self.is_reading = False
 
-    async def read_flow_rate(self) -> Dict[str, Any]:
+    async def read_flow_rate_decimal(self) -> Dict[str, Any]:
         """讀取當前流量值"""
         try:
             if not self.is_connected():
                 return {"status": "failure", "message": "設備未連接"}
 
-            response = await self.send_modbus_command(0x03, self.REGISTERS['PV_FLOW'])
+            response_decimal = await self.send_modbus_command(0x03, self.REGISTERS['FLOW_DECIMAL'])
             
-            if response and len(response) >= 5:
+            if response_decimal and len(response_decimal) >= 5:
                 # 解析流量值 (2 bytes)
-                flow_value = struct.unpack('>H', response[3:5])[0]
-                return {
-                    "status": "success",
-                    "message": "成功讀取流量",
-                    "value": flow_value
-                }
+                flow_value_decimal = struct.unpack('>H', response_decimal[3:5])[0]
+                if flow_value_decimal in range(0, 4):
+                    return {
+                        "status": "success",
+                        "message": "成功讀取流量",
+                        "value": flow_value_decimal
+                    }
             return {"status": "failure", "message": "讀取流量失敗"}
         except Exception as e:
             return {"status": "failure", "message": f"讀取流量時發生錯誤: {str(e)}"}
@@ -318,7 +318,7 @@ class AzbilMFC:
             await asyncio.sleep(2)
             
             # 嘗試讀取流量值來驗證設備
-            response = await self.read_flow_rate()
+            response = await self.read_flow_rate_decimal()
             if response["status"] == "success":
                 return True, "設備驗證成功"
             
@@ -345,13 +345,15 @@ class AzbilMFC:
             # 檢查設備回應
             is_valid, message = await self.verify_device()
             if is_valid:
-                flow_result = await self.read_flow_rate()
+                flow_result = await self.read_flow_rate_decimal()
+
                 if flow_result["status"] == "success":
                     return {
                         "status": "success", 
-                        "message": f"已成功連接 Azbil MFC (Port: {self.port})"
+                        "message": f"已成功連接 Azbil MFC (Port: {self.port})",
+                        "value": flow_result["value"]
                     }, 200
-                return {"status": "success", "message": f"已成功連接 Azbil MFC (Port: {self.port})"}, 200
+                return {"status": "failure", "message": f"Azbil MFC 連接失敗 (Port: {self.port})"}, 400
             
             self.client.close()
             return {"status": "failure", "message": f"連接失敗: {message}"}, 400
@@ -372,17 +374,20 @@ class AzbilMFC:
     async def get_status(self) -> MFCStatus:
         """獲取設備狀態"""
         if not self.is_connected():
-            return {"status": "failure", "message": "設備未連接"}
+            return {"status": "failure", "message": "設備未連接", "data": {}}
 
         try:
             status_data: MFCData = {}
             for key, address in self.REGISTERS.items():
+                if address == 0x270c:
+                    continue
                 response = await self.send_modbus_command(0x03, address)
                 if response and len(response) >= 5:
                     value = struct.unpack('>H', response[3:5])[0]
                     status_data[key] = value
             
             read_accumulated_flow = await self.read_accumulated_flow()
+
             if read_accumulated_flow["status"] == "success":
                 status_data["TOTAL_FLOW"] = read_accumulated_flow["value"]
             else:
@@ -393,7 +398,7 @@ class AzbilMFC:
                 "data": status_data
             }
         except Exception as e:
-            return {"status": "failure", "message": f"讀取設備狀態時發生錯誤: {str(e)}"}
+            return {"status": "failure", "message": f"讀取設備狀態時發生錯誤: {str(e)}", "data": {}}
 
     async def update_settings(self, settings: Dict[str, int]) -> Dict[str, Any]:
         """
@@ -565,20 +570,37 @@ class AzbilMFC:
             return {"status": "failure", "message": f"設定流量值時發生錯誤: {str(e)}"}
         
     async def reset_accumulated_flow(self) -> Dict[str, Any]:
-        """重設累計流量"""
+        """將累積流量的低位和高位都設為 0"""
         if not self.is_connected():
             return {"status": "failure", "message": "設備未連接"}
 
         try:
-            response = await self.send_modbus_command(
-                0x06,
-                self.REGISTERS['TOTAL_FLOW_RESTART'],
-                0x3039
-            )
+            # 設定寄存器地址
+            register_address = self.REGISTERS['TOTAL_FLOW_LOW']  # 假設你已經在 REGISTERS 定義了這個地址
             
-            if response:
-                return {"status": "success", "message": "成功重設累計流量"}
-            return {"status": "failure", "message": "重設累計流量失敗"}
-            
+            # 準備數據: 寫入 2 個寄存器 (低位和高位)
+            request_data = bytearray([self.device_id, 0x10])  # Function Code 0x10
+            request_data += struct.pack(">H", register_address)  # 寄存器起始地址
+            request_data += struct.pack(">H", 2)  # 寫入 2 個寄存器
+            request_data += struct.pack("B", 4)  # 總共 4 個字節
+            request_data += struct.pack(">HH", 0x0000, 0x0000)  # 設定低位和高位為 0
+
+            # 計算 CRC
+            crc = self.calculate_crc(request_data)
+            request_data += struct.pack('<H', crc)
+
+            # 發送指令
+            self.client.reset_input_buffer()
+            self.client.write(request_data)
+            await asyncio.sleep(0.1)
+
+            # 讀取回應
+            response = self.client.read(8)
+            if response and self.verify_crc(response):
+                return {"status": "success", "message": "成功將累積流量清零"}
+            else:
+                return {"status": "failure", "message": "寫入失敗或 CRC 驗證失敗"}
+
         except Exception as e:
-            return {"status": "failure", "message": f"重設累計流量時發生錯誤: {str(e)}"}
+            return {"status": "failure", "message": f"重設累積流量時發生錯誤: {str(e)}"}
+

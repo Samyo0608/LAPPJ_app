@@ -17,8 +17,14 @@ class PortScanner:
                     "manufacturer": port.manufacturer if hasattr(port, 'manufacturer') else None
                 }
                 available_ports.append(port_info)
-                
-            return available_ports
+
+            sorted_ports = sorted(
+                available_ports,
+                key = lambda x: int(x["port"].replace("COM", ""))
+            )
+
+            return sorted_ports
+        
         except Exception as e:
             print(f"Error scanning ports: {str(e)}")
             return []

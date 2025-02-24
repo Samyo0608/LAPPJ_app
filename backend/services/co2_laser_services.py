@@ -6,11 +6,11 @@ class UC2000Service:
     
     def __init__(self):
         self.controller = UC2000()
-        self.lock = asyncio.Lock()
+        self.semaphore = asyncio.Semaphore(1)
 
     async def connect(self, port):
         """連接 UC-2000"""
-        async with self.lock:
+        async with self.semaphore:
             try:
                 # 先嘗試連接
                 result = self.controller.connect(port)
@@ -48,8 +48,6 @@ class UC2000Service:
                             "power_percentage": 0
                         }
                     }, 200
-
-                print(f"Got status: {status}")
                 return {
                     "status": "success", 
                     "message": f"成功連接到雷射控制器 {port}",
@@ -65,7 +63,7 @@ class UC2000Service:
 
     async def disconnect(self):
         """斷開 UC-2000 連線"""
-        async with self.lock:
+        async with self.semaphore:
             success, message = self.controller.disconnect()
             if success:
                 return {"status": "success", "message": message}, 200
@@ -73,7 +71,7 @@ class UC2000Service:
 
     async def get_status(self):
         """獲取 UC-2000 狀態 (確保不與寫入衝突)"""
-        async with self.lock:
+        async with self.semaphore:
             status = self.controller.get_status()
             if status:
                 print(f"狀態: {status}")
@@ -82,7 +80,7 @@ class UC2000Service:
 
     async def set_pwm_frequency(self, freq):
         """設定 PWM 頻率"""
-        async with self.lock:
+        async with self.semaphore:
             try:
                 print(f"Service: Setting PWM frequency to {freq}")
                 if self.controller.set_pwm_frequency(freq):
@@ -105,20 +103,20 @@ class UC2000Service:
 
     async def set_laser_enabled(self, enable):
         """啟用或關閉雷射"""
-        async with self.lock:
+        async with self.semaphore:
             if self.controller.set_laser_enabled(enable):
                 return {"status": "success", "message": f"雷射 {'開啟' if enable else '關閉'}"}, 200
             return {"status": "failure", "message": "設定失敗"}, 400
 
     async def set_pwm_percentage(self, percentage):
         """設置 PWM 佔空比"""
-        async with self.lock:
+        async with self.semaphore:
             if self.controller.set_pwm_percentage(percentage):
                 return {"status": "success", "message": f"PWM 設置為 {percentage}%"}, 200
             return {"status": "failure", "message": "設定失敗"}, 400
 
     async def set_mode(self, mode):
-        async with self.lock:
+        async with self.semaphore:
             valid_modes = {
                 "manual", "anc", "anv", 
                 "manual_closed", "manual closed",
@@ -156,21 +154,21 @@ class UC2000Service:
 
     async def set_lase_on_powerup(self, enable):
         """設定雷射開機時是否自動開啟"""
-        async with self.lock:
+        async with self.semaphore:
             if self.controller.set_lase_on_powerup(enable):
                 return {"status": "success", "message": f"開機時雷射 {'開啟' if enable else '關閉'}"}, 200
             return {"status": "failure", "message": "設定失敗"}, 400
 
     async def set_max_pwm_95(self, enable):
         """設定最大 PWM 限制"""
-        async with self.lock:
+        async with self.semaphore:
             if self.controller.set_max_pwm_95(enable):
                 return {"status": "success", "message": f"最大 PWM 限制設置為 {'95%' if enable else '99%'}"}, 200
             return {"status": "failure", "message": "設定失敗"}, 400
 
     async def set_gate_pull_up(self, enable):
         """設定 Gate Pull Up 狀態"""
-        async with self.lock:
+        async with self.semaphore:
             if self.controller.set_gate_pull_up(enable):
                 return {"status": "success", "message": f"Gate {'高電位' if enable else '低電位'}"}, 200
             return {"status": "failure", "message": "設定失敗"}, 400
@@ -187,7 +185,7 @@ class UC2000Service:
 
     async def update_all_settings(self, settings):
         """一次性更新所有設定"""
-        async with self.lock:
+        async with self.semaphore:
             try:
                 # 獲取初始狀態
                 initial_status = self.controller.get_status()
@@ -269,8 +267,6 @@ class UC2000Service:
                 final_status = self.controller.get_status()
                 if not final_status:
                     return {"status": "failure", "message": "無法獲取最終狀態"}, 400
-
-                print(f"Final status: {final_status}")
 
                 # 驗證設定
                 settings_verified = True

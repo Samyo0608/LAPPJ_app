@@ -14,7 +14,7 @@ import azbil_code_detail from "./azbil_code_detail.json"
 // Button Component
 const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen }) => (
   <Button
-    className={`${otherCss} text-sm border rounded disabled:bg-blue-700`}
+    className={`${otherCss} text-sm border rounded`}
     color={isOpen ? "purple" : "blue"}
     size="sm"
     onClick={onClick}
@@ -1246,7 +1246,7 @@ const ControllerPage = () => {
               <h3 className="font-bold mb-2">主氣流量 (Main Gas Flow)</h3>
               <div className="mb-2 flex items-center gap-2 flex-wrap">
                 <div className="flex justify-between items-center gap-2 flex-wrap">
-                  <span className="text-sm w-32">
+                  <span className="text-sm w-40">
                     即時主氣流量 (PV)
                   </span>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -1261,7 +1261,7 @@ const ControllerPage = () => {
                 </div>
               </div>
               <div className="mb-2 flex items-center gap-2 flex-wrap">
-                <span className="text-sm w-32">即時流量設定 (SV)</span>
+                <span className="text-sm w-40">即時流量設定 (SV)</span>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
                   <input
                     type="number"
@@ -1289,14 +1289,14 @@ const ControllerPage = () => {
                   onClick={() => onMainGasClick("open")}
                   isDisabled={!isMainGasOpenState}
                   loading={onMainGasLoading}
-                  isOpen={mainGasDetail?.GATE_CONTROL_MAP === 1}
+                  isOpen={mainGasDetail?.GATE_CONTROL === 1}
                 />
                 <ButtonComponent
                   label="閥門全開"
                   onClick={() => onMainGasClick("fullOpen")}
                   isDisabled={!isMainGasOpenState}
                   loading={onMainGasLoading}
-                  isOpen={mainGasDetail?.GATE_CONTROL_MAP === 2}
+                  isOpen={mainGasDetail?.GATE_CONTROL === 2}
                 />
                 <ButtonComponent
                   label="閥門關閉"
@@ -1306,7 +1306,7 @@ const ControllerPage = () => {
                 />
               </div>
               <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
-                <span className="text-sm w-32">目前流量設定值</span>
+                <span className="text-sm w-40">目前流量設定值 (僅顯示)</span>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
                   <input
                     type="number"
@@ -1318,7 +1318,7 @@ const ControllerPage = () => {
                 </div>
               </div>
               <div className="mb-2 flex items-center gap-2 flex-wrap">
-                <span className="text-sm w-32">累計流量</span>
+                <span className="text-sm w-40">累計流量</span>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
                   <input
                     type="number"
@@ -1341,7 +1341,7 @@ const ControllerPage = () => {
             <div className="border p-4 border-blue-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">載氣流量 (Carrier Gas Flow)</h3>
               <div className="mb-2 flex items-center gap-2 flex-wrap">
-                <span className="text-sm w-32">氣體種類</span>
+                <span className="text-sm w-40">氣體種類</span>
                 <div className="flex justify-between items-center gap-2">
                   <input
                     type="text"
@@ -1353,7 +1353,7 @@ const ControllerPage = () => {
                 </div>
               </div>
               <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
-                <span className="text-sm w-32">MFC溫度</span>
+                <span className="text-sm w-40">MFC溫度</span>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
                   <input
                     type="number"
@@ -1366,7 +1366,7 @@ const ControllerPage = () => {
                 </div>
               </div>
               <div className="mb-2 flex items-center gap-2 flex-wrap">
-                  <span className="text-sm w-32">即時載氣流量 (SV)</span>
+                  <span className="text-sm w-40">即時載氣流量 (SV)</span>
                   <div className="flex justify-between items-center gap-2 flex-wrap">
                     <input
                       type="number"
@@ -1379,7 +1379,7 @@ const ControllerPage = () => {
                   </div>
               </div>
               <div className="mb-2 flex items-center gap-2 flex-wrap">
-                  <span className="text-sm w-32">即時流量設定 (SV)</span>
+                  <span className="text-sm w-40">即時流量設定 (SV)</span>
                   <div className="flex justify-between items-center gap-2 flex-wrap">
                     <input
                       type="number"
@@ -1401,7 +1401,7 @@ const ControllerPage = () => {
                 otherCss={"w-full"}
               />
               <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
-                  <span className="text-sm w-32">目前流量設定值</span>
+                  <span className="text-sm w-40">目前流量設定值 (僅顯示)</span>
                   <div className="flex justify-between items-center gap-2 flex-wrap">
                     <input
                       type="number"
@@ -1418,7 +1418,7 @@ const ControllerPage = () => {
             <h3 className="font-bold mb-2">溫度控制器 (Heater)</h3>
             <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm w-32">設定溫度</span>
+              <span className="text-sm w-40">設定溫度</span>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="number"
@@ -1430,7 +1430,7 @@ const ControllerPage = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm w-32">目前設定溫度</span>
+              <span className="text-sm w-40">目前設定溫度 (僅顯示)</span>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="number"
@@ -1442,7 +1442,7 @@ const ControllerPage = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm w-32">實際溫度</span>
+              <span className="text-sm w-40">實際溫度</span>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="number"
@@ -1471,7 +1471,7 @@ const ControllerPage = () => {
             <div className="border p-4 border-orange-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">Co2 雷射 (Co2 Laser)</h3>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm w-32">PWM 設定</span>
+                <span className="text-sm w-40">PWM 設定</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="number"
@@ -1494,7 +1494,7 @@ const ControllerPage = () => {
                 />
               </div>
               <div className="flex items-center gap-2 flex-wrap mt-2">
-                <span className="text-sm w-32">目前PWM</span>
+                <span className="text-sm w-40">目前PWM (僅顯示)</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="number"
@@ -1549,7 +1549,7 @@ const ControllerPage = () => {
             <div className="border p-4 border-green-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">Power supply</h3>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm w-24">Voltage</span>
+                <span className="text-sm w-40">Voltage</span>
                 <input
                   type="number"
                   value="0"
@@ -1558,7 +1558,7 @@ const ControllerPage = () => {
                 />
               </div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm w-24">詳細數值</span>
+                <span className="text-sm w-40">詳細數值</span>
                 <input
                   type="number"
                   value="0"
@@ -1567,7 +1567,7 @@ const ControllerPage = () => {
                 />
               </div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm w-24">電流 (Current)</span>
+                <span className="text-sm w-40">電流 (Current)</span>
                 <input
                   type="number"
                   value="0"
@@ -1760,9 +1760,9 @@ const ControllerPage = () => {
               timeLabels={mainGasAccumulatedFlowData.labels}
               label="Main Gas Accumulated flow"
               yAxisLabel={`Flow Rate (${mainGasDetail?.TOTAL_FLOW_UNIT || "L"})`}
-              yAxisMax={20000}
+              yAxisMax={5}
               yAxisMin={0}
-              yAxisStep={100}
+              yAxisStep={0.4}
               lineColor="rgb(238, 186, 166)"
               backgroundColor="rgba(114, 86, 85, 0.2)"
             />

@@ -125,10 +125,7 @@ class FlowControllerModel:
             return None
 
     async def connect(self) -> Dict[str, Any]:
-        """建立與流量控制器的連線"""
-        if not self.check_device_connection():
-            raise Exception(f"無法連接到設備 {self.port}")
-            
+        """建立與流量控制器的連線"""          
         async with self.lock:
             try:
                 self.ser = serial.Serial(
@@ -145,7 +142,6 @@ class FlowControllerModel:
                     print("⚠️ 第一次喚醒失敗，重試...")
                     await asyncio.sleep(1)  # **等待 1 秒**
                     response = self._send_command(self.address)
-                
                 if response:
                     status = self._parse_response(response)
                     if status:

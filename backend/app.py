@@ -21,8 +21,8 @@ import os
 import sys
 from database import db, jwt
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/
 DB_PATH = os.path.join(BASE_DIR, "database.db")
@@ -90,6 +90,6 @@ def internal_server_error(error):
     return jsonify({"error": "伺服器錯誤"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5555)
+    app.run(debug=True, port=5555, use_reloader=False)
 
 # 啟動方式: source venv/Scripts/activate -> python backend/app.py
