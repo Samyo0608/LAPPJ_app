@@ -5,8 +5,6 @@ const process = require('process');
 const { exec } = require('child_process');
 const fs = require('fs');
 
-const logFilePath = path.join(app.getPath('userData'), 'log.txt');
-
 let mainWindow;
 let backendProcess;
 const isDev = !app.isPackaged; // 是否為開發模式
@@ -154,11 +152,113 @@ app.whenReady().then(async () => {
 
 // 確保 Flask 也關閉
 app.on('window-all-closed', () => {
-  if (backendProcess) {
-    backendProcess.kill();
-  }
+  // 關閉 Flask 後端
+  const killBackendProcess = () => {
+    try {
+      // 1. 首先嘗試通過 API 正常關閉
+      const http = require('http');
+      const options = {
+        hostname: 'localhost',
+        port: 5555,
+        path: '/shutdown',
+        method: 'POST',
+        timeout: 2000  // 設置超時，避免卡住
+      };
+
+      console.log('🔍 嘗試通過 API 關閉 Flask...');
+      const req = http.request(options);
+      
+      req.on('response', (res) => {
+        console.log(`✅ Flask 關閉請求狀態碼: ${res.statusCode}`);
+      });
+
+      req.on('error', () => {
+        console.log('📌 API 關閉失敗，嘗試其他方法...');
+      });
+
+      req.on('timeout', () => {
+        console.log('⏱️ API 關閉請求超時');
+        req.destroy();
+      });
+
+      req.end();
+
+      // 2. 無論 API 是否成功，都嘗試通過 PID 文件強制關閉
+      setTimeout(() => {
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          const os = require('os');
+          
+          // 尋找 PID 文件
+          const pidFilePath = path.join(os.tmpdir(), 'lappj_flask_pid.txt');
+          
+          if (fs.existsSync(pidFilePath)) {
+            const pid = fs.readFileSync(pidFilePath, 'utf8').trim();
+            console.log(`📌 從文件獲取到 Flask PID: ${pid}`);
+            
+            if (pid && !isNaN(pid)) {
+              console.log(`🔥 嘗試強制終止 PID: ${pid}`);
+              if (process.platform === 'win32') {
+                exec(`taskkill /pid ${pid} /T /F`, (error) => {
+                  if (error) {
+                    console.error(`❌ 無法通過 PID 終止 Flask: ${error.message}`);
+                  } else {
+                    console.log('✅ 已通過 PID 終止 Flask');
+                    // 嘗試刪除 PID 文件
+                    try { fs.unlinkSync(pidFilePath); } catch (e) {}
+                  }
+                });
+              } else {
+                exec(`kill -9 ${pid}`);
+              }
+            }
+          } else {
+            console.log('⚠️ 找不到 PID 文件');
+          }
+        } catch (error) {
+          console.error(`❌ 讀取 PID 文件時出錯: ${error.message}`);
+        }
+      }, 1000);
+
+      // 3. 最後嘗試通過進程 ID 關閉 (如果 backendProcess 存在)
+      if (backendProcess && backendProcess.pid) {
+        setTimeout(() => {
+          console.log(`🔄 最後嘗試通過進程 ID 終止: ${backendProcess.pid}`);
+          if (process.platform === 'win32') {
+            exec(`taskkill /pid ${backendProcess.pid} /T /F`);
+          } else {
+            backendProcess.kill('SIGKILL');
+          }
+        }, 1500);
+      }
+
+      // 4. 最後絕招：終止所有 app.exe 進程
+      setTimeout(() => {
+        if (process.platform === 'win32') {
+          console.log('💣 最後手段：終止所有 app.exe 進程');
+          exec('taskkill /F /IM app.exe /T', (error) => {
+            if (error) {
+              console.error(`❌ 無法終止所有 app.exe: ${error.message}`);
+            } else {
+              console.log('✅ 已終止所有 app.exe 進程');
+            }
+          });
+        }
+      }, 2000);
+    } catch (error) {
+      console.error(`❌ 關閉 Flask 時出現錯誤: ${error.message}`);
+    }
+  };
+
+  // 執行關閉程序
+  killBackendProcess();
+  
   if (process.platform !== 'darwin') {
-    app.quit();
+    // 給終止程序一些時間，然後再退出
+    setTimeout(() => {
+      app.quit();
+    }, 2500);
   }
 });
 

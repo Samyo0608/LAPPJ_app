@@ -1,5 +1,0 @@
-Flask 伺服器啟動...
-收到請求: /api/uc2000/status
-收到請求: /api/port_scanner/ports
-收到請求: /api/uc2000/connect
-收到請求: /api/uc2000/disconnect

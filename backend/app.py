@@ -19,15 +19,29 @@ import matplotlib.pyplot as plt
 import io
 import os
 import sys
+import signal
 from database import db, jwt
+import tempfile
+import atexit
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/
 DB_PATH = os.path.join(BASE_DIR, "database.db")
 
-LOG_FILE = os.path.join(BASE_DIR, "log.txt")
+temp_dir = tempfile.gettempdir()
+pid_file_path = os.path.join(temp_dir, "lappj_flask_pid.txt")
+
+def cleanup_pid_file():
+    try:
+        if os.path.exists(pid_file_path):
+            os.remove(pid_file_path)
+            print("✅ 已刪除 PID 文件")
+    except Exception as e:
+        print(f"❌ 刪除 PID 文件時出錯: {e}")
+
+atexit.register(cleanup_pid_file)
 
 def create_app():
     app = Flask(__name__, instance_path=os.path.dirname(os.path.abspath(__file__)))
@@ -67,17 +81,24 @@ def create_app():
 
     return app
 
-# 記錄 Flask 啟動訊息
-with open(LOG_FILE, "w") as f:
-    f.write("Flask 伺服器啟動...\n")
-
 # 創建應用程式實例
 app = create_app()
 
-@app.before_request
-def log_request():
-    with open(LOG_FILE, "a") as f:
-        f.write(f"收到請求: {request.path}\n")
+@app.route("/shutdown", methods=["POST"])
+def shutdown():
+    print("🚀 收到關閉請求，Flask 伺服器即將關閉...")
+    cleanup_pid_file()  # 先清理 PID 文件
+    os._exit(0)  # 強制終止
+    return jsonify({"message": "伺服器正在關閉..."})
+
+@app.route("/")
+def home():
+    return "Flask Server Running"
+
+def handle_shutdown(signal, frame):
+    print("🚀 Flask 伺服器正在關閉...")
+    cleanup_pid_file()
+    sys.exit(0)
 
 @app.errorhandler(404)
 def not_found(error):
@@ -89,7 +110,20 @@ def internal_server_error(error):
     """處理 500 內部伺服器錯誤"""
     return jsonify({"error": "伺服器錯誤"}), 500
 
+# 使用所有可能的信號
+signal.signal(signal.SIGTERM, handle_shutdown)
+signal.signal(signal.SIGINT, handle_shutdown)
+# Windows特有的信號
+if hasattr(signal, 'SIGBREAK'):
+    signal.signal(signal.SIGBREAK, handle_shutdown)
+# 確保在主程序中添加這部分
+if hasattr(signal, 'SIGABRT'):
+    signal.signal(signal.SIGABRT, handle_shutdown)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5555, use_reloader=False)
 
 # 啟動方式: source venv/Scripts/activate -> python backend/app.py
+
+# build 方式:
+# pyinstaller --onefile --noconsole   --add-data "routes:routes" --add-data "models:models" --add-data "services:services" --add-data "migrations:migrations"  --add-data "database.db:."   --add-data "config.py:."   --add-data "transmittance_to_figure.py:." --add-data "recipes.xlsx:."   --add-data "txt_to_transmittance_data.py:."   app.py

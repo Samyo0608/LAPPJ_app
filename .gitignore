@@ -17,6 +17,9 @@ env/
 *.egg-info/
 *.whl
 dist/
+database.db
+recipes.xlsx
+
 
 # Electron
 out/
