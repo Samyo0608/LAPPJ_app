@@ -121,7 +121,7 @@ if hasattr(signal, 'SIGABRT'):
     signal.signal(signal.SIGABRT, handle_shutdown)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5555, use_reloader=False)
+    app.run(debug=True, port=5555)
 
 # 啟動方式: source venv/Scripts/activate -> python backend/app.py
 

@@ -2,11 +2,12 @@ from flask import Blueprint, request, jsonify
 from services.azbil_MFC_services import AzbilMFCService
 from services.connect_log_services import ConnectionLogService
 from flask_jwt_extended import get_jwt_identity
-import asyncio
+from threading import Lock
 
 azbil_service = AzbilMFCService()
 azbil_MFC_bp = Blueprint("azbilMfc", __name__)
-write_lock = asyncio.Lock()
+
+write_lock = Lock()
 
 @azbil_MFC_bp.route("/connect", methods=["POST"])
 async def connect_device():
@@ -123,10 +124,8 @@ async def set_flow():
     data = request.json
     flow_rate = data.get("flow", 50)
     
-    async with write_lock:
-        await asyncio.sleep(0.1)
+    with write_lock:
         result, status_code = await azbil_service.set_flow(flow_rate)
-        await asyncio.sleep(0.1)
         
     return jsonify(result), status_code
   
@@ -153,30 +152,24 @@ async def get_main_status():
 @azbil_MFC_bp.route("/flow_turn_on", methods=["POST"])
 async def flow_turn_on():
 
-    async with write_lock:
-        await asyncio.sleep(0.1)
+    with write_lock:
         result, status_code = await azbil_service.set_flow_turn_on()
-        await asyncio.sleep(0.1)
         
     return jsonify(result), status_code
   
 @azbil_MFC_bp.route("/flow_turn_off", methods=["POST"])
 async def flow_turn_off():
   
-    async with write_lock:
-        await asyncio.sleep(0.1)
+    with write_lock:
         result, status_code = await azbil_service.set_flow_turn_off()
-        await asyncio.sleep(0.1)
         
     return jsonify(result), status_code
   
 @azbil_MFC_bp.route("/flow_turn_full", methods=["POST"])
 async def flow_turn_full():
   
-    async with write_lock:
-        await asyncio.sleep(0.1)
+    with write_lock:
         result, status_code = await azbil_service.set_flow_turn_full()
-        await asyncio.sleep(0.1)
         
     return jsonify(result), status_code
   
@@ -188,9 +181,7 @@ async def update():
 
 @azbil_MFC_bp.route("/restart_accumlated_flow", methods=["POST"])
 async def restart_accumlated_flow():
-    async with write_lock:
-        await asyncio.sleep(0.1)
+    with write_lock:
         result, status_code = await azbil_service.restart_accumlated_flow()
-        await asyncio.sleep(0.1)
         
     return jsonify(result), status_code

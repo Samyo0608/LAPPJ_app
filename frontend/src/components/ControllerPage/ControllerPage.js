@@ -225,6 +225,7 @@ const useHooks = () => {
           message: response.data.message,
           type: "success",
         });
+
       } else {
         setAlertDetail({
           show: true,
@@ -317,10 +318,12 @@ const useHooks = () => {
 
   // 重製主氣累積流量 api
   const resetMainGasTotalFlowApi = async () => {
+    setOnMainGasLoading(true);
     try {
       const response = await getApi("/azbil_api/restart_accumlated_flow", "POST");
 
       if (response?.data?.status === "success") {
+        await getMainGasDataApi();
         setAlertDetail({
           show: true,
           message: response.data.message,
@@ -335,6 +338,7 @@ const useHooks = () => {
         type: "failure",
       });
     } finally {
+      setOnMainGasLoading(false);
       setTimeout(() => {
         setAlertDetail((prev) => ({ ...prev, show: false }));
       }, 2000);
@@ -777,6 +781,7 @@ const useHooks = () => {
       default:
         break;
     }
+    await getMainGasDataApi();
   }
 
   // 選擇recipe的Select option

@@ -7,7 +7,7 @@ uc2000_bp = Blueprint('uc2000', __name__)
 controller_service = UC2000Service()
 
 @uc2000_bp.route('/connect', methods=['POST'])
-async def connect():
+def connect():
     """連接 UC-2000 設備"""
     data = request.get_json()
     port = data.get('port')
@@ -22,7 +22,7 @@ async def connect():
             current_user_id = None
         
         # 進行設備連線
-        result, status_code = await controller_service.connect(port)
+        result, status_code = controller_service.connect(port)
         
         if status_code == 200:
             # 記錄連線日誌
@@ -61,7 +61,7 @@ async def connect():
         }), 500
 
 @uc2000_bp.route('/disconnect', methods=['POST'])
-async def disconnect():
+def disconnect():
     """斷開 UC-2000 連線"""
     data = request.get_json()
     port = data.get('port')
@@ -75,7 +75,7 @@ async def disconnect():
         except:
             current_user_id = None
             
-        result, status_code = await controller_service.disconnect()
+        result, status_code = controller_service.disconnect()
         
         if status_code == 200:
             # 記錄斷開連線日誌
@@ -114,12 +114,12 @@ async def disconnect():
         }), 500
 
 @uc2000_bp.route('/status', methods=['GET'])
-async def get_status():
+def get_status():
     """獲取 UC-2000 狀態"""
-    return await controller_service.get_status()
+    return controller_service.get_status()
 
 @uc2000_bp.route('/set_pwm_freq', methods=['POST'])
-async def set_pwm_frequency():
+def set_pwm_frequency():
     """設定 PWM 頻率"""
     data = request.get_json()
     print("Received data:", data)  # 添加這行來看收到的數據
@@ -128,21 +128,21 @@ async def set_pwm_frequency():
         return jsonify({"status": "error", "message": "請提供 freq"}), 400
     
     print("Frequency value:", freq)  # 添加這行來看處理後的值
-    result = await controller_service.set_pwm_frequency(freq)
+    result = controller_service.set_pwm_frequency(freq)
     print("Result:", result)  # 添加這行來看結果
     return result
 
 @uc2000_bp.route('/set_laser', methods=['POST'])
-async def set_laser():
+def set_laser():
     """啟動/關閉 雷射"""
     data = request.get_json()
     enable = data.get('enable')
     if enable is None:
         return jsonify({"status": "error", "message": "請提供 enable"}), 400
-    return await controller_service.set_laser_enabled(enable)
+    return controller_service.set_laser_enabled(enable)
 
 @uc2000_bp.route('/set_pwm', methods=['POST'])
-async def set_pwm():
+def set_pwm():
     """設置 PWM 佔空比"""
     data = request.get_json()
     percentage = data.get('percentage')
@@ -161,10 +161,10 @@ async def set_pwm():
     if not (0 <= percentage <= 99):
         return jsonify({"status": "error", "message": "Percentage 必須在 0-99 之間"}), 400
     
-    return await controller_service.set_pwm_percentage(percentage)
+    return controller_service.set_pwm_percentage(percentage)
 
 @uc2000_bp.route('/set_mode', methods=['POST'])
-async def set_mode():
+def set_mode():
     """設定 UC-2000 模式"""
     data = request.get_json()
     mode = data.get('mode')
@@ -191,40 +191,40 @@ async def set_mode():
             "message": f"無效的模式: {mode}. 有效的模式為: manual, anc, anv, manual_closed, anv_closed"
         }), 400
         
-    return await controller_service.set_mode(mode)
+    return controller_service.set_mode(mode)
 
 @uc2000_bp.route('/set_lase_on_powerup', methods=['POST'])
-async def set_lase_on_powerup():
+def set_lase_on_powerup():
     """設定開機時是否自動開啟雷射"""
     data = request.get_json()
     enable = data.get('enable')
     if enable is None:
         return jsonify({"status": "error", "message": "請提供 enable 參數"}), 400
-    return await controller_service.set_lase_on_powerup(enable)
+    return controller_service.set_lase_on_powerup(enable)
 
 @uc2000_bp.route('/set_max_pwm_95', methods=['POST'])
-async def set_max_pwm_95():
+def set_max_pwm_95():
     """設定最大 PWM 限制 (95% 或 99%)"""
     data = request.get_json()
     enable = data.get('enable')
     if enable is None:
         return jsonify({"status": "error", "message": "請提供 enable 參數"}), 400
-    return await controller_service.set_max_pwm_95(enable)
+    return controller_service.set_max_pwm_95(enable)
 
 @uc2000_bp.route('/set_gate_pull_up', methods=['POST'])
-async def set_gate_pull_up():
+def set_gate_pull_up():
     """設定 Gate Pull Up 狀態"""
     data = request.get_json()
     enable = data.get('enable')
     if enable is None:
         return jsonify({"status": "error", "message": "請提供 enable 參數"}), 400
-    return await controller_service.set_gate_pull_up(enable)
+    return controller_service.set_gate_pull_up(enable)
 
 @uc2000_bp.route('/update_settings', methods=['POST'])
-async def update_settings():
+def update_settings():
     """更新所有設定"""
     data = request.get_json()
     if not data:
         return jsonify({"status": "error", "message": "請提供設定資料"}), 400
         
-    return await controller_service.update_all_settings(data)
+    return controller_service.update_all_settings(data)
