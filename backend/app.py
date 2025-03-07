@@ -14,6 +14,7 @@ from routes.heater_routes import heater_bp
 from routes.ultrasonic_routes import modbus_bp
 from routes.azbil_MFC_routes import azbil_MFC_bp
 from routes.transmittance_routes import transmittance_bp
+from routes.power_supply_routes import power_supply_bp
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
@@ -24,8 +25,19 @@ from database import db, jwt
 import tempfile
 import atexit
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+class UnbufferedStream:
+    def __init__(self, stream):
+        self.stream = stream
+
+    def write(self, data):
+        self.stream.write(data)
+        self.stream.flush()
+
+    def __getattr__(self, attr):
+        return getattr(self.stream, attr)
+
+sys.stdout = UnbufferedStream(sys.stdout)
+sys.stderr = UnbufferedStream(sys.stderr)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/
 DB_PATH = os.path.join(BASE_DIR, "database.db")
@@ -78,6 +90,7 @@ def create_app():
     app.register_blueprint(modbus_bp, url_prefix='/api/ultrasonic')
     app.register_blueprint(azbil_MFC_bp, url_prefix='/api/azbil_api')
     app.register_blueprint(transmittance_bp, url_prefix='/api/transmittance_api')
+    app.register_blueprint(power_supply_bp, url_prefix='/api/power_supply')
 
     return app
 

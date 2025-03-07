@@ -14,7 +14,7 @@ import azbil_code_detail from "./azbil_code_detail.json"
 // Button Component
 const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen }) => (
   <Button
-    className={`${otherCss} text-sm border rounded`}
+    className={`${otherCss} text-sm border rounded max-w-72`}
     color={isOpen ? "purple" : "blue"}
     size="sm"
     onClick={onClick}
@@ -52,6 +52,8 @@ const useHooks = () => {
   const [heaterDetail, setHeaterDetail] = useState({});
   const [temperature, setTemperature] = useState(0);
   const [onHeaterSettingLoading, setOnHeaterSettingLoading] = useState(false);
+  // 霧化器
+  const [onUltrasonicLoading, setOnUltrasonicLoading] = useState(false);
   // 其他
   const [alertDetail, setAlertDetail] = React.useState({});
   const [onAutoStartLoading, setOnAutoStartLoading] = React.useState(false);
@@ -607,7 +609,7 @@ const useHooks = () => {
   }, [setHeaterDetailState]);
 
   // 修改Heater溫度 API
-  const setHeaterTemperatureApi = async () => {
+  const setHeaterTemperatureApi = async (data) => {
     if (Number(temperature) > Number(heaterDetailState?.SLM)) {
       setAlertDetail({
         show: true,
@@ -629,7 +631,7 @@ const useHooks = () => {
     try {
       setOnHeaterSettingLoading(true);
       const response = await getApi("/heater/update", "POST", {
-        SV: Number(heaterDetailState?.decimal_point) === 1 ? Number(temperature*10) : Number(temperature),
+        SV: Number(heaterDetailState?.decimal_point) === 1 ? Number(data*10 || temperature*10) : Number(data || temperature),
       });
 
       if (response?.data?.status === "success") {
@@ -666,6 +668,7 @@ const useHooks = () => {
   // 開啟霧化器
   const setUltrasonicOpen = async () => {
     try {
+      setOnUltrasonicLoading(true);
       const response = await getApi("/ultrasonic/turn_on", "POST");
 
       if (response?.data?.status === "success") {
@@ -690,6 +693,7 @@ const useHooks = () => {
         type: "failure",
       });
     } finally {
+      setOnUltrasonicLoading(false);
       setTimeout(() => {
         setAlertDetail((prev) => ({
           ...prev,
@@ -1150,6 +1154,7 @@ const useHooks = () => {
     onHeaterSettingLoading,
     heaterTemperatureData,
     isHeaterOpenState,
+    onUltrasonicLoading,
     isUltrasonicOpenState,
     ultrasonicOpenFlag,
     alertDetail,
@@ -1180,7 +1185,7 @@ const ControllerPage = () => {
     isMainGasOpenState, mainGasDetail, mainGasFlowData, mainGasAccumulatedFlowData, mainGasFlowSetting, onMainGasLoading,
     isCarrierGasOpenState, carrierGasDetail, carrierGasFlowData, carrierGasFlowSetting, carrierGasPressureData, carrierGasTemperatureData,
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
-    alertDetail,  temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, isUltrasonicOpenState, ultrasonicOpenFlag,
+    alertDetail, temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, onUltrasonicLoading, isUltrasonicOpenState, ultrasonicOpenFlag,
     onAutoStartLoading, onMainGasClick, onMainGasFlowSettingChange, onMainGasFlowSettingClick, resetMainGasTotalFlowApi,
     onCarrierFlowSettingChange, onCarrierFlowSettingClick, onRecipeSelect, onRecipeApplyClick,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM,
@@ -1219,7 +1224,7 @@ const ControllerPage = () => {
               isCo2LaserOpenState ? "bg-green-500" : "bg-red-500"
             } w-4 h-4 bg-green-500 rounded-full min-w-4`}
           />
-          <span className="text-sm">Co2 Laser</span>
+          <span className="text-sm">CO2 Laser</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-4 h-4 bg-red-500 rounded-full min-w-4"></span>
@@ -1248,9 +1253,10 @@ const ControllerPage = () => {
         <div className="bg-white p-4 rounded shadow">
           <div className="space-y-4">
             <div className="border p-4 border-green-300 rounded shadow flex items-center justify-center flex-col">
-              <h3 className="font-bold mb-2">主氣流量 (Main Gas Flow)</h3>
+              <h3 className="font-bold">主氣流量</h3>
+              <h3 className="font-bold mb-2">(Main Gas Flow)</h3>
               <div className="mb-2 flex items-center gap-2 flex-wrap">
-                <div className="flex justify-between items-center gap-2 flex-wrap">
+                <div className="flex justify-center items-center gap-2 flex-wrap">
                   <span className="text-sm w-40">
                     即時主氣流量 (PV)
                   </span>
@@ -1261,11 +1267,11 @@ const ControllerPage = () => {
                       readOnly
                       className="p-1 border rounded bg-gray-50 w-32"
                     />
-                    <span className="text-md w-12">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
+                    <span className="text-md w-4">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
                   </div>
                 </div>
               </div>
-              <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <div className="mb-2 flex justify-center items-center gap-2 flex-wrap">
                 <span className="text-sm w-40">即時流量設定 (SV)</span>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
                   <input
@@ -1278,17 +1284,17 @@ const ControllerPage = () => {
                     } p-1 border rounded w-32`}
                     onChange={onMainGasFlowSettingChange}
                   />
-                  <span className="text-md w-12">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
+                  <span className="text-md w-4">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
                 </div>
               </div>
-              <ButtonComponent
-                label="流量設定"
-                onClick={onMainGasFlowSettingClick}
-                isDisabled={!isMainGasOpenState}
-                loading={onMainGasLoading}
-                otherCss={"w-full"}
-              />
-              <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
+              <div className="mb-2 flex justify-center items-center flex-wrap gap-2 mt-2">
+                <ButtonComponent
+                  label="流量設定"
+                  onClick={onMainGasFlowSettingClick}
+                  isDisabled={!isMainGasOpenState}
+                  loading={onMainGasLoading}
+                  otherCss={"bg-green-500"}
+                />
                 <ButtonComponent
                   label="閥門控制"
                   onClick={() => onMainGasClick("open")}
@@ -1310,7 +1316,7 @@ const ControllerPage = () => {
                   loading={onMainGasLoading}
                 />
               </div>
-              <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
+              <div className="mb-2 flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前流量設定值 (僅顯示)</span>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
                   <input
@@ -1319,10 +1325,10 @@ const ControllerPage = () => {
                     readOnly
                     className="p-1 border rounded bg-gray-50 w-32"
                   />
-                  <span className="text-md w-12">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
+                  <span className="text-md w-4">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
                 </div>
               </div>
-              <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <div className="mb-2 flex justify-center items-center gap-2 flex-wrap">
                 <span className="text-sm w-40">累計流量</span>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
                   <input
@@ -1331,21 +1337,21 @@ const ControllerPage = () => {
                     readOnly
                     className="p-1 border rounded bg-gray-50 w-32"
                   />
-                  <span className="text-md w-12">{mainGasDetail?.TOTAL_FLOW_UNIT || "L"}</span>
+                  <span className="text-md w-4">{mainGasDetail?.TOTAL_FLOW_UNIT || "L"}</span>
                 </div>
               </div>
               <ButtonComponent
                 label="累計流量重製"
                 onClick={resetMainGasTotalFlowApi}
                 isDisabled={!isMainGasOpenState}
-                otherCss={"w-full"}
                 loading={onMainGasLoading}
               />
             </div>
             {/* 載氣流量設定 */}
             <div className="border p-4 border-blue-300 rounded shadow flex items-center justify-center flex-col">
-              <h3 className="font-bold mb-2">載氣流量 (Carrier Gas Flow)</h3>
-              <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <h3 className="font-bold">載氣流量</h3>
+              <h3 className="font-bold mb-2">(Carrier Gas Flow)</h3>
+              <div className="mb-2 flex justify-center items-center gap-2 flex-wrap">
                 <span className="text-sm w-40">氣體種類</span>
                 <div className="flex justify-between items-center gap-2">
                   <input
@@ -1354,10 +1360,10 @@ const ControllerPage = () => {
                     readOnly
                     className="p-1 border rounded bg-gray-50 w-32"
                   />
-                  <span className="text-md w-12"/>
+                  <span className="text-md w-4"/>
                 </div>
               </div>
-              <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
+              <div className="mb-2 flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">MFC溫度</span>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
                   <input
@@ -1367,10 +1373,10 @@ const ControllerPage = () => {
                     readOnly
                     className="p-1 border rounded bg-gray-50 w-32"
                   />
-                  <span className="text-md w-12">°C</span>
+                  <span className="text-md w-4">°C</span>
                 </div>
               </div>
-              <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <div className="mb-2 flex justify-center items-center gap-2 flex-wrap">
                   <span className="text-sm w-40">即時載氣流量 (SV)</span>
                   <div className="flex justify-between items-center gap-2 flex-wrap">
                     <input
@@ -1380,10 +1386,10 @@ const ControllerPage = () => {
                       readOnly
                       className="p-1 border rounded bg-gray-50 w-32"
                     />
-                    <span className="text-md w-12">slm</span>
+                    <span className="text-md w-4">slm</span>
                   </div>
               </div>
-              <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <div className="mb-2 flex justify-center items-center gap-2 flex-wrap">
                   <span className="text-sm w-40">即時流量設定 (SV)</span>
                   <div className="flex justify-between items-center gap-2 flex-wrap">
                     <input
@@ -1396,16 +1402,16 @@ const ControllerPage = () => {
                       } p-1 border rounded w-32`}
                       onChange={onCarrierFlowSettingChange}
                     />
-                    <span className="text-md w-12">slm</span>
+                    <span className="text-md w-4">slm</span>
                   </div>
               </div>
               <ButtonComponent
                 label="流量設定"
                 onClick={onCarrierFlowSettingClick}
                 isDisabled={!isCarrierGasOpenState}
-                otherCss={"w-full"}
+                otherCss={"bg-green-500"}
               />
-              <div className="mb-2 flex items-center gap-2 flex-wrap mt-2">
+              <div className="mb-2 flex justify-center items-center gap-2 flex-wrap mt-2">
                   <span className="text-sm w-40">目前流量設定值 (僅顯示)</span>
                   <div className="flex justify-between items-center gap-2 flex-wrap">
                     <input
@@ -1414,58 +1420,57 @@ const ControllerPage = () => {
                       readOnly
                       className="p-1 border rounded bg-gray-50 w-32"
                     />
-                    <span className="text-md w-12">slm</span>
+                    <span className="text-md w-4">slm</span>
                   </div>
               </div>
             </div>
           </div>
           <div className="border p-4 border-purple-300 rounded shadow mt-4 flex items-center justify-center flex-col">
-            <h3 className="font-bold mb-2">溫度控制器 (Heater)</h3>
-            <div className="space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-bold">溫度控制器</h3>
+            <h3 className="font-bold mb-2">(Heater)</h3>
+            <div className="flex items-center gap-2 flex-wrap justify-center mb-2">
               <span className="text-sm w-40">設定溫度</span>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="number"
                   value={temperature}
                   onChange={(e) => setTemperature(e.target.value)}
-                  className="p-1 border rounded"
+                  className="p-1 border rounded w-32"
                 />
-                <span className="text-sm">°C</span>
+                <span className="text-sm w-4">°C</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap justify-center mb-2">
               <span className="text-sm w-40">目前設定溫度 (僅顯示)</span>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="number"
                   value={Number(heaterDetail?.decimal_point) === 1 ? Number(heaterDetail?.SV*0.1 || 0).toFixed(1) : Number(heaterDetail?.SV || 0).toFixed(1)}
                   readOnly
-                  className="p-1 border rounded bg-gray-50"
+                  className="p-1 border rounded bg-gray-50 w-32"
                 />
-                <span className="text-sm">°C</span>
+                <span className="text-sm w-4">°C</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap justify-center mb-2">
               <span className="text-sm w-40">實際溫度</span>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="number"
                   value={Number(heaterDetail?.PV || 0).toFixed(1)}
                   readOnly
-                  className="p-1 border rounded bg-gray-50"
+                  className="p-1 border rounded bg-gray-50 w-32"
                 />
-                <span className="text-sm">°C</span>
+                <span className="text-sm w-4">°C</span>
               </div>
             </div>
-              <ButtonComponent
-                label="Setting"
-                otherCss={"w-full"}
-                onClick={setHeaterTemperatureApi}
-                loading={onHeaterSettingLoading}
-                isDisabled={!isHeaterOpenState}
-                />
-            </div>
+            <ButtonComponent
+              label="溫度設定"
+              otherCss={"bg-green-500"}
+              onClick={setHeaterTemperatureApi}
+              loading={onHeaterSettingLoading}
+              isDisabled={!isHeaterOpenState}
+              />
           </div>
         </div>
 
@@ -1474,8 +1479,9 @@ const ControllerPage = () => {
           <div className="space-y-4">
             {/* Laser Control */}
             <div className="border p-4 border-orange-300 rounded shadow flex items-center justify-center flex-col">
-              <h3 className="font-bold mb-2">Co2 雷射 (Co2 Laser)</h3>
-              <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-bold">CO2 雷射</h3>
+              <h3 className="font-bold mb-2">(CO2 Laser)</h3>
+              <div className="flex justify-center items-center gap-2 flex-wrap mb-2">
                 <span className="text-sm w-40">PWM 設定</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
@@ -1486,19 +1492,17 @@ const ControllerPage = () => {
                     className="p-1 border rounded w-32"
                     disabled={!isCo2LaserOpenState}
                   />
-                  <span className="text-sm w-12">%</span>
+                  <span className="text-sm w-4">%</span>
                 </div>
               </div>
-              <div className="w-full">
-                <ButtonComponent
-                  label="設定"
-                  onClick={setCo2LaserPowerApi}
-                  isDisabled={!isCo2LaserOpenState}
-                  loading={onLaserOpenLoading}
-                  otherCss="w-full mt-2"
-                />
-              </div>
-              <div className="flex items-center gap-2 flex-wrap mt-2">
+              <ButtonComponent
+                label="PWM設定"
+                onClick={setCo2LaserPowerApi}
+                isDisabled={!isCo2LaserOpenState}
+                loading={onLaserOpenLoading}
+                otherCss="bg-green-500"
+              />
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前PWM (僅顯示)</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
@@ -1510,10 +1514,10 @@ const ControllerPage = () => {
                     className="p-1 border rounded bg-gray-50 w-32"
                     readOnly
                   />
-                  <span className="text-sm w-12">%</span>
+                  <span className="text-sm w-4">%</span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 mt-2 w-full">
+              <div className="flex justify-center items-center gap-2 mt-2">
                 <ButtonComponent
                   label="ON"
                   isDisabled={!isCo2LaserOpenState || co2LaserDetail?.laser_on}
@@ -1530,21 +1534,24 @@ const ControllerPage = () => {
               </div>
             </div>
             <div className="border p-4 border-red-300 rounded shadow flex items-center justify-center flex-col">
-              <h3 className="font-bold mb-2">超音波震盪器 (Ultrasonic)</h3>
+              <h3 className="font-bold">超音波震盪器</h3>
+              <h3 className="font-bold mb-2">(Ultrasonic)</h3>
               <p className="flex items-center gap-2 mb-2 text-sm">
                 目前震盪器狀態: <span className='font-bold text-purple-500'>{ultrasonicOpenFlag ? "開啟" : "關閉"}</span>
               </p>
-              <div className="grid grid-cols-2 gap-2 w-full">
+              <div className="flex justify-center items-center gap-2 mt-2">
                 <ButtonComponent
                   label="ON"
                   onClick={setUltrasonicOpen}
                   isOpen={ultrasonicOpenFlag}
                   isDisabled={!isUltrasonicOpenState || ultrasonicOpenFlag}
+                  loading={onUltrasonicLoading}
                 />
                 <ButtonComponent
                   label="OFF"
                   onClick={setUltrasonicClose}
                   isDisabled={!isUltrasonicOpenState || !ultrasonicOpenFlag}
+                  loading={onUltrasonicLoading}
                 />
               </div>
             </div>
@@ -1553,36 +1560,59 @@ const ControllerPage = () => {
             {/* Power supply Section */}
             <div className="border p-4 border-green-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">Power supply</h3>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm w-40">Voltage</span>
-                <input
-                  type="number"
-                  value="0"
-                  readOnly
-                  className="w-full p-1 border rounded bg-gray-50"
-                />
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">目前DC1電壓值 (PV)</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className="p-1 border rounded bg-gray-50 w-32"
+                    readOnly
+                  />
+                  <span className="text-sm w-4">V</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm w-40">詳細數值</span>
-                <input
-                  type="number"
-                  value="0"
-                  readOnly
-                  className="w-full p-1 border rounded bg-gray-50"
-                />
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">設定DC1電壓值 (SV)</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className="p-1 border rounded bg-gray-50 w-32"
+                  />
+                  <span className="text-sm w-4">V</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm w-40">電流 (Current)</span>
-                <input
-                  type="number"
-                  value="0"
-                  readOnly
-                  className="w-full p-1 border rounded bg-gray-50"
-                />
+              <ButtonComponent
+                label="Voltage設定"
+                otherCss="bg-green-500 mt-2"
+              />
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">目前DC1電流值 (PV)</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className="p-1 border rounded bg-gray-50 w-32"
+                  />
+                  <span className="text-sm w-4">A</span>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 w-full">
-                <ButtonComponent label="ON" isDisabled />
-                <ButtonComponent label="OFF" isDisabled />
+              <div className="flex justify-center items-center gap-2 mt-2 flex-wrap">
+                <ButtonComponent
+                  label="DC1 升壓"
+                />
+                <ButtonComponent
+                  label="DC1 降壓"
+                />
+                <ButtonComponent
+                  label="Power開啟"
+                  otherCss={"bg-red-500"}
+                />
+                <ButtonComponent
+                  label="Power關閉"
+                  otherCss={"bg-red-500"}
+                />
               </div>
             </div>
           </div>

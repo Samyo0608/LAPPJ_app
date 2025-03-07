@@ -99,6 +99,24 @@ async function createMainWindow() {
   mainWindow.setTitle('LAPPJ 控制系統');
   mainWindow.maximize();
 
+  mainWindow.on('close', (e) => {
+    e.preventDefault(); // 先阻止默認關閉
+    
+    const choice = dialog.showMessageBoxSync(mainWindow, {
+      type: 'question',
+      buttons: ['確認', '取消'],
+      title: '確認',
+      message: '請確認是否都將設備取消連線，再按確認離開',
+      defaultId: 1, // 默認選擇「否」按鈕
+      cancelId: 1   // 按 ESC 等同於點擊「否」
+    });
+    
+    if (choice === 0) { // 用戶選擇「是」
+      mainWindow.removeAllListeners('close'); // 移除所有 close 事件監聽器，避免再次觸發
+      mainWindow.close(); // 關閉視窗
+    }
+  });
+
   // 添加 F12 及其他開發者工具快捷鍵
   mainWindow.webContents.on('before-input-event', (event, input) => {
     // F12 開啟開發者工具

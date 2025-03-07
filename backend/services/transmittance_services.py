@@ -6,9 +6,10 @@ class TransmittanceService:
     @staticmethod
     def calculate_transmittance(file_path, group_number, file_number, max_spectrum, min_spectrum):
         """計算透射率數據"""
+        
         try:
             averages_list = txt_to_transmittance(
-                file_path=file_path,
+                initial_file_path=file_path,
                 group_number=group_number,
                 file_number=file_number,
                 max_spectrum=max_spectrum,

@@ -27,9 +27,9 @@ def plot_data(data, selected_files, x_label, y_label):
     ax.plot(filtered_df['fileName'], filtered_df['averageTransmittance'], marker='o', linestyle='-', color='b')
     
     # 設置標籤
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(f'{y_label} ($\%$)')
-    ax.set_title(f'{y_label} vs {x_label}')
+    ax.set_xlabel('Number of Files')
+    ax.set_ylabel(f'{y_label} (%)')
+    ax.set_title(f'{y_label}')
     
     # 保存圖片到內存中
     img = io.BytesIO()

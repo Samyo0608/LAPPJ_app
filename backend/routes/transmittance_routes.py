@@ -12,6 +12,10 @@ def get_transmittance():
         file_number = data.get('fileNumber')
         max_spectrum = data.get('maxSpectrum')
         min_spectrum = data.get('minSpectrum')
+        
+        print(f"開始處理: {file_path}")
+        print(f"指定範圍: {min_spectrum} - {max_spectrum}")
+        print(f"group_number: {group_number}, file_number: {file_number}")
 
         if not all([file_path, group_number, file_number, max_spectrum, min_spectrum]):
             return jsonify({'error': '缺少必要參數'}), 400
