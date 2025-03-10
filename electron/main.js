@@ -7,31 +7,79 @@ const fs = require('fs');
 
 let mainWindow;
 let backendProcess;
+let loadingWindow;
 const isDev = !app.isPackaged; // 是否為開發模式
+
+function checkBackendReady(maxRetries = 60, interval = 1000) {
+  return new Promise((resolve, reject) => {
+    let retries = 0;
+
+    const checkServer = () => {
+      http.get('http://localhost:5555/health', (res) => {
+        if (res.statusCode === 200) {
+          resolve();
+        } else {
+          handleRetry();
+        }
+      }).on('error', () => {
+        handleRetry();
+      });
+    };
+
+    const handleRetry = () => {
+      retries++;
+      if (retries >= maxRetries) {
+        reject(new Error('後端服務未能在指定時間內啟動'));
+      } else {
+        setTimeout(checkServer, interval);
+      }
+    };
+
+    checkServer();
+  });
+}
+
+function createLoadingWindow() {
+  loadingWindow = new BrowserWindow({
+    width: 400,
+    height: 200,
+    backgroundColor: '#f0f0f0',
+    transparent: false,
+    frame: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  loadingWindow.loadFile(path.join(__dirname, 'loading.html'));
+  loadingWindow.center();
+}
 
 // 啟動 Flask 後端（僅在打包模式啟動）
 function startBackend() {
-  if (isDev) return; // 在開發模式下不啟動 Flask
+  if (isDev) return;
 
-  // 🔥 確保正確取得 `app.exe` 的路徑
+  // 確保正確取得 `app.exe` 的路徑
   const backendPath = path.join(process.resourcesPath, 'backend', 'app.exe');
   console.log(`🔍 嘗試啟動 Flask 伺服器: ${backendPath}`);
 
-  // 🔥 確保 Flask 正確執行
+  // 確保 Flask 正確執行
   backendProcess = exec(`"${backendPath}"`, (error, stdout, stderr) => {
     if (error) {
-      console.error(`❌ Flask 伺服器啟動失敗: ${error.message}`);
+      console.error(`Flask 伺服器啟動失敗: ${error.message}`);
       return;
     }
-    console.log(`✅ Flask 伺服器輸出: ${stdout}`);
+    console.log(`Flask 伺服器輸出: ${stdout}`);
   });
 
   backendProcess.stdout?.on('data', (data) => {
-    console.log(`📌 Flask: ${data}`);
+    console.log(`Flask: ${data}`);
   });
 
   backendProcess.stderr?.on('data', (data) => {
-    console.error(`⚠️ Flask 錯誤: ${data}`);
+    console.error(`Flask 錯誤: ${data}`);
   });
 }
 
@@ -69,7 +117,7 @@ function getFrontendPath() {
   } else {
     const frontendPath = path.join(process.resourcesPath, 'frontend', 'build', 'index.html');
 
-    console.log('🔍 React 應用程式應該在:', frontendPath);
+    console.log('React 應用程式應該在:', frontendPath);
 
     return `file://${frontendPath.replace(/\\/g, '/')}`; // ✅ 修正 Windows file:// 路徑
   }
@@ -137,12 +185,26 @@ async function createMainWindow() {
   });
 
   try {
-    console.log('🔄 Loading application...');
+    console.log('Loading application...');
+
+    if (!isDev) {
+      createLoadingWindow();
+      
+      try {
+        await checkBackendReady();
+        loadingWindow.close(); // 關閉等待視窗
+      } catch (error) {
+        dialog.showErrorBox('啟動錯誤', `後端服務未能啟動: ${error.message}`);
+        app.quit();
+        return;
+      }
+    }
+
     const frontendPath = getFrontendPath();
-    console.log(`📂 載入前端: ${frontendPath}`);
+    console.log(`載入前端: ${frontendPath}`);
 
     if (isDev) {
-      await waitForFrontend(frontendPath); // 確保 React Dev Server 啟動
+      await waitForFrontend(frontendPath);
     }
 
     await mainWindow.loadURL(frontendPath);
@@ -152,7 +214,7 @@ async function createMainWindow() {
 
     mainWindow.show();
   } catch (error) {
-    console.error('❌ 應用啟動失敗:', error);
+    console.error('應用啟動失敗:', error);
     dialog.showErrorBox('啟動錯誤', `應用程式啟動失敗: ${error.message}`);
     app.quit();
   }
@@ -187,15 +249,15 @@ app.on('window-all-closed', () => {
       const req = http.request(options);
       
       req.on('response', (res) => {
-        console.log(`✅ Flask 關閉請求狀態碼: ${res.statusCode}`);
+        console.log(`Flask 關閉請求狀態碼: ${res.statusCode}`);
       });
 
       req.on('error', () => {
-        console.log('📌 API 關閉失敗，嘗試其他方法...');
+        console.log('API 關閉失敗，嘗試其他方法...');
       });
 
       req.on('timeout', () => {
-        console.log('⏱️ API 關閉請求超時');
+        console.log('API 關閉請求超時');
         req.destroy();
       });
 
@@ -213,16 +275,16 @@ app.on('window-all-closed', () => {
           
           if (fs.existsSync(pidFilePath)) {
             const pid = fs.readFileSync(pidFilePath, 'utf8').trim();
-            console.log(`📌 從文件獲取到 Flask PID: ${pid}`);
+            console.log(`從文件獲取到 Flask PID: ${pid}`);
             
             if (pid && !isNaN(pid)) {
               console.log(`🔥 嘗試強制終止 PID: ${pid}`);
               if (process.platform === 'win32') {
                 exec(`taskkill /pid ${pid} /T /F`, (error) => {
                   if (error) {
-                    console.error(`❌ 無法通過 PID 終止 Flask: ${error.message}`);
+                    console.error(`無法通過 PID 終止 Flask: ${error.message}`);
                   } else {
-                    console.log('✅ 已通過 PID 終止 Flask');
+                    console.log('已通過 PID 終止 Flask');
                     // 嘗試刪除 PID 文件
                     try { fs.unlinkSync(pidFilePath); } catch (e) {}
                   }
@@ -232,17 +294,17 @@ app.on('window-all-closed', () => {
               }
             }
           } else {
-            console.log('⚠️ 找不到 PID 文件');
+            console.log('找不到 PID 文件');
           }
         } catch (error) {
-          console.error(`❌ 讀取 PID 文件時出錯: ${error.message}`);
+          console.error(`讀取 PID 文件時出錯: ${error.message}`);
         }
       }, 1000);
 
       // 3. 最後嘗試通過進程 ID 關閉 (如果 backendProcess 存在)
       if (backendProcess && backendProcess.pid) {
         setTimeout(() => {
-          console.log(`🔄 最後嘗試通過進程 ID 終止: ${backendProcess.pid}`);
+          console.log(`最後嘗試通過進程 ID 終止: ${backendProcess.pid}`);
           if (process.platform === 'win32') {
             exec(`taskkill /pid ${backendProcess.pid} /T /F`);
           } else {
@@ -254,10 +316,10 @@ app.on('window-all-closed', () => {
       // 4. 最後絕招：終止所有 app.exe 進程
       setTimeout(() => {
         if (process.platform === 'win32') {
-          console.log('💣 最後手段：終止所有 app.exe 進程');
+          console.log('最後手段：終止所有 app.exe 進程');
           exec('taskkill /F /IM app.exe /T', (error) => {
             if (error) {
-              console.error(`❌ 無法終止所有 app.exe: ${error.message}`);
+              console.error(`無法終止所有 app.exe: ${error.message}`);
             } else {
               console.log('✅ 已終止所有 app.exe 進程');
             }
@@ -265,7 +327,7 @@ app.on('window-all-closed', () => {
         }
       }, 2000);
     } catch (error) {
-      console.error(`❌ 關閉 Flask 時出現錯誤: ${error.message}`);
+      console.error(`關閉 Flask 時出現錯誤: ${error.message}`);
     }
   };
 

@@ -10,6 +10,7 @@ import { useHeaterContext } from "../../Contexts/HeaterContext";
 import { useUltrasonicContext } from "../../Contexts/UltrasonicContext";
 import { useAzbilContext } from "../../Contexts/AzbilContext";
 import azbil_code_detail from "./azbil_code_detail.json"
+import AutoConnectModal from "../AutoConnectModal/AutoConnectModal";
 
 // Button Component
 const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen, gradientMonochrome }) => (
@@ -367,9 +368,9 @@ const useHooks = () => {
     try {
       let response = {};
 
-      if (Number(data)) {
+      if (Number(data) >= 0) {
         response = await getApi("/alicat_api/set_flow_rate", "POST", {
-          flow_rate: data,
+          flow_rate: Number(data),
         });
       } else {
         response = await getApi("/alicat_api/set_flow_rate", "POST", {
@@ -638,9 +639,16 @@ const useHooks = () => {
 
     try {
       setOnHeaterSettingLoading(true);
-      const response = await getApi("/heater/update", "POST", {
-        SV: Number(heaterDetailState?.decimal_point) === 1 ? Number(data*10 || temperature*10) : Number(data || temperature),
-      });
+      let response = {};
+      if (Number(data) > 0) {
+        response = await getApi("/heater/update", "POST", {
+          SV: Number(heaterDetailState?.decimal_point) === 1 ? Number(data*10) : Number(data),
+        });
+      } else {
+        response = await getApi("/heater/update", "POST", {
+          SV: Number(heaterDetailState?.decimal_point) === 1 ? Number(temperature*10) : Number(temperature),
+        });
+      }
 
       if (response?.data?.status === "success") {
         setAlertDetail({
@@ -1889,6 +1897,14 @@ const ControllerPage = () => {
           </div>
         </div>
       </div>
+      <AutoConnectModal
+        isCarrierGasConnected={isCarrierGasOpenState}
+        isMainGasConnected={isMainGasOpenState}
+        isCo2LaserConnected={isCo2LaserOpenState}
+        isHeaterConnected={isHeaterOpenState}
+        isUltrasonicConnected={isUltrasonicOpenState}
+        isOpen={isCarrierGasOpenState || isMainGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState}
+      />
     </div>
   );
 };

@@ -39,6 +39,9 @@ class UnbufferedStream:
 sys.stdout = UnbufferedStream(sys.stdout)
 sys.stderr = UnbufferedStream(sys.stderr)
 
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/
 DB_PATH = os.path.join(BASE_DIR, "database.db")
 
@@ -107,6 +110,10 @@ def shutdown():
 @app.route("/")
 def home():
     return "Flask Server Running"
+
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "ok"}), 200
 
 def handle_shutdown(signal, frame):
     print("🚀 Flask 伺服器正在關閉...")
