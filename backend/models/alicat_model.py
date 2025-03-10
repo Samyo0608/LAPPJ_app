@@ -1,41 +1,9 @@
-import asyncio
+import threading
 import serial
 from serial.serialutil import SerialException
 from typing import Optional, Dict, Any
 from alicat import FlowController
-
-class AsyncReentrantLock:
-    """可重入的異步鎖"""
-    def __init__(self):
-        self._lock = asyncio.Lock()
-        self._owner = None
-        self._count = 0
-
-    async def acquire(self):
-        current = asyncio.current_task()
-        if self._owner == current:
-            self._count += 1
-            return True
-        await self._lock.acquire()
-        self._owner = current
-        self._count = 1
-        return True
-
-    def release(self):
-        current = asyncio.current_task()
-        if self._owner != current:
-            raise RuntimeError("鎖不是由當前 task 持有，無法釋放")
-        self._count -= 1
-        if self._count == 0:
-            self._owner = None
-            self._lock.release()
-
-    async def __aenter__(self):
-        await self.acquire()
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        self.release()
+import time
 
 class FlowControllerModel:
     def __init__(self, port: str, address: str):
@@ -43,7 +11,7 @@ class FlowControllerModel:
         self.address = address
         self.ser: Optional[serial.Serial] = None
         self.timeout = 1
-        self.lock = AsyncReentrantLock()
+        self.lock = threading.RLock()  # 使用可重入鎖
 
     def check_device_connection(self) -> bool:
         """檢查設備連接狀態"""
@@ -124,9 +92,9 @@ class FlowControllerModel:
             print(f"發送命令失敗: {e}")
             return None
 
-    async def connect(self) -> Dict[str, Any]:
+    def connect(self) -> Dict[str, Any]:
         """建立與流量控制器的連線"""          
-        async with self.lock:
+        with self.lock:
             try:
                 self.ser = serial.Serial(
                     self.port,
@@ -134,13 +102,13 @@ class FlowControllerModel:
                     timeout=self.timeout
                 )
                 
-                await asyncio.sleep(1)
+                time.sleep(1)
                 
                 response = self._send_command(self.address)
                 
                 if not response:
                     print("⚠️ 第一次喚醒失敗，重試...")
-                    await asyncio.sleep(1)  # **等待 1 秒**
+                    time.sleep(1)  # 等待 1 秒
                     response = self._send_command(self.address)
                 if response:
                     status = self._parse_response(response)
@@ -155,18 +123,18 @@ class FlowControllerModel:
                     self.ser = None
                 raise Exception(f"連接設備時發生錯誤: {e}")
 
-    async def disconnect(self):
+    def disconnect(self):
         """關閉與流量控制器的連線"""
-        async with self.lock:
+        with self.lock:
             if self.ser:
                 try:
                     self.ser.close()
                 finally:
                     self.ser = None
 
-    async def read_status(self) -> Dict[str, Any]:
+    def read_status(self) -> Dict[str, Any]:
         """讀取設備狀態"""
-        async with self.lock:
+        with self.lock:
             if not self.ser:
                 raise Exception("設備未連接")
                 
@@ -178,8 +146,8 @@ class FlowControllerModel:
                     
             raise Exception("無法讀取設備狀態")
 
-    async def set_gas(self, gas: str):
-        async with self.lock:
+    def set_gas(self, gas: str):
+        with self.lock:
             try:
                 print(f"🔄 嘗試切換氣體至: {gas}")
 
@@ -228,12 +196,12 @@ class FlowControllerModel:
                 gas_command = f"{self.address}G{gas_number}"
                 print(f"發送氣體切換命令: {gas_command}")
                 response = self._send_command(gas_command)
-                await asyncio.sleep(1)
+                time.sleep(1)
 
                 # **4. 儲存變更**
                 print("🔄 嘗試儲存氣體設定...")
                 self._send_command(f"{self.address}S")
-                await asyncio.sleep(1)
+                time.sleep(1)
 
                 # **5. 確認設備是否正確切換**
                 for _ in range(3):
@@ -243,7 +211,7 @@ class FlowControllerModel:
                     if verify_status.get('gas') == gas:
                         return {"message": f"成功切換至 {gas}", "status": "success"}
 
-                    await asyncio.sleep(1)  # **等待設備應用變更**
+                    time.sleep(1)  # 等待設備應用變更
 
                 raise Exception(f"切換氣體失敗，當前氣體仍為 {verify_status.get('gas', '未知')}")
 
@@ -251,9 +219,9 @@ class FlowControllerModel:
                 print(f"錯誤: {e}")
                 return {"message": str(e), "status": "error"}
 
-    async def set_flow_rate(self, flow_rate: float):
+    def set_flow_rate(self, flow_rate: float):
         """設定流量"""
-        async with self.lock:
+        with self.lock:
             if not self.ser:
                 raise Exception("設備未連接")
                 
@@ -261,8 +229,8 @@ class FlowControllerModel:
             if not response:
                 raise Exception("設定流量失敗")
 
-    async def create_mix(self, mix_no: int, name: str, gases: Dict[str, float]):
-        async with self.lock:
+    def create_mix(self, mix_no: int, name: str, gases: Dict[str, float]):
+        with self.lock:
             try:
                 print(f"🛠️ 嘗試建立混合氣體: {name}, 編號: {mix_no}, 成分: {gases}")
 
@@ -290,17 +258,17 @@ class FlowControllerModel:
                 mix_command = f"AGM {name} {mix_no} {gas_str}"
                 print(f"📡 發送混合氣體創建命令: {mix_command}")
                 response = self._send_command(mix_command)
-                await asyncio.sleep(2)
+                time.sleep(2)
 
                 # **4. 儲存變更**
                 print("💾 儲存混合氣體...")
                 self._send_command(f"{self.address}S")
-                await asyncio.sleep(1)
+                time.sleep(1)
 
                 # **5. 驗證是否成功**
                 for _ in range(3):
                     self._send_command(f"{self.address}G{mix_no}")  # 嘗試切換到新混合氣
-                    await asyncio.sleep(2)
+                    time.sleep(2)
 
                     verify_status = self._parse_response(self._send_command(self.address))
                     print(f"✅ 驗證混合氣體狀態: {verify_status}")
@@ -314,15 +282,15 @@ class FlowControllerModel:
                 print(f"❌ 錯誤: {e}")
                 return {"message": str(e), "status": "error"}
 
-    async def delete_mix(self, mix_no: int):
-        async with self.lock:
+    def delete_mix(self, mix_no: int):
+        with self.lock:
             try:
                 if not self.ser:
                     raise Exception("設備未連接")
 
                 command = f"{self.address}GD {mix_no}"
                 response = self._send_command(command)
-                await asyncio.sleep(1)
+                time.sleep(1)
 
                 # **驗證是否成功刪除**
                 verify_status = self._send_command(f"{self.address}G{mix_no}")
@@ -351,9 +319,9 @@ class FlowControllerModel:
             print(f"格式化數據錯誤: {e}")
             return {"error": str(e)}
 
-    async def get_all_gases(self, search_term: str = None) -> Dict[str, Any]:
+    def get_all_gases(self, search_term: str = None) -> Dict[str, Any]:
         """獲取所有氣體資訊（標準氣體和混合氣體）"""
-        async with self.lock:
+        with self.lock:
             if not self.ser:
                 raise Exception("設備未連接")
                 

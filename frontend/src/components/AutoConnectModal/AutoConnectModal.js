@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Modal } from "flowbite-react";
+import CommonLoading from '../Loading/CommonLoading';
 import { HiOutlineExclamationCircle } from "react-icons/hi";
 import { getApi } from "../../utils/getApi";
 import { useAlicatContext } from '../../Contexts/AlicatContext';
@@ -17,6 +18,7 @@ const AutoConnectModal = ({
   isOpen = false,
 }) => {
   const [openModal, setOpenModal] = useState(isOpen);
+  const [isLoading, setIsLoading] = useState(false);
   const { setIsCarrierOpenState, carrierGasPortandAddressState } = useAlicatContext();
   const { setIsCo2LaserOpenState, co2LaserPortState } = useCo2LaserContext();
   const { setIsHeaterOpenState, heaterPortAndAddressState } = useHeaterContext();
@@ -24,56 +26,65 @@ const AutoConnectModal = ({
   const { setIsMainGasOpenState, mainGasPortAndAddressState } = useAzbilContext();
 
   const onModalClick = async () => {
-    if (!isMainGasConnected) {
-      const data = {
-        port: mainGasPortAndAddressState.port,
-        address: mainGasPortAndAddressState.address,
-      };
-      const response = await getApi('/azbil_api/connect', 'POST', data, localStorage.getItem('token'));
-      if (response.status === 200) {
-        setIsMainGasOpenState(true);
+    try {
+      setIsLoading(true);
+      if (isCarrierGasConnected) {
+        const data = {
+          port: carrierGasPortandAddressState.port,
+          address: carrierGasPortandAddressState.address,
+        };
+        const response = await getApi('/alicat_api/connect', 'POST', data, localStorage.getItem('token'));
+        if (response.status === 200) {
+          setIsCarrierOpenState(true);
+        }
       }
-    }
-    if (!isCarrierGasConnected) {
-      const data = {
-        port: carrierGasPortandAddressState.port,
-        address: carrierGasPortandAddressState.address,
-      };
-      const response = await getApi('/alicat_api/connect', 'POST', data, localStorage.getItem('token'));
-      if (response.status === 200) {
-        setIsCarrierOpenState(true);
+      if (isHeaterConnected) {
+        const data = {
+          port: heaterPortAndAddressState.port,
+          address: heaterPortAndAddressState.address,
+        };
+        const response = await getApi('/heater/connect', 'POST', data, localStorage.getItem('token'));
+        if (response.status === 200) {
+          setIsHeaterOpenState(true);
+        }
       }
-    }
-    if (!isHeaterConnected) {
-      const data = {
-        port: heaterPortAndAddressState.port,
-        address: heaterPortAndAddressState.address,
-      };
-      const response = await getApi('/heater/connect', 'POST', data, localStorage.getItem('token'));
-      if (response.status === 200) {
-        setIsHeaterOpenState(true);
+      if (isCo2LaserConnected) {
+        const data = {
+          port: co2LaserPortState.port,
+        };
+        const response = await getApi('/uc2000/connect', 'POST', data, localStorage.getItem('token'));
+        if (response.status === 200) {
+          setIsCo2LaserOpenState(true);
+        }
       }
-    }
-    if (!isCo2LaserConnected) {
-      const data = {
-        port: co2LaserPortState.port,
-      };
-      const response = await getApi('/uc2000/connect', 'POST', data, localStorage.getItem('token'));
-      if (response.status === 200) {
-        setIsCo2LaserOpenState(true);
+      if (isUltrasonicConnected) {
+        const data = {
+          port: ultrasonicPortAndAddressState.port,
+          address: ultrasonicPortAndAddressState.address,
+        };
+        const response = await getApi('/ultrasonic/connect', 'POST', data, localStorage.getItem('token'));
+        if (response.status === 200) {
+          setIsUltrasonicOpenState(true);
+        }
       }
-    }
-    if (!isUltrasonicConnected) {
-      const data = {
-        port: ultrasonicPortAndAddressState.port,
-        address: ultrasonicPortAndAddressState.address,
-      };
-      const response = await getApi('/ultrasonic/connect', 'POST', data, localStorage.getItem('token'));
-      if (response.status === 200) {
-        setIsUltrasonicOpenState(true);
+      if (isMainGasConnected) {
+        const data = {
+          port: mainGasPortAndAddressState.port,
+          address: mainGasPortAndAddressState.address,
+        };
+        const response = await getApi('/azbil_api/connect', 'POST', data, localStorage.getItem('token'));
+        console.log(response)
+        if (response.status === 200) {
+          setIsMainGasOpenState(true);
+        }
       }
+    } catch {
+      console.log("something connect failed.")
+    } finally {
+      setIsLoading(false);
+      setOpenModal(false);
+      sessionStorage.setItem("firstEnterPage", true);
     }
-    setOpenModal(false);
   };
 
   const onModalCancel = async () => {
@@ -101,10 +112,11 @@ const AutoConnectModal = ({
             {isHeaterConnected && <span className="text-sm text-gray-500 dark:text-gray-400">加熱器</span>}
             {isCo2LaserConnected && <span className="text-sm text-gray-500 dark:text-gray-400">CO2雷射</span>}
             {isUltrasonicConnected && <span className="text-sm text-gray-500 dark:text-gray-400">霧化器</span>}
+            {isLoading && <span className="text-md text-red-500 font-bold dark:text-red-400">連線等待中，請勿執行任何動作!</span>}
           </div>
           <div className="flex justify-center gap-4">
             <Button color="failure" onClick={() => onModalClick()}>
-              全部重新連線
+              {isLoading ? <CommonLoading /> : "全部重新連線"}
             </Button>
             <Button color="gray" onClick={() => onModalCancel()}>
               清除連線狀態

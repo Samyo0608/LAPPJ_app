@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.connect_log_services import ConnectionLogService
-import asyncio
 from models.alicat_model import FlowControllerModel
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import serial
@@ -27,22 +26,18 @@ def connect():
         current_user_id = None
 
     try:
-        async def async_connect():
-            global flow_controller
-            
+        # 斷開先前連接（如果有）
+        if flow_controller:
             try:
-                if flow_controller:
-                    await flow_controller.disconnect()
-                    print(f"已關閉先前的連接 {flow_controller.port}")
+                flow_controller.disconnect()
+                print(f"已關閉先前的連接 {flow_controller.port}")
             except Exception as e:
                 print(f"斷開先前連接時發生錯誤: {e}")
 
-            flow_controller = FlowControllerModel(port, address)
-            initial_status = await flow_controller.connect()
-            
-            return flow_controller.format_status_data(initial_status)
-
-        formatted_status = asyncio.run(async_connect())
+        # 創建新連接
+        flow_controller = FlowControllerModel(port, address)
+        initial_status = flow_controller.connect()
+        formatted_status = flow_controller.format_status_data(initial_status)
         
         # 記錄連線日誌
         ConnectionLogService.create_log(
@@ -74,10 +69,9 @@ def connect():
         except Exception as log_error:
             print(f"記錄連線日誌失敗: {log_error}")
 
-        global flow_controller
         try:
             if flow_controller:
-                asyncio.run(flow_controller.disconnect())
+                flow_controller.disconnect()
         except:
             pass
         flow_controller = None
@@ -113,9 +107,7 @@ def disconnect():
         current_user_id = None
 
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(flow_controller.disconnect())
+        flow_controller.disconnect()
         flow_controller = None
         
         # 記錄連線日誌
@@ -149,9 +141,7 @@ def get_status():
         return jsonify({"status": "failure", "message": "設備未連接"}), 400
 
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        status = loop.run_until_complete(flow_controller.read_status())
+        status = flow_controller.read_status()
         return jsonify({
             "status": "success", 
             "data": status
@@ -173,9 +163,7 @@ def set_flow_rate():
 
     try:
         flow_rate = float(flow_rate)
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(flow_controller.set_flow_rate(flow_rate))
+        flow_controller.set_flow_rate(flow_rate)
         return jsonify({"status": "success", "message": f"Flow rate set to {flow_rate:.3f} slm"}), 200
     except ValueError:
         return jsonify({"status": "failure", "message": "Invalid flow rate format"}), 400
@@ -193,10 +181,7 @@ def get_all_gases():
     search_term = request.args.get('search', None)
 
     try:
-        async def async_get_gases():
-            return await flow_controller.get_all_gases(search_term)
-
-        gases_data = asyncio.run(async_get_gases())
+        gases_data = flow_controller.get_all_gases(search_term)
         return jsonify({
             "status": "success",
             "data": gases_data
@@ -217,12 +202,10 @@ def set_gas():
         return jsonify({"status": "failure", "message": "Gas is required"}), 400
 
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         # 如果給編號，則需要轉換成數字，如果是字串，則不需要轉換
         if isinstance(gas, str) and gas.isdigit():
             gas = int(gas)
-        loop.run_until_complete(flow_controller.set_gas(gas))
+        result = flow_controller.set_gas(gas)
         return jsonify({"status": "success", "message": f"Gas set to {gas}"}), 200
     except Exception as e:
         return jsonify({"status": "failure", "message": str(e)}), 500
@@ -246,10 +229,7 @@ def create_mix():
         }), 400
 
     try:
-        async def async_create_mix():
-            return await flow_controller.create_mix(mix_no, name, gases)
-
-        result = asyncio.run(async_create_mix())
+        result = flow_controller.create_mix(mix_no, name, gases)
         return jsonify({
             "status": "success", 
             "message": f"成功創建混合氣體 {name} (編號 {mix_no})"
@@ -278,9 +258,7 @@ def delete_mix():
         return jsonify({"status": "failure", "message": "Missing required parameters"}), 400
 
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(flow_controller.delete_mix(mix_no))
+        flow_controller.delete_mix(mix_no)
         return jsonify({"status": "success", "message": f"Mix {mix_no} deleted"}), 200
     except Exception as e:
         return jsonify({"status": "failure", "message": str(e)}), 500

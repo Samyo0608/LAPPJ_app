@@ -1143,6 +1143,14 @@ const useHooks = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMainGasOpenState, isCarrierGasOpenState, isCo2LaserOpenState, isHeaterOpenState]);
 
+  React.useEffect(() => {
+    if (sessionStorage.getItem("firstEnterPage") === "true") return;
+    if (isCarrierGasOpenState || isMainGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState) {
+      sessionStorage.setItem("firstEnterPage", false);
+    } else{
+      sessionStorage.setItem("firstEnterPage", true);
+    }
+  }, [isCarrierGasOpenState, isMainGasOpenState, isCo2LaserOpenState, isHeaterOpenState, isUltrasonicOpenState]);
 
   return {
     isMainGasOpenState,
@@ -1897,14 +1905,18 @@ const ControllerPage = () => {
           </div>
         </div>
       </div>
-      <AutoConnectModal
-        isCarrierGasConnected={isCarrierGasOpenState}
-        isMainGasConnected={isMainGasOpenState}
-        isCo2LaserConnected={isCo2LaserOpenState}
-        isHeaterConnected={isHeaterOpenState}
-        isUltrasonicConnected={isUltrasonicOpenState}
-        isOpen={isCarrierGasOpenState || isMainGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState}
-      />
+      {
+        sessionStorage.getItem("firstEnterPage") === "false" && (
+          <AutoConnectModal
+            isCarrierGasConnected={isCarrierGasOpenState}
+            isMainGasConnected={isMainGasOpenState}
+            isCo2LaserConnected={isCo2LaserOpenState}
+            isHeaterConnected={isHeaterOpenState}
+            isUltrasonicConnected={isUltrasonicOpenState}
+            isOpen={isCarrierGasOpenState || isMainGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState}
+          />
+        )
+      }
     </div>
   );
 };
