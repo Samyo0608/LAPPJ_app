@@ -28,7 +28,7 @@ const useHooks = () => {
     isMainGasOpenState, setIsMainGasOpenState, mainGasPortAndAddressState, setMainGasPortAndAddressState
   } = useAzbilContext();
   const {
-    setPowerSupplyDetailState, isPowerSupplyOpenState, setIsPowerSupplyOpenState, powerSupplyPortState, setPowerSupplyPortState
+    isPowerSupplyOpenState, setIsPowerSupplyOpenState, powerSupplyPortState, setPowerSupplyPortState
   } = usePowerSupplyContext();
 
   // 設備列表
@@ -535,7 +535,6 @@ const useHooks = () => {
         });
 
         setIsPowerSupplyOpenState(true);
-        setPowerSupplyDetailState(response.data.data);
         return response;
       } else {
         deviceConnectedRef.current.powerSupply = false;
@@ -1415,6 +1414,17 @@ const useHooks = () => {
           });
         } else {
           await connectCo2LaserApi({
+            port: devices[deviceId].port
+          });
+        }
+        break;
+      case 'powerSupply':
+        if (devices[deviceId].connected) {
+          await disconnectPowerSupplyApi({
+            port: devices[deviceId].port
+          });
+        } else {
+          await connectPowerSupplyApi({
             port: devices[deviceId].port
           });
         }

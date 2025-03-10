@@ -15,7 +15,7 @@ async def connect_device():
     power_supply_service.device.baudrate = baudrate
     connected = await asyncio.to_thread(power_supply_service.connect)
     if connected:
-        return jsonify({"status": "success", "message": f"已連線至 {port} (baud={baudrate})"}), 200
+        return jsonify({"status": "success", "message": f"已連線至 {port}"}), 200
     else:
         return jsonify({"status": "failure", "message": "連線失敗"}), 400
 
@@ -68,3 +68,33 @@ async def write_current_route():
         return jsonify({"status": "failure", "message": "請提供 current 值"}), 400
     result, status_code = await power_supply_service.write_current(float(current))
     return jsonify(result), status_code
+
+@power_supply_bp.route("/dc1_turn_on", methods=["POST"])
+async def turn_on_dc1():
+    """
+    開啟 DC1
+    """
+    err = await power_supply_service.set_dc1_on()
+    if err == 1:
+        return {"status": "success", "message": "DC1 已開啟"}, 200
+    return {"status": "failure", "message": "DC1 開啟失敗"}, 400
+
+@power_supply_bp.route("/dc1_turn_off", methods=["POST"])
+async def turn_off_dc1():
+    """
+    關閉 DC1
+    """
+    err = await power_supply_service.set_dc1_off()
+    if err == 1:
+        return {"status": "success", "message": "DC1 已關閉"}, 200
+    return {"status": "failure", "message": "DC1 關閉失敗"}, 400
+
+@power_supply_bp.route("/set_clear_error", methods=["POST"])
+async def clear_error():
+    """
+    清除error
+    """
+    err = await power_supply_service.clear_error()
+    if err == 1:
+        return {"status": "success", "message": "error cleared"}, 200
+    return {"status": "failure", "message": "error clear failed"}, 400

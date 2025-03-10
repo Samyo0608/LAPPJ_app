@@ -19,7 +19,6 @@ class SpikService:
 
     def connect(self) -> bool:
         try:
-            # 1️⃣ 嘗試連線到 Serial Port
             self.client = serial.Serial(
                 port=self.device.port,
                 baudrate=self.device.baudrate,
@@ -29,21 +28,26 @@ class SpikService:
                 timeout=self.device.timeout
             )
             self.device.client = self.client
-            print(f"✅ 成功連線到 {self.device.port}")
 
-            # 2️⃣ 嘗試讀取電壓來確認設備
-            voltage, err = self.read_voltage()
+            # 🔹 使用 asyncio.run() 來執行異步讀取電壓
+            voltage_data = asyncio.run(self.read_voltage())  
+            voltage, err = voltage_data  # 解包返回的 (voltage, err) 
+            current_data = asyncio.run(self.read_current())
+            current, err2 = current_data
 
-            # 3️⃣ 確認讀取結果是否有效
-            if err != 1 or voltage is None or voltage < 0 or voltage > 100:
-                print(f"❌ 無法確定設備是否正確 (電壓讀取錯誤: {voltage}, err={err})")
-                self.disconnect()  # 斷開連線
+            if err == 1:  # 讀取成功
+                print(f"已連接 {self.device.port}，確認電壓: {voltage:.2f}V")
+                return True
+            elif err2 == 1:
+                print(f"已連接 {self.device.port}，確認電壓: {current:.2f}A")
+                return True
+            else:  # 讀取失敗
+                print(f"連接 {self.device.port} 但讀取失敗，錯誤碼: {err, err2}")
+                self.client.close()  # 關閉錯誤的 Port
                 return False
 
-            print(f"🔍 已確認設備 (電壓={voltage}V)，連線成功")
-            return True  # 連線成功
         except Exception as e:
-            print("❌ Power supply 連線錯誤:", e)
+            print("Power supply 連線錯誤:", e)
             return False
 
     def disconnect(self) -> bool:
@@ -143,13 +147,13 @@ class SpikService:
             print("❌ 送出封包失敗:", ex)
             return -22
 
-        return 1  # ✅ 寫入成功
+        return 1  # 寫入成功
 
     def spik_read(self, spik_address, valid_range=(0,4000)):
-        """重試最多 5 次讀取"""
-        for _ in range(5):
+        for _ in range(12):
             with self.lock:
                 result, err = self._spik_reading(spik_address)
+                print(result)
             if err == 1 and valid_range[0] <= result <= valid_range[1]:
                 return result, 1
             time_delay(500)
@@ -349,3 +353,13 @@ class SpikService:
         設定運行狀態為 OFF，並指定模式
         """
         return self.spik_write([1, mode, 1])
+
+    async def clear_error(self) -> dict:
+        """
+        清除錯誤狀態 (Clear Error)
+        根據手冊，需寫入 0x03
+        """
+        err = await asyncio.to_thread(self.spik_write, [3, 1, 3])
+        if err == 1:
+            return {"status": "success", "message": "錯誤已清除"}
+        return {"status": "failure", "message": f"清除錯誤失敗，錯誤碼: {err}"}

@@ -26,8 +26,8 @@ import tempfile
 import atexit
 
 class UnbufferedStream:
-    def __init__(self, stream):
-        self.stream = stream
+    def __init__(self, stream, encoding="utf-8"):
+        self.stream = io.TextIOWrapper(stream.buffer, encoding=encoding, errors="replace", newline="\n")
 
     def write(self, data):
         self.stream.write(data)
@@ -39,8 +39,8 @@ class UnbufferedStream:
 sys.stdout = UnbufferedStream(sys.stdout)
 sys.stderr = UnbufferedStream(sys.stderr)
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+# sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+# sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/
 DB_PATH = os.path.join(BASE_DIR, "database.db")
