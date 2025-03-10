@@ -4,7 +4,7 @@ from services.power_supply_services import SpikService
 
 power_supply_service = SpikService()
 
-power_supply_bp = Blueprint("spik", __name__)
+power_supply_bp = Blueprint("power_supply", __name__)
 
 @power_supply_bp.route("/connect", methods=["POST"])
 async def connect_device():

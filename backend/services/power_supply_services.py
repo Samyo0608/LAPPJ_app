@@ -19,6 +19,7 @@ class SpikService:
 
     def connect(self) -> bool:
         try:
+            # 1️⃣ 嘗試連線到 Serial Port
             self.client = serial.Serial(
                 port=self.device.port,
                 baudrate=self.device.baudrate,
@@ -28,9 +29,21 @@ class SpikService:
                 timeout=self.device.timeout
             )
             self.device.client = self.client
-            return True
+            print(f"✅ 成功連線到 {self.device.port}")
+
+            # 2️⃣ 嘗試讀取電壓來確認設備
+            voltage, err = self.read_voltage()
+
+            # 3️⃣ 確認讀取結果是否有效
+            if err != 1 or voltage is None or voltage < 0 or voltage > 100:
+                print(f"❌ 無法確定設備是否正確 (電壓讀取錯誤: {voltage}, err={err})")
+                self.disconnect()  # 斷開連線
+                return False
+
+            print(f"🔍 已確認設備 (電壓={voltage}V)，連線成功")
+            return True  # 連線成功
         except Exception as e:
-            print("Power supply連線錯誤:", e)
+            print("❌ Power supply 連線錯誤:", e)
             return False
 
     def disconnect(self) -> bool:
@@ -52,44 +65,68 @@ class SpikService:
             time_delay(50)
         return err
 
-    def _spik_writing(self, data):
+    def _spik_writing(self, data) -> int:
+        """
+        低層寫入函式，執行 SPIK 寫入流程。
+        支援:
+        - data[0] == 1 → 設定模式 + ON/OFF
+        - data[0] == 2 → 設定時脈
+        - data[0] == 3 → 單一寄存器寫入
+        """
         if self.client is None or not self.client.is_open:
-            print("spik_writing: 串口未開啟")
+            print("❌ 串口未開啟，無法寫入")
             return -99
+
         try:
             self.client.reset_input_buffer()
-            self.client.write(bytes([2]))  # 送出 STX (0x02)
+            self.client.write(bytes([2]))  # 發送 STX (0x02)
         except Exception as ex:
-            print("寫入初始命令錯誤:", ex)
+            print("❌ 發送 STX 錯誤:", ex)
             return -11
 
+        # 等待回應，直到找到 0x16(DLE=22) 或 0x15(NAK=21)
         in_bytes = bytearray()
-        k = 0
-        while True:
-            k += 1
-            if k > 20:
-                return -1
-            start_t = time.time()
-            while self.client.in_waiting == 0 and (time.time()-start_t) < 0.02:
-                time.sleep(0.001)
+        for _ in range(20):
+            time.sleep(0.02)  # 20ms 間隔
             if self.client.in_waiting > 0:
                 in_bytes.extend(self.client.read(self.client.in_waiting))
             if len(in_bytes) > 0 and in_bytes[0] == 21:
-                return -2
+                return -2  # ❌ 收到 NAK
             if 16 in in_bytes:
                 break
 
-        # 以一次寫一筆資料為例 (data[0] == 3)，寫入寄存器數值
-        if data[0] == 3:
-            outbyte2 = bytearray(15)
-            outbyte2[5] = data[1] & 0xFF  # 寄存器位址
+        # 組合 outbyte2 (不同模式)
+        if data[0] == 1:
+            outbyte2 = bytearray(17)  # 設定模式 + ON/OFF
+            outbyte2[5] = 0
+            outbyte2[7] = 2
+            outbyte2[10] = 0
+            outbyte2[11] = data[1] & 0xFF  # 模式
+            outbyte2[12] = 0
+            outbyte2[13] = data[2] & 0xFF  # ON/OFF
+        elif data[0] == 2:
+            outbyte2 = bytearray(21)  # 設定時脈
+            outbyte2[5] = 4
+            outbyte2[7] = 4
+            outbyte2[10] = (data[1] >> 8) & 0xFF
+            outbyte2[11] = data[1] & 0xFF
+            outbyte2[12] = (data[2] >> 8) & 0xFF
+            outbyte2[13] = data[2] & 0xFF
+            outbyte2[14] = (data[3] >> 8) & 0xFF
+            outbyte2[15] = data[3] & 0xFF
+            outbyte2[16] = (data[4] >> 8) & 0xFF
+            outbyte2[17] = data[4] & 0xFF
+        elif data[0] == 3:
+            outbyte2 = bytearray(15)  # 設定單一寄存器
+            outbyte2[5] = data[1] & 0xFF  # 寄存器地址
             outbyte2[7] = 1
             outbyte2[10] = (data[2] >> 8) & 0xFF
             outbyte2[11] = data[2] & 0xFF
         else:
-            print("目前僅支援 data[0] == 3 的寫入")
+            print("❌ 不支援的寫入類型:", data[0])
             return -99
 
+        # 設定固定欄位
         outbyte2[0:5] = bytes([0, 0, 65, 68, 0])
         outbyte2[6] = 0
         outbyte2[8:10] = bytes([0xFF, 0xFF])
@@ -103,36 +140,10 @@ class SpikService:
         try:
             self.client.write(outbyte2)
         except Exception as ex:
-            print("送出封包失敗:", ex)
+            print("❌ 送出封包失敗:", ex)
             return -22
 
-        in_bytes = bytearray()
-        k = 0
-        while True:
-            k += 1
-            if k > 150:
-                print("B04, 脈衝機讀取錯誤")
-                return -3
-            start_t = time.time()
-            while self.client.in_waiting <= 2 and (time.time()-start_t) < 0.02:
-                time.sleep(0.001)
-            if self.client.in_waiting > 2:
-                in_bytes.extend(self.client.read(self.client.in_waiting))
-                if len(in_bytes) > 0 and in_bytes[0] == 21:
-                    print("B03, 脈衝機讀取錯誤")
-                    return -2
-                if (16 in in_bytes) and (2 in in_bytes):
-                    idx16 = in_bytes.index(16)
-                    idx02 = in_bytes.index(2)
-                    if (idx02 - idx16) == 1:
-                        break
-        try:
-            self.client.write(bytes([16]))
-        except Exception as ex:
-            print("傳送 DLE 例外:", ex)
-            return -44
-
-        return 1
+        return 1  # ✅ 寫入成功
 
     def spik_read(self, spik_address, valid_range=(0,4000)):
         """重試最多 5 次讀取"""
@@ -238,6 +249,24 @@ class SpikService:
             return result, -44
 
         return result, 1
+      
+    async def set_clock(self, clock1: int, clock2: int, clock3: int, clock4: int) -> dict:
+        """
+        設定時脈
+        """
+        err = await asyncio.to_thread(self.spik_write, [2, clock1, clock2, clock3, clock4])
+        if err == 1:
+            return {"status": "success", "message": "時脈設定成功"}
+        return {"status": "failure", "message": f"設定時脈失敗，錯誤碼: {err}"}
+      
+    async def write_register(self, register: int, value: int) -> dict:
+        """
+        設定單一寄存器
+        """
+        err = await asyncio.to_thread(self.spik_write, [3, register, value])
+        if err == 1:
+            return {"status": "success", "message": f"寄存器 {register} 設定為 {value}"}
+        return {"status": "failure", "message": f"設定寄存器失敗，錯誤碼: {err}"}
 
     #--------------------------------------------------
     # 應用層函式：讀取 Mode、Voltage、Current
@@ -289,3 +318,34 @@ class SpikService:
         if err == 1:
             return {"status": "success", "message": "寫入成功", "value": internal_value}, 200
         return {"status": "failure", "message": f"寫入失敗，錯誤碼: {err}"}, 400
+      
+    async def set_dc1_on(self) -> int:
+        """
+        這裡假設使用 data[0]=1 表示「設電源模式+ON/OFF」，
+        data[1] 表示模式（例如：1 表示 Bipolar），
+        data[2] 表示 ON/OFF 狀態
+        """
+        # 此處假設使用 data = [1, 1, 1] 來表示「DC1 ON」
+        return self.spik_write([3, 1, 33])
+
+    async def set_dc1_off(self) -> int:
+        """
+        這裡假設使用 data[0]=1 表示「設電源模式+ON/OFF」，
+        data[1] 表示模式（例如：1 表示 Bipolar），
+        data[2] 表示 ON/OFF 狀態
+        """
+        return self.spik_write([3, 1, 32])
+      
+    async def set_running_on(self, mode: int) -> int:
+        """
+        設定運行狀態為 ON，並指定模式
+        mode: 運行模式，例如 0x01 (Bipolar), 0x02 (Unipolar neg), 0x03 (Unipolar pos)
+        """
+        return self.spik_write([1, mode, 2])
+
+
+    async def set_running_off(self, mode: int) -> int:
+        """
+        設定運行狀態為 OFF，並指定模式
+        """
+        return self.spik_write([1, mode, 1])

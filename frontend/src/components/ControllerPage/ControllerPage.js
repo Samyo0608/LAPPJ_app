@@ -9,6 +9,7 @@ import { useCo2LaserContext } from "../../Contexts/Co2LaserContext";
 import { useHeaterContext } from "../../Contexts/HeaterContext";
 import { useUltrasonicContext } from "../../Contexts/UltrasonicContext";
 import { useAzbilContext } from "../../Contexts/AzbilContext";
+import { usePowerSupplyContext } from "../../Contexts/PowerSupplyContext";
 import azbil_code_detail from "./azbil_code_detail.json"
 import AutoConnectModal from "../AutoConnectModal/AutoConnectModal";
 
@@ -31,15 +32,13 @@ const useHooks = () => {
   const { isHeaterOpenState, heaterDetailState, setHeaterDetailState } = useHeaterContext();
   const { isUltrasonicOpenState, ultrasonicOpenFlag, setUltrasonicOpenFlag } = useUltrasonicContext();
   const { isMainGasOpenState, setMainGasDetailState, mainGasDetailState } = useAzbilContext();
+  const { isPowerSupplyOpenState, setPowerSupplyDetailState, powerSupplyDetailState } = usePowerSupplyContext();
   // 主氣資料
   const [mainGasDetail, setMainGasDetail] = useState({});
-  // 主氣流量設定
   const [mainGasFlowSetting, setMainGasFlowSetting] = useState('');
-  // 主氣loading
   const [onMainGasLoading, setOnMainGasLoading] = useState(false);
   // 載氣資料
   const [carrierGasDetail, setCarrierGasDetail] = useState({});
-  // 載器流量設定
   const [carrierGasFlowSetting, setCarrierGasFlowSetting] = useState(0);
   // Recipe資料
   const [recipeDetail, setRecipeDetail] = useState([]);
@@ -55,6 +54,9 @@ const useHooks = () => {
   const [onHeaterSettingLoading, setOnHeaterSettingLoading] = useState(false);
   // 霧化器
   const [onUltrasonicLoading, setOnUltrasonicLoading] = useState(false);
+  // 脈衝電源供應器
+  const [onPowerSupplyLoading, setOnPowerSupplyLoading] = useState(false);
+  const [powerSupplyDetail, setPowerSupplyDetail] = useState({});
   // 其他
   const [alertDetail, setAlertDetail] = React.useState({});
   const [onAutoStartLoading, setOnAutoStartLoading] = React.useState(false);
@@ -93,6 +95,16 @@ const useHooks = () => {
   });
   // Heater溫度監測資料
   const [heaterTemperatureData, setHeaterTemperatureData] = useState({ 
+    history: [],
+    labels: [],
+  });
+  // 脈衝電源供應器電壓監測資料
+  const [powerSupplyVoltageData, setPowerSupplyVoltageData] = useState({
+    history: [],
+    labels: [],
+  });
+  // 脈衝電源供應器電流監測資料
+  const [powerSupplyCurrentData, setPowerSupplyCurrentData] = useState({
     history: [],
     labels: [],
   });
@@ -754,6 +766,45 @@ const useHooks = () => {
       }, 2000);
     }
   }
+
+  // 調整脈衝電源供應器電壓
+  const setPowerSupplyVoltageApi = async (data) => {
+    try {
+      setOnPowerSupplyLoading(true);
+      const response = await getApi("/power_supply/write_voltage", "POST", {
+        voltage: data,
+      });
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnPowerSupplyLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
 
   // 取得Recipe資料 API
   const getRecipeDataApi = async () => {

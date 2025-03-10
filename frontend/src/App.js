@@ -8,6 +8,7 @@ import { Co2LaserProvider } from './Contexts/Co2LaserContext';
 import { HeaterProvider } from './Contexts/HeaterContext';
 import { UltrasonicProvider } from './Contexts/UltrasonicContext';
 import { AzbilProvider } from './Contexts/AzbilContext';
+import { PowerSupplyProvider } from './Contexts/PowerSupplyContext';
 import ControllerPage from './components/ControllerPage/ControllerPage';
 import MfcLaserSetting from './components/MfcLaserSetting/MfcLaserSetting';
 import LabWeb from './components/LabWeb/LabWeb';
@@ -24,17 +25,19 @@ const App = () => {
             <Co2LaserProvider>
                 <HeaterProvider>
                   <UltrasonicProvider>
-                    <Navbar />
-                    <Routes>
-                        <Route index element={<ControllerPage />} />
-                        <Route path='/controllerPage' element={<ControllerPage />} />
-                        <Route path='/mfcLaserSetting' element={<MfcLaserSetting />} />
-                        <Route path='/transmittancePage' element={<TransmittancePage />} />
-                        <Route path='/LabWeb' element={<LabWeb />} />
-                        <Route path='/recipePage' element={<RecipePage />} />
-                        <Route path='/portAutoConnectPage' element={<PortAutoConnectPage />} />
-                        {/* <Route path='*' element={<NoMatch />} /> */}
-                    </Routes>
+                    <PowerSupplyProvider>
+                      <Navbar />
+                      <Routes>
+                          <Route index element={<ControllerPage />} />
+                          <Route path='/controllerPage' element={<ControllerPage />} />
+                          <Route path='/mfcLaserSetting' element={<MfcLaserSetting />} />
+                          <Route path='/transmittancePage' element={<TransmittancePage />} />
+                          <Route path='/LabWeb' element={<LabWeb />} />
+                          <Route path='/recipePage' element={<RecipePage />} />
+                          <Route path='/portAutoConnectPage' element={<PortAutoConnectPage />} />
+                          {/* <Route path='*' element={<NoMatch />} /> */}
+                      </Routes>
+                    </PowerSupplyProvider>
                   </UltrasonicProvider>
                 </HeaterProvider>
             </Co2LaserProvider>

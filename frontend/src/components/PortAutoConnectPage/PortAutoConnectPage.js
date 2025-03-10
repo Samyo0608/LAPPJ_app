@@ -8,6 +8,7 @@ import { useCo2LaserContext } from '../../Contexts/Co2LaserContext';
 import { useHeaterContext } from '../../Contexts/HeaterContext';
 import { useUltrasonicContext } from '../../Contexts/UltrasonicContext';
 import { useAzbilContext } from '../../Contexts/AzbilContext';
+import { usePowerSupplyContext } from '../../Contexts/PowerSupplyContext';
 
 const useHooks = () => {
   const deviceConnectedRef = React.useRef({});
@@ -26,6 +27,9 @@ const useHooks = () => {
   const {
     isMainGasOpenState, setIsMainGasOpenState, mainGasPortAndAddressState, setMainGasPortAndAddressState
   } = useAzbilContext();
+  const {
+    setPowerSupplyDetailState, isPowerSupplyOpenState, setIsPowerSupplyOpenState, powerSupplyPortState, setPowerSupplyPortState
+  } = usePowerSupplyContext();
 
   // 設備列表
   const deviceList = React.useMemo(() => [
@@ -47,7 +51,7 @@ const useHooks = () => {
     {
       id: 'powerSupply',
       name: '電漿電源供應器',
-      requiresAddress: true,
+      requiresAddress: false,
     },
     {
       id: 'heater',
@@ -66,7 +70,7 @@ const useHooks = () => {
     mainGas: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
     carrierGas: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'],
     co2Laser: [],
-    powerSupply: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+    powerSupply: [],
     heater: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
     ultrasonic: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
   }
@@ -490,6 +494,82 @@ const useHooks = () => {
     }
   };
 
+  // 連線PowerSupply api
+  const connectPowerSupplyApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        powerSupply: {
+          ...prev.powerSupply,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/power_supply/connect', 'POST', data, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        deviceConnectedRef.current = {
+          ...deviceConnectedRef.current,
+          powerSupply: true
+        };
+
+        setAlertDetail({
+          show: true,
+          message: response.data.message || 'PowerSupply連線成功',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          powerSupply: {
+            ...prev.powerSupply,
+            connected: true,
+            loading: false,
+            port: data.port,
+            selected: true
+          }
+        }));
+
+        setPowerSupplyPortState({
+          port: data.port
+        });
+
+        setIsPowerSupplyOpenState(true);
+        setPowerSupplyDetailState(response.data.data);
+        return response;
+      } else {
+        deviceConnectedRef.current.powerSupply = false;
+      }
+    } catch (error) {
+      console.error('PowerSupply 連線錯誤:', error);
+      deviceConnectedRef.current.powerSupply = false;
+      setDevices(prev => ({
+        ...prev,
+        powerSupply: {
+          ...prev.powerSupply,
+          loading: false
+        }
+      }));
+
+      setAlertDetail({
+        show: true,
+        message: 'PowerSupply連線過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setDevices(prev => ({
+        ...prev,
+        powerSupply: {
+          ...prev.powerSupply,
+          loading: false
+        }
+      }));
+      setTimeout(() => {
+        setAlertDetail(prev => ({ ...prev, show: false }));
+      }, 1000);
+    }
+  };
+
   // 自動連線 functrion
   const autoConnectApi = async () => {
     setIsAutoConnecting(true);
@@ -726,6 +806,27 @@ const useHooks = () => {
                   break;
                 }
               }
+
+              if (device.id === 'powerSupply') {
+                await connectPowerSupplyApi({
+                  port: portInfo.port
+                });
+
+                if (deviceConnectedRef.current['powerSupply']) {
+                  deviceConnected = true;
+                  usedPorts.add(portInfo.port);
+                  
+                  setConnectionResults(prev => [{
+                    deviceId: device.id,
+                    deviceName: device.name,
+                    message: `連接成功 Port: ${portInfo.port}`,
+                    timestamp: new Date().toLocaleTimeString(),
+                    success: true
+                  }, ...prev]);
+                  break;
+                }
+              }
+
             } catch (error) {
               console.error(`連接失敗:`, error);
               setConnectionResults(prev => [{
@@ -1119,6 +1220,73 @@ const useHooks = () => {
     }
   };
 
+  // disconnect power supply device
+  const disconnectPowerSupplyApi = async (data) => {
+    try {
+      setDevices(prev => ({
+        ...prev,
+        powerSupply: {
+          ...prev.powerSupply,
+          loading: true
+        }
+      }));
+
+      const response = await getApi('/power_supply/disconnect', 'POST', data, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        setAlertDetail({
+          show: true,
+          message: '脈衝電源控制器已取消連線',
+          type: 'success'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          powerSupply: {
+            ...prev.powerSupply,
+            connected: false,
+            loading: false
+          }
+        }));
+
+        setIsPowerSupplyOpenState(false);
+      } else {
+        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: '脈衝電源控制器取消連線失敗',
+          type: 'failure'
+        });
+
+        setDevices(prev => ({
+          ...prev,
+          powerSupply: {
+            ...prev.powerSupply,
+            loading: false
+          }
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      setDevices(prev => ({
+        ...prev,
+        powerSupply: {
+          ...prev.powerSupply,
+          loading: false
+        }
+      }));
+      setAlertDetail({
+        show: true,
+        message: '脈衝電源控制器取消連線過程發生錯誤',
+        type: 'failure'
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail(prev => ({ ...prev, show: false }));
+      }, 1000);
+    }
+  };
+
   // 斷開所有設備連接
   const disconnectAllDevicesApi = async () => {
     try {
@@ -1160,6 +1328,13 @@ const useHooks = () => {
               await disconnectUltraSonicApi({
                 port: devices[device.id].port,
                 address: devices[device.id].address
+              });
+            }
+            break;
+          case 'powerSupply':
+            if (isPowerSupplyOpenState) {
+              await disconnectPowerSupplyApi({
+                port: devices[device.id].port
               });
             }
             break;
@@ -1266,7 +1441,7 @@ const useHooks = () => {
   const handleAutoConnect = async () => {
     if (isAutoConnecting) return;
 
-    if (isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isMainGasOpenState) {
+    if (isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isMainGasOpenState || isPowerSupplyOpenState) {
       const result = window.confirm('已有設備連接，是否要斷開現有連接再進行自動連接？');
       if (!result) return;
       await disconnectAllDevicesApi();
@@ -1351,6 +1526,18 @@ const useHooks = () => {
       }));
     }
 
+    if (isPowerSupplyOpenState || powerSupplyPortState?.port) {
+      setDevices(prev => ({
+        ...prev,
+        powerSupply: {
+          ...prev.powerSupply,
+          port: powerSupplyPortState.port,
+          connected: isPowerSupplyOpenState,
+          selected: isPowerSupplyOpenState
+        }
+      }));
+    }
+
     if (isHeaterOpenState || heaterPortAndAddressState?.port || heaterPortAndAddressState?.address) {
       setDevices(prev => ({
         ...prev,
@@ -1376,7 +1563,9 @@ const useHooks = () => {
         }
       }));
     }
-  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState, heaterPortAndAddressState, isHeaterOpenState, ultrasonicPortAndAddressState, isUltrasonicOpenState, mainGasPortAndAddressState, isMainGasOpenState]);
+  }, [carrierGasPortandAddressState, co2LaserPortState, isCarrierGasOpenState, isCo2LaserOpenState,
+    heaterPortAndAddressState, isHeaterOpenState, ultrasonicPortAndAddressState, isUltrasonicOpenState, mainGasPortAndAddressState,
+    isMainGasOpenState, powerSupplyPortState, isPowerSupplyOpenState]);
 
   useEffect(() => {
     getPortsListApi();
@@ -1397,6 +1586,7 @@ const useHooks = () => {
     isHeaterOpenState,
     isUltrasonicOpenState,
     isMainGasOpenState,
+    isPowerSupplyOpenState,
     setIpAddress,
     handleConnect,
     handleAutoConnect,
@@ -1410,7 +1600,7 @@ const useHooks = () => {
 const PortAutoConnectPage = () => {
   const {
     deviceList, devices, ipAddress, isAutoConnecting, connectionResults, usefulPorts, alertDetail, isCarrierGasOpenState, isCo2LaserOpenState,
-    isHeaterOpenState, isUltrasonicOpenState, isMainGasOpenState,
+    isHeaterOpenState, isUltrasonicOpenState, isMainGasOpenState, isPowerSupplyOpenState,
     setIpAddress, handleConnect, handleAutoConnect, toggleDeviceSelection, setAlertDetail,
     onPortOrAddressChange
   } = useHooks();
@@ -1474,7 +1664,7 @@ const PortAutoConnectPage = () => {
                     checked={devices[device.id]?.selected}
                     onChange={() => toggleDeviceSelection(device.id)}
                     label={device.name}
-                    disabled={isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isMainGasOpenState}
+                    disabled={isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isMainGasOpenState || isPowerSupplyOpenState}
                   />
                   <Label
                     htmlFor={device.id}
@@ -1487,7 +1677,7 @@ const PortAutoConnectPage = () => {
             }
           </div>
           {
-            isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isMainGasOpenState ? (
+            isCarrierGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isMainGasOpenState || isPowerSupplyOpenState ? (
             <Button
               onClick={handleAutoConnect}
               disabled={isAutoConnecting}
