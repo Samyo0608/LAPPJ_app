@@ -12,10 +12,10 @@ import { useAzbilContext } from "../../Contexts/AzbilContext";
 import azbil_code_detail from "./azbil_code_detail.json"
 
 // Button Component
-const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen }) => (
+const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen, gradientMonochrome }) => (
   <Button
     className={`${otherCss} text-sm border rounded max-w-72`}
-    color={isOpen ? "purple" : "blue"}
+    gradientMonochrome={isOpen ? "purple" : gradientMonochrome}
     size="sm"
     onClick={onClick}
     disabled={isDisabled || loading}
@@ -365,9 +365,17 @@ const useHooks = () => {
   // 修改載氣流量 API
   const setCarrierGasFlowApi = async (data) => {
     try {
-      const response = await getApi("/alicat_api/set_flow_rate", "POST", {
-        flow_rate: data || carrierGasFlowSetting,
-      });
+      let response = {};
+
+      if (Number(data)) {
+        response = await getApi("/alicat_api/set_flow_rate", "POST", {
+          flow_rate: data,
+        });
+      } else {
+        response = await getApi("/alicat_api/set_flow_rate", "POST", {
+          flow_rate: carrierGasFlowSetting,
+        });
+      }
   
       if (response?.data?.status === "success") {
         setAlertDetail({
@@ -1293,7 +1301,7 @@ const ControllerPage = () => {
                   onClick={onMainGasFlowSettingClick}
                   isDisabled={!isMainGasOpenState}
                   loading={onMainGasLoading}
-                  otherCss={"bg-green-500"}
+                  gradientMonochrome="lime"
                 />
                 <ButtonComponent
                   label="閥門控制"
@@ -1301,6 +1309,7 @@ const ControllerPage = () => {
                   isDisabled={!isMainGasOpenState}
                   loading={onMainGasLoading}
                   isOpen={mainGasDetail?.GATE_CONTROL === 1}
+                  gradientMonochrome="teal"
                 />
                 <ButtonComponent
                   label="閥門全開"
@@ -1308,12 +1317,15 @@ const ControllerPage = () => {
                   isDisabled={!isMainGasOpenState}
                   loading={onMainGasLoading}
                   isOpen={mainGasDetail?.GATE_CONTROL === 2}
+                  gradientMonochrome="teal"
                 />
                 <ButtonComponent
                   label="閥門關閉"
                   onClick={() => onMainGasClick("close")}
                   isDisabled={!isMainGasOpenState}
                   loading={onMainGasLoading}
+                  isOpen={mainGasDetail?.GATE_CONTROL === 0}
+                  gradientMonochrome="teal"
                 />
               </div>
               <div className="mb-2 flex justify-center items-center gap-2 flex-wrap mt-2">
@@ -1345,6 +1357,7 @@ const ControllerPage = () => {
                 onClick={resetMainGasTotalFlowApi}
                 isDisabled={!isMainGasOpenState}
                 loading={onMainGasLoading}
+                gradientMonochrome="teal"
               />
             </div>
             {/* 載氣流量設定 */}
@@ -1409,7 +1422,7 @@ const ControllerPage = () => {
                 label="流量設定"
                 onClick={onCarrierFlowSettingClick}
                 isDisabled={!isCarrierGasOpenState}
-                otherCss={"bg-green-500"}
+                gradientMonochrome="lime"
               />
               <div className="mb-2 flex justify-center items-center gap-2 flex-wrap mt-2">
                   <span className="text-sm w-40">目前流量設定值 (僅顯示)</span>
@@ -1470,6 +1483,7 @@ const ControllerPage = () => {
               onClick={setHeaterTemperatureApi}
               loading={onHeaterSettingLoading}
               isDisabled={!isHeaterOpenState}
+              gradientMonochrome="lime"
               />
           </div>
         </div>
@@ -1500,7 +1514,7 @@ const ControllerPage = () => {
                 onClick={setCo2LaserPowerApi}
                 isDisabled={!isCo2LaserOpenState}
                 loading={onLaserOpenLoading}
-                otherCss="bg-green-500"
+                gradientMonochrome="lime"
               />
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前PWM (僅顯示)</span>
@@ -1524,12 +1538,14 @@ const ControllerPage = () => {
                   onClick={() => setCo2LaserOpenState(true)}
                   loading={onLaserOpenLoading}
                   isOpen={co2LaserDetail?.laser_on}
+                  gradientMonochrome="teal"
                 />
                 <ButtonComponent
                   label="OFF" 
                   isDisabled={!isCo2LaserOpenState || !co2LaserDetail?.laser_on}
                   onClick={() => setCo2LaserOpenState(false)}
                   loading={onLaserOpenLoading}
+                  gradientMonochrome="teal"
                 />
               </div>
             </div>
@@ -1546,12 +1562,14 @@ const ControllerPage = () => {
                   isOpen={ultrasonicOpenFlag}
                   isDisabled={!isUltrasonicOpenState || ultrasonicOpenFlag}
                   loading={onUltrasonicLoading}
+                  gradientMonochrome="teal"
                 />
                 <ButtonComponent
                   label="OFF"
                   onClick={setUltrasonicClose}
                   isDisabled={!isUltrasonicOpenState || !ultrasonicOpenFlag}
                   loading={onUltrasonicLoading}
+                  gradientMonochrome="teal"
                 />
               </div>
             </div>
@@ -1586,6 +1604,7 @@ const ControllerPage = () => {
               <ButtonComponent
                 label="Voltage設定"
                 otherCss="bg-green-500 mt-2"
+                gradientMonochrome="teal"
               />
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前DC1電流值 (PV)</span>
@@ -1601,17 +1620,19 @@ const ControllerPage = () => {
               <div className="flex justify-center items-center gap-2 mt-2 flex-wrap">
                 <ButtonComponent
                   label="DC1 升壓"
+                  gradientMonochrome="teal"
                 />
                 <ButtonComponent
                   label="DC1 降壓"
+                  gradientMonochrome="teal"
                 />
                 <ButtonComponent
                   label="Power開啟"
-                  otherCss={"bg-red-500"}
+                  gradientMonochrome="pink"
                 />
                 <ButtonComponent
                   label="Power關閉"
-                  otherCss={"bg-red-500"}
+                  gradientMonochrome="pink"
                 />
               </div>
             </div>
@@ -1728,6 +1749,7 @@ const ControllerPage = () => {
                   otherCss="w-full max-w-md"
                   onClick={onRecipeApplyClick}
                   isDisabled={!isCarrierGasOpenState && !isMainGasOpenState && !isCo2LaserOpenState && !isHeaterOpenState && !isUltrasonicOpenState}
+                  gradientMonochrome="teal"
                 />
               </div>
             </div>
@@ -1748,6 +1770,7 @@ const ControllerPage = () => {
               otherCss="w-full max-w-md"
               isDisabled={!isCarrierGasOpenState && !isMainGasOpenState && !isCo2LaserOpenState && !isHeaterOpenState && !isUltrasonicOpenState}
               loading={onAutoStartLoading}
+              gradientMonochrome="teal"
             />
           </div>
           {/* 一鍵全部關閉 */}
@@ -1766,6 +1789,7 @@ const ControllerPage = () => {
               otherCss="w-full max-w-md"
               isDisabled={!isCarrierGasOpenState && !isMainGasOpenState && !isCo2LaserOpenState && !isHeaterOpenState && !isUltrasonicOpenState}
               loading={onAutoStartLoading}
+              gradientMonochrome="teal"
             />
           </div>
         </div>
