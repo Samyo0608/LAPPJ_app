@@ -98,3 +98,33 @@ async def clear_error():
     if err == 1:
         return {"status": "success", "message": "error cleared"}, 200
     return {"status": "failure", "message": "error clear failed"}, 400
+
+@power_supply_bp.route("/power_on", methods=["POST"])
+async def power_on():
+    """
+    開啟電源
+    """
+    err = await power_supply_service.set_running_on()
+    if err == 1:
+        return {"status": "success", "message": "電源已開啟"}, 200
+    return {"status": "failure", "message": "電源開啟失敗"}, 400
+
+@power_supply_bp.route("/power_off", methods=["POST"])
+async def power_off():
+    """
+    開啟電源
+    """
+    err = await power_supply_service.set_running_off()
+    if err == 1:
+        return {"status": "success", "message": "電源已開啟"}, 200
+    return {"status": "failure", "message": "電源開啟失敗"}, 400
+
+@power_supply_bp.route("/status", methods=["GET"])
+async def status():
+    """
+    讀取電源狀態
+    """
+    status, err = await power_supply_service.read_status()
+    if err == 1:
+        return {"status": "success", "status": status}, 200
+    return {"status": "failure", "message": f"讀取電源狀態失敗，錯誤碼: {err}"}, 400

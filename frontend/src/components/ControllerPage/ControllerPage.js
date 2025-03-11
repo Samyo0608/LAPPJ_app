@@ -32,7 +32,8 @@ const useHooks = () => {
   const { isHeaterOpenState, heaterDetailState, setHeaterDetailState } = useHeaterContext();
   const { isUltrasonicOpenState, ultrasonicOpenFlag, setUltrasonicOpenFlag } = useUltrasonicContext();
   const { isMainGasOpenState, setMainGasDetailState, mainGasDetailState } = useAzbilContext();
-  const { isPowerSupplyOpenState, setPowerSupplyDetailState, powerSupplyDetailState } = usePowerSupplyContext();
+  const { isPowerSupplyOpenState } = usePowerSupplyContext();
+  // const { isPowerSupplyOpenState, setPowerSupplyDetailState, powerSupplyDetailState } = usePowerSupplyContext();
   // 主氣資料
   const [mainGasDetail, setMainGasDetail] = useState({});
   const [mainGasFlowSetting, setMainGasFlowSetting] = useState('');
@@ -56,7 +57,8 @@ const useHooks = () => {
   const [onUltrasonicLoading, setOnUltrasonicLoading] = useState(false);
   // 脈衝電源供應器
   const [onPowerSupplyLoading, setOnPowerSupplyLoading] = useState(false);
-  const [powerSupplyDetail, setPowerSupplyDetail] = useState({});
+  // const [powerSupplyDetail, setPowerSupplyDetail] = useState({});
+  const [powerSupplyVoltage, setPowerSupplyVoltage] = useState(0);
   // 其他
   const [alertDetail, setAlertDetail] = React.useState({});
   const [onAutoStartLoading, setOnAutoStartLoading] = React.useState(false);
@@ -99,15 +101,15 @@ const useHooks = () => {
     labels: [],
   });
   // 脈衝電源供應器電壓監測資料
-  const [powerSupplyVoltageData, setPowerSupplyVoltageData] = useState({
-    history: [],
-    labels: [],
-  });
-  // 脈衝電源供應器電流監測資料
-  const [powerSupplyCurrentData, setPowerSupplyCurrentData] = useState({
-    history: [],
-    labels: [],
-  });
+  // const [powerSupplyVoltageData, setPowerSupplyVoltageData] = useState({
+  //   history: [],
+  //   labels: [],
+  // });
+  // // 脈衝電源供應器電流監測資料
+  // const [powerSupplyCurrentData, setPowerSupplyCurrentData] = useState({
+  //   history: [],
+  //   labels: [],
+  // });
 
   // 取得主氣資料 API
   const getMainGasDataApi = React.useCallback(async () => {
@@ -806,6 +808,117 @@ const useHooks = () => {
     }
   };
 
+  // 脈衝電源供應器DC1升壓
+  const setPowerSupplyDC1BoostApi = async () => {
+    try {
+      setOnPowerSupplyLoading(true);
+      const response = await getApi("/power_supply/dc1_turn_on", "POST");
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnPowerSupplyLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
+
+  // 脈衝電源供應器DC1降壓
+  const setPowerSupplyDC1BuckApi = async () => {
+    try {
+      setOnPowerSupplyLoading(true);
+      const response = await getApi("/power_supply/dc1_turn_off", "POST");
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnPowerSupplyLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
+
+  // 清除脈衝電源供應器Error code
+  const clearPowerSupplyErrorCodeApi = async () => {
+    try {
+      setOnPowerSupplyLoading(true);
+      const response = await getApi("/power_supply/set_clear_error", "POST");
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnPowerSupplyLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
+
   // 取得Recipe資料 API
   const getRecipeDataApi = async () => {
     const response = await getApi("/recipe_api/get_recipes", "GET");
@@ -836,6 +949,51 @@ const useHooks = () => {
   const onMainGasFlowSettingClick = () => {
     setMainGasFlowApi();
   }
+
+  // 脈衝電源供應器電壓設定的Click事件
+  const onPowerSupplyVoltageClick = () => {
+    let voltage = Number(powerSupplyVoltage);
+    try {
+      if (voltage < 0) {
+        setAlertDetail({
+          show: true,
+          message: "電壓不可小於0",
+          type: "failure",
+        });
+        return;
+      }
+      if (voltage > 1000) {
+        setAlertDetail({
+          show: true,
+          message: "電壓不可大於1000",
+          type: "failure",
+        });
+        return;
+      }
+      if (voltage % 1 !== 0) {
+        setAlertDetail({
+          show: true,
+          message: "電壓只能輸入整數",
+          type: "failure",
+        });
+        return;
+      }
+      setPowerSupplyVoltageApi(powerSupplyVoltage);
+    } catch {
+      setAlertDetail({
+        show: true,
+        message: "電壓輸入錯誤",
+        type: "failure",
+      });
+    } finally {
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
 
   // 主氣閥門(控制、全開、關閉)的Click事件
   const onMainGasClick = async (type) => {
@@ -1232,6 +1390,9 @@ const useHooks = () => {
     onUltrasonicLoading,
     isUltrasonicOpenState,
     ultrasonicOpenFlag,
+    powerSupplyVoltage,
+    isPowerSupplyOpenState,
+    onPowerSupplyLoading,
     alertDetail,
     onAutoStartLoading,
     onMainGasClick,
@@ -1250,6 +1411,11 @@ const useHooks = () => {
     setHeaterTemperatureApi,
     setUltrasonicOpen,
     setUltrasonicClose,
+    setPowerSupplyVoltage,
+    onPowerSupplyVoltageClick,
+    clearPowerSupplyErrorCodeApi,
+    setPowerSupplyDC1BoostApi,
+    setPowerSupplyDC1BuckApi,
     onAutoStartClick,
     onAllCloseClick,
   };
@@ -1261,9 +1427,10 @@ const ControllerPage = () => {
     isCarrierGasOpenState, carrierGasDetail, carrierGasFlowData, carrierGasFlowSetting, carrierGasPressureData, carrierGasTemperatureData,
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
     alertDetail, temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, onUltrasonicLoading, isUltrasonicOpenState, ultrasonicOpenFlag,
-    onAutoStartLoading, onMainGasClick, onMainGasFlowSettingChange, onMainGasFlowSettingClick, resetMainGasTotalFlowApi,
-    onCarrierFlowSettingChange, onCarrierFlowSettingClick, onRecipeSelect, onRecipeApplyClick,
-    setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM,
+    onAutoStartLoading, powerSupplyVoltage, isPowerSupplyOpenState, onPowerSupplyLoading,
+    onMainGasClick, onMainGasFlowSettingChange, onMainGasFlowSettingClick, resetMainGasTotalFlowApi,
+    onCarrierFlowSettingChange, onCarrierFlowSettingClick, onRecipeSelect, onRecipeApplyClick, setPowerSupplyDC1BoostApi, setPowerSupplyDC1BuckApi,
+    setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM, onPowerSupplyVoltageClick, setPowerSupplyVoltage, clearPowerSupplyErrorCodeApi,
     onAlertClose, setTemperature, setHeaterTemperatureApi, setUltrasonicOpen, setUltrasonicClose,
     onAutoStartClick, onAllCloseClick,
   } = useHooks();
@@ -1358,6 +1525,7 @@ const ControllerPage = () => {
                       !isMainGasOpenState && "bg-gray-50"
                     } p-1 border rounded w-32`}
                     onChange={onMainGasFlowSettingChange}
+                    placeholder="請輸入流量(0.000)"
                   />
                   <span className="text-md w-4">{mainGasDetail?.FLOW_UNIT || "slm"}</span>
                 </div>
@@ -1370,30 +1538,34 @@ const ControllerPage = () => {
                   loading={onMainGasLoading}
                   gradientMonochrome="lime"
                 />
-                <ButtonComponent
-                  label="閥門控制"
-                  onClick={() => onMainGasClick("open")}
-                  isDisabled={!isMainGasOpenState}
-                  loading={onMainGasLoading}
-                  isOpen={mainGasDetail?.GATE_CONTROL === 1}
-                  gradientMonochrome="teal"
-                />
-                <ButtonComponent
-                  label="閥門全開"
-                  onClick={() => onMainGasClick("fullOpen")}
-                  isDisabled={!isMainGasOpenState}
-                  loading={onMainGasLoading}
-                  isOpen={mainGasDetail?.GATE_CONTROL === 2}
-                  gradientMonochrome="teal"
-                />
-                <ButtonComponent
-                  label="閥門關閉"
-                  onClick={() => onMainGasClick("close")}
-                  isDisabled={!isMainGasOpenState}
-                  loading={onMainGasLoading}
-                  isOpen={mainGasDetail?.GATE_CONTROL === 0}
-                  gradientMonochrome="teal"
-                />
+                <div
+                  className="flex justify-center items-center gap-2 flex-wrap"
+                >
+                  <ButtonComponent
+                    label="閥門控制"
+                    onClick={() => onMainGasClick("open")}
+                    isDisabled={!isMainGasOpenState}
+                    loading={onMainGasLoading}
+                    isOpen={mainGasDetail?.GATE_CONTROL === 1}
+                    gradientMonochrome="teal"
+                  />
+                  <ButtonComponent
+                    label="閥門全開"
+                    onClick={() => onMainGasClick("fullOpen")}
+                    isDisabled={!isMainGasOpenState}
+                    loading={onMainGasLoading}
+                    isOpen={mainGasDetail?.GATE_CONTROL === 2}
+                    gradientMonochrome="teal"
+                  />
+                  <ButtonComponent
+                    label="閥門關閉"
+                    onClick={() => onMainGasClick("close")}
+                    isDisabled={!isMainGasOpenState}
+                    loading={onMainGasLoading}
+                    isOpen={mainGasDetail?.GATE_CONTROL === 0}
+                    gradientMonochrome="teal"
+                  />
+                </div>
               </div>
               <div className="mb-2 flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前流量設定值 (僅顯示)</span>
@@ -1509,13 +1681,14 @@ const ControllerPage = () => {
             <h3 className="font-bold">溫度控制器</h3>
             <h3 className="font-bold mb-2">(Heater)</h3>
             <div className="flex items-center gap-2 flex-wrap justify-center mb-2">
-              <span className="text-sm w-40">設定溫度</span>
+              <span className="text-sm w-40">溫度設定</span>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="number"
                   value={temperature}
                   onChange={(e) => setTemperature(e.target.value)}
                   className="p-1 border rounded w-32"
+                  placeholder="請輸入溫度(0.0)"
                 />
                 <span className="text-sm w-4">°C</span>
               </div>
@@ -1569,7 +1742,7 @@ const ControllerPage = () => {
                     type="number"
                     value={laserPWM}
                     onChange={(e) => setLaserPWM(e.target.value)}
-                    placeholder="0"
+                    placeholder="請輸入百分比(0.5為單位)"
                     className="p-1 border rounded w-32"
                     disabled={!isCo2LaserOpenState}
                   />
@@ -1646,6 +1819,26 @@ const ControllerPage = () => {
             <div className="border p-4 border-green-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">Power supply</h3>
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">目前錯誤資訊</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    className="p-1 border rounded bg-gray-50 w-32"
+                    readOnly
+                    placeholder="- -"
+                  />
+                  <span className="text-sm w-4" />
+                </div>
+              </div>
+              <ButtonComponent
+                label="清除錯誤"
+                otherCss="bg-green-500 mt-2"
+                gradientMonochrome="failure"
+                onClick={clearPowerSupplyErrorCodeApi}
+                loading={onPowerSupplyLoading}
+                disabled={!isPowerSupplyOpenState}
+              />
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前DC1電壓值 (PV)</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
@@ -1662,16 +1855,22 @@ const ControllerPage = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="number"
-                    placeholder="0"
-                    className="p-1 border rounded bg-gray-50 w-32"
+                    className="p-1 border rounded w-32"
+                    value={powerSupplyVoltage}
+                    onChange={(e) => setPowerSupplyVoltage(e.target.value)}
+                    placeholder="請輸入整數"
+                    disabled={!isPowerSupplyOpenState}
                   />
                   <span className="text-sm w-4">V</span>
                 </div>
               </div>
               <ButtonComponent
-                label="Voltage設定"
+                label="電壓設定"
                 otherCss="bg-green-500 mt-2"
                 gradientMonochrome="teal"
+                onClick={onPowerSupplyVoltageClick}
+                isDisabled={!isPowerSupplyOpenState}
+                loading={onPowerSupplyLoading}
               />
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前DC1電流值 (PV)</span>
@@ -1680,6 +1879,7 @@ const ControllerPage = () => {
                     type="number"
                     placeholder="0"
                     className="p-1 border rounded bg-gray-50 w-32"
+                    readOnly
                   />
                   <span className="text-sm w-4">A</span>
                 </div>
@@ -1688,19 +1888,29 @@ const ControllerPage = () => {
                 <ButtonComponent
                   label="DC1 升壓"
                   gradientMonochrome="teal"
+                  onClick={setPowerSupplyDC1BoostApi}
+                  isDisabled={!isPowerSupplyOpenState}
+                  loading={onPowerSupplyLoading}
                 />
                 <ButtonComponent
                   label="DC1 降壓"
                   gradientMonochrome="teal"
+                  onClick={setPowerSupplyDC1BuckApi}
+                  isDisabled={!isPowerSupplyOpenState}
+                  loading={onPowerSupplyLoading}
                 />
-                <ButtonComponent
-                  label="Power開啟"
-                  gradientMonochrome="pink"
-                />
-                <ButtonComponent
-                  label="Power關閉"
-                  gradientMonochrome="pink"
-                />
+                <div
+                  className="flex justify-center items-center gap-2 flex-wrap"
+                >
+                  <ButtonComponent
+                    label="Power開啟"
+                    gradientMonochrome="pink"
+                  />
+                  <ButtonComponent
+                    label="Power關閉"
+                    gradientMonochrome="pink"
+                  />
+                </div>
               </div>
             </div>
           </div>
