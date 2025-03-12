@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, Button, Label, Select, TextInput, Progress, Timeline } from 'flowbite-react';
-import { HiCheck } from 'react-icons/hi';
+import { HiCheck, HiTrash  } from 'react-icons/hi';
 
 const ControllerSettingModal = ({ show, onClose }) => {
   const [currentStep, setCurrentStep] = useState('settings'); // 'settings' or 'progress'
@@ -9,11 +9,22 @@ const ControllerSettingModal = ({ show, onClose }) => {
   const [executedSteps, setExecutedSteps] = useState([]);
 
   const availableSteps = [
-    { id: 'laser', name: '開啟雷射', value: 'laser' },
-    { id: 'power', name: '設定功率', value: 'power', needsValue: true },
-    { id: 'carrier', name: '開啟 Carrier gas', value: 'carrier' },
-    { id: 'main', name: '開啟 Main gas', value: 'main' },
-    { id: 'powerSupply', name: '開啟 Power supply', value: 'powerSupply' },
+    { id: 'laserOn', name: '開啟雷射', value: 'laserOn' },
+    { id: 'laserOff', name: '關閉雷射', value: 'laserOff' },
+    { id: 'laserPower', name: '設定功率', value: 'laserPower', needsValue: true },
+    { id: 'carrierGasOn', name: '開啟載氣', value: 'carrierGasOn' },
+    { id: 'carrierGasOff', name: '關閉載氣', value: 'carrierGasOff' },
+    { id: 'carrierGasValue', name: '調整載氣流量', value: 'carrierGasValue', needsValue: true },
+    { id: 'mainGasOn', name: '開啟主氣', value: 'mainGasOn' },
+    { id: 'mainGasOff', name: '關閉主氣', value: 'mainGasOff' },
+    { id: 'mainGasValue', name: '調整主氣流量', value: 'mainGasValue', needsValue: true },
+    { id: 'powerSupplyOn', name: '開啟脈衝電源控制器', value: 'powerSupplyOn' },
+    { id: 'powerSupplyOff', name: '關閉脈衝電源控制器', value: 'powerSupplyOff' },
+    { id: 'powerSupplyDc1Value', name: '調整脈衝-DC1電壓', value: 'powerSupplyDc1Value', needsValue: true },
+    { id: 'dc1On', name: 'DC1升壓', value: 'dc1On' },
+    { id: 'dc1Off', name: 'DC1降壓', value: 'dc1Off' },
+    { id: 'ultrasonicOn', name: '開啟霧化器', value: 'ultrasonicOn' },
+    { id: 'ultrasonicOff', name: '關閉霧化器', value: 'ultrasonicOff' },
     { id: 'wait', name: '等待時間', value: 'wait', needsValue: true },
   ];
 
@@ -75,7 +86,22 @@ const ControllerSettingModal = ({ show, onClose }) => {
         {currentStep === 'settings' ? (
           <div className="space-y-4">
             {selectedSteps.map((step, index) => (
-              <div key={index} className="flex gap-4">
+              <div key={index} className="flex gap-4 items-center">
+                <Label
+                  className='w-12'
+                >
+                  步驟 {index + 1}
+                </Label>
+                <Button
+                  color="none"
+                  onClick={() => setSelectedSteps(selectedSteps.filter((_, i) => i !== index))}
+                  className='w-12'
+                >
+                  <HiTrash
+                    className="text-xl text-red-500 cursor-pointer"
+                    style={{ verticalAlign: 'middle' }}
+                  />
+                </Button>
                 <Select
                   className="flex-1"
                   value={step.type}
@@ -115,13 +141,12 @@ const ControllerSettingModal = ({ show, onClose }) => {
                 </Label>
               </div>
             </div>
-            
-            <div className="h-[300px] overflow-y-auto x-auto">
-              <Timeline>
+            <div className="max-h-[300px] overflow-y-auto relative">
+              <Timeline className='px-2'>
                 {executedSteps.map((step, index) => (
                   <Timeline.Item key={index} className="pb-4">
-                    <Timeline.Point icon={HiCheck} />
-                    <Timeline.Content>
+                    <Timeline.Point icon={HiCheck} className='absolute' />
+                    <Timeline.Content className="ml-6">
                       <Timeline.Title>
                         {availableSteps.find(s => s.value === step.type)?.name}
                       </Timeline.Title>
@@ -150,18 +175,35 @@ const ControllerSettingModal = ({ show, onClose }) => {
           </div>
         ) : (
           <div
-            className="flex gap-2"
-            style={{ visibility: currentProgress === 100 ? 'visible' : 'hidden' }}
+            className="flex gap-2 justify-between w-full"
           >
-            <Button color="gray" onClick={() => setCurrentStep("settings")}>
-              返回設定
-            </Button>
-            <Button color="gray" onClick={onClose}>
-              重新執行
-            </Button>
-            <Button color="gray" onClick={onClose}>
-              關閉
-            </Button>
+            <div
+              style={{ visibility: currentProgress === 100 ? 'visible' : 'hidden' }}
+              className='flex gap-2'
+            >
+              <Button
+                color="gray"
+                onClick={() => setCurrentStep("settings")}
+              >
+                返回設定
+              </Button>
+              <Button
+                color="blue"
+                onClick={handleStartExecution}
+              >
+                重新執行
+              </Button>
+            </div>
+            <div
+              className='flex gap-2'
+            >
+              <Button color="red" onClick={onClose}>
+                中斷執行
+              </Button>
+              <Button color="gray" onClick={onClose}>
+                關閉
+              </Button>
+            </div>
           </div>
         )}
       </Modal.Footer>

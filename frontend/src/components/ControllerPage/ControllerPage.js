@@ -1916,7 +1916,8 @@ const ControllerPage = () => {
           <div className="space-y-4 mt-4">
             {/* Power supply Section */}
             <div className="border p-4 border-green-300 rounded shadow flex items-center justify-center flex-col">
-              <h3 className="font-bold mb-2">Power supply</h3>
+              <h3 className="font-bold mb-2">脈衝電源控制器</h3>
+              <h3 className="font-bold mb-2">(Power supply)</h3>
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前錯誤資訊</span>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1945,7 +1946,6 @@ const ControllerPage = () => {
                     className="p-1 border rounded bg-gray-50 w-32 font-bold"
                     readOnly
                     placeholder="Device status"
-                    value={"123456"}
                   />
                   <span className="text-sm w-4" />
                 </div>
