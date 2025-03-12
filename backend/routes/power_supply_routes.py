@@ -124,7 +124,8 @@ async def status():
     """
     讀取電源狀態
     """
-    status, err = await power_supply_service.read_status()
-    if err == 1:
-        return {"status": "success", "status": status}, 200
-    return {"status": "failure", "message": f"讀取電源狀態失敗，錯誤碼: {err}"}, 400
+    try:
+        status = await power_supply_service.read_status()
+        return {"status": "success", "data": status}, 200
+    except Exception as e:
+        return {"status": "failure", "message": f"讀取電源狀態失敗：{str(e)}"}, 400

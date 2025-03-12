@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { Button, Dropdown } from "flowbite-react";
 import { Link } from "react-router-dom";
 import AuthModal from "../ComponentTools/AuthModal";
 import { useAuthContext } from "../../Contexts/AuthContext";
 import UserSettingsModal from "../ComponentTools/UserSettingsModal";
+import { HiLogout } from "react-icons/hi";
+import ControllerSettingModal from "../ControllerSettingModal/ControllerSettingModal";
 
 const useHooks = () => {
   // 預設為當前的location
@@ -13,6 +16,7 @@ const useHooks = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [userPhoto, setUserPhoto] = useState("");
+  const [isControllerSettingModalOpen, setIsControllerSettingModalOpen] = useState(false);
 
   // 開啟或關閉手機版選單
   const onMobileMenuClick = () => {
@@ -51,6 +55,11 @@ const useHooks = () => {
   // 點擊頭像時，開啟設定視窗
   const handleSettingsClick = () => {
     setIsSettingsModalOpen(true);
+  };
+
+  // 開啟或關閉ControllerSettingModal
+  const onControllerSettingModalClick = () => {
+    setIsControllerSettingModalOpen(!isControllerSettingModalOpen);
   };
 
   // 正常視窗的連結
@@ -96,6 +105,7 @@ const useHooks = () => {
     isAuth,
     authDetail,
     isSettingsModalOpen,
+    isControllerSettingModalOpen,
     userPhoto,
     LinkContainer,
     onMobileMenuClick,
@@ -103,13 +113,15 @@ const useHooks = () => {
     onAuthModalClick,
     onSignOutClick,
     onCloseSettingsModal,
-    handleSettingsClick
+    handleSettingsClick,
+    onControllerSettingModalClick
   };
 };
 
 const Navbar = () => {
-  const { isMobileMenuOpen, isAuthModalOpen, isAuth, authDetail, isSettingsModalOpen, userPhoto,
-    LinkContainer, onMobileMenuClick, LinkContainerForMobile, onAuthModalClick, onSignOutClick, onCloseSettingsModal, handleSettingsClick
+  const { isMobileMenuOpen, isAuthModalOpen, isAuth, authDetail, isSettingsModalOpen, userPhoto, isControllerSettingModalOpen,
+    LinkContainer, onMobileMenuClick, LinkContainerForMobile, onAuthModalClick, onSignOutClick, onCloseSettingsModal, handleSettingsClick,
+    onControllerSettingModalClick
   } = useHooks();
 
   return (
@@ -133,9 +145,9 @@ const Navbar = () => {
             <div
               className="flex items-center md:hidden"
             >
-              <button
-                type="button"
-                className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+              <Button
+                className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white bg-transparent"
+                color="white"
                 aria-controls="mobile-menu"
                 aria-expanded="false"
                 onClick={onMobileMenuClick}
@@ -147,7 +159,7 @@ const Navbar = () => {
                 <svg className={`h-6 w-6 ${isMobileMenuOpen ? 'block': 'hidden'}`} fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
           </div>
           <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
@@ -194,8 +206,7 @@ const Navbar = () => {
                     {authDetail?.username || "User"}
                   </div>
                   <button
-                    type="button"
-                    className="relative flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800"
+                    className="rounded-full bg-gray-800 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 w-12 h-12 mr-3"
                     id="user-menu-button"
                     aria-expanded="false"
                     aria-haspopup="true"
@@ -204,41 +215,33 @@ const Navbar = () => {
                     {
                       authDetail?.photo_path ? (
                         <img
-                          className="h-8 w-8 rounded-full"
+                          className="w-12 h-12 rounded-full"
                           src={userPhoto}
                           alt="User avatar"
                         />
                       ) : (
-                        <svg className="h-8 w-8 rounded-full text-gray-800 dark:text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="h-8 w-8 rounded-full dark:text-white" fill="currentColor" viewBox="0 0 20 25">
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                         </svg>
                       )
                     }
                   </button>
-                  <div
-                    className="ml-3 text-white hover:bg-gray-700 bg-gray-800 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                  >
-                    <button
-                      type="button"
-                      onClick={onSignOutClick}
-                    >
-                      Sign out
-                    </button>
-                  </div>
+                  <Dropdown label="登出/設定" size="sm" color="purple">
+                    <Dropdown.Item onClick={onControllerSettingModalClick}>自動控制設置</Dropdown.Item>
+                    <Dropdown.Divider />
+                    <Dropdown.Item onClick={onSignOutClick} icon={HiLogout}>Sign out</Dropdown.Item>
+                  </Dropdown>
                 </>
               ) : (
-                <div>
-                  <button
-                    type="button"
-                    className="ml-3 text-base font-medium text-white hover:bg-purple-200 bg-purple-400 px-4 py-2 rounded-md transition-colors"
-                    id="user-menu-button"
-                    aria-expanded="false"
-                    aria-haspopup="true"
-                    onClick={onAuthModalClick}
-                  >
-                    Sign in
-                  </button>
-                </div>
+                <Button
+                  id="user-menu-button"
+                  aria-expanded="false"
+                  aria-haspopup="true"
+                  gradientMonochrome="info"
+                  onClick={onAuthModalClick}
+                >
+                  Sign in
+                </Button>
               )
             }
             </div>
@@ -273,6 +276,10 @@ const Navbar = () => {
         />
         </div>
       </div>
+      <ControllerSettingModal
+        show={isControllerSettingModalOpen}
+        onClose={onControllerSettingModalClick}
+      />
     </nav>
   );
 };

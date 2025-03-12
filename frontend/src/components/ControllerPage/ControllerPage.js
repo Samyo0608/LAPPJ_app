@@ -41,6 +41,7 @@ const useHooks = () => {
   // 載氣資料
   const [carrierGasDetail, setCarrierGasDetail] = useState({});
   const [carrierGasFlowSetting, setCarrierGasFlowSetting] = useState(0);
+  const [onCarrierGasLoading, setOnCarrierGasLoading] = useState(false);
   // Recipe資料
   const [recipeDetail, setRecipeDetail] = useState([]);
   const [recipeSelected, setRecipeSelected] = useState("");
@@ -59,6 +60,8 @@ const useHooks = () => {
   const [onPowerSupplyLoading, setOnPowerSupplyLoading] = useState(false);
   // const [powerSupplyDetail, setPowerSupplyDetail] = useState({});
   const [powerSupplyVoltage, setPowerSupplyVoltage] = useState(0);
+  const [isDC1Boost, setIsDC1Boost] = useState(false);
+  const [isPowerOpen, setIsPowerOpen] = useState(false);
   // 其他
   const [alertDetail, setAlertDetail] = React.useState({});
   const [onAutoStartLoading, setOnAutoStartLoading] = React.useState(false);
@@ -380,6 +383,7 @@ const useHooks = () => {
   // 修改載氣流量 API
   const setCarrierGasFlowApi = async (data) => {
     try {
+      setOnCarrierGasLoading(true);
       let response = {};
 
       if (Number(data) >= 0) {
@@ -413,6 +417,7 @@ const useHooks = () => {
         type: "failure",
       });
     } finally {
+      setOnCarrierGasLoading(false);
       setTimeout(() => {
         setAlertDetail((prev) => ({
           ...prev,
@@ -820,6 +825,7 @@ const useHooks = () => {
           message: response.data.message,
           type: "success",
         });
+        setIsDC1Boost(true);
       } else {
         setAlertDetail({
           show: true,
@@ -857,6 +863,7 @@ const useHooks = () => {
           message: response.data.message,
           type: "success",
         });
+        setIsDC1Boost(false);
       } else {
         setAlertDetail({
           show: true,
@@ -881,6 +888,82 @@ const useHooks = () => {
       }, 2000);
     }
   };
+
+  // 脈衝電源供應器Power On
+  const setPowerSupplyPowerOnApi = async () => {
+    try {
+      setOnPowerSupplyLoading(true);
+      const response = await getApi("/power_supply/power_on", "POST");
+      
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+        setIsPowerOpen(true);
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnPowerSupplyLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
+
+  // 脈衝電源供應器Power Off
+  const setPowerSupplyPowerOffApi = async () => {
+    try {
+      setOnPowerSupplyLoading(true);
+      const response = await getApi("/power_supply/power_off", "POST");
+      
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+        setIsPowerOpen(false);
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnPowerSupplyLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  }; 
 
   // 清除脈衝電源供應器Error code
   const clearPowerSupplyErrorCodeApi = async () => {
@@ -1043,9 +1126,15 @@ const useHooks = () => {
       await setMainGasFlowApi(recipeSelectedDetail.main_gas_flow);
     }
 
+    if (isPowerSupplyOpenState) {
+      if (isDC1Boost || isPowerOpen) return;
+      setPowerSupplyVoltage(recipeSelectedDetail.power_supply_voltage);
+      await setPowerSupplyVoltageApi(recipeSelectedDetail.power_supply_voltage);
+    }
+
     setAlertDetail({
       show: true,
-      message: "套用成功，若無開啟的裝置則不會套用",
+      message: "套用成功，若無開啟的裝置則不會套用，脈衝電源供應器若處於升壓或開啟狀態則不會套用",
       type: "success",
     });
 
@@ -1374,6 +1463,7 @@ const useHooks = () => {
     carrierGasPressureData,
     carrierGasTemperatureData,
     carrierGasFlowSetting,
+    onCarrierGasLoading,
     recipeDetail,
     recipeSelected,
     recipeSelectedDetail,
@@ -1393,6 +1483,8 @@ const useHooks = () => {
     powerSupplyVoltage,
     isPowerSupplyOpenState,
     onPowerSupplyLoading,
+    isDC1Boost,
+    isPowerOpen,
     alertDetail,
     onAutoStartLoading,
     onMainGasClick,
@@ -1416,6 +1508,8 @@ const useHooks = () => {
     clearPowerSupplyErrorCodeApi,
     setPowerSupplyDC1BoostApi,
     setPowerSupplyDC1BuckApi,
+    setPowerSupplyPowerOnApi,
+    setPowerSupplyPowerOffApi,
     onAutoStartClick,
     onAllCloseClick,
   };
@@ -1424,12 +1518,12 @@ const useHooks = () => {
 const ControllerPage = () => {
   const {
     isMainGasOpenState, mainGasDetail, mainGasFlowData, mainGasAccumulatedFlowData, mainGasFlowSetting, onMainGasLoading,
-    isCarrierGasOpenState, carrierGasDetail, carrierGasFlowData, carrierGasFlowSetting, carrierGasPressureData, carrierGasTemperatureData,
+    isCarrierGasOpenState, carrierGasDetail, carrierGasFlowData, carrierGasFlowSetting, carrierGasPressureData, carrierGasTemperatureData, onCarrierGasLoading,
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
     alertDetail, temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, onUltrasonicLoading, isUltrasonicOpenState, ultrasonicOpenFlag,
-    onAutoStartLoading, powerSupplyVoltage, isPowerSupplyOpenState, onPowerSupplyLoading,
-    onMainGasClick, onMainGasFlowSettingChange, onMainGasFlowSettingClick, resetMainGasTotalFlowApi,
-    onCarrierFlowSettingChange, onCarrierFlowSettingClick, onRecipeSelect, onRecipeApplyClick, setPowerSupplyDC1BoostApi, setPowerSupplyDC1BuckApi,
+    onAutoStartLoading, powerSupplyVoltage, isPowerSupplyOpenState, onPowerSupplyLoading, isDC1Boost, isPowerOpen,
+    onMainGasClick, onMainGasFlowSettingChange, onMainGasFlowSettingClick, resetMainGasTotalFlowApi, onCarrierFlowSettingChange, onCarrierFlowSettingClick,
+    onRecipeSelect, onRecipeApplyClick, setPowerSupplyDC1BoostApi, setPowerSupplyDC1BuckApi, setPowerSupplyPowerOnApi, setPowerSupplyPowerOffApi,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM, onPowerSupplyVoltageClick, setPowerSupplyVoltage, clearPowerSupplyErrorCodeApi,
     onAlertClose, setTemperature, setHeaterTemperatureApi, setUltrasonicOpen, setUltrasonicClose,
     onAutoStartClick, onAllCloseClick,
@@ -1450,7 +1544,7 @@ const ControllerPage = () => {
               isMainGasOpenState ? "bg-green-500" : "bg-red-500"
             } w-4 h-4 bg-green-500 rounded-full min-w-4`}
           />
-          <span className="text-sm">Mass Flow Controller - Main Gas</span>
+          <span className="text-sm">Main Gas</span>
         </div>
         <div className="flex items-center gap-2">
           <span
@@ -1458,7 +1552,7 @@ const ControllerPage = () => {
               isCarrierGasOpenState ? "bg-green-500" : "bg-red-500"
             } w-4 h-4 bg-green-500 rounded-full min-w-4`}
           />
-          <span className="text-sm">Mass Flow Controller - Carrier Gas</span>
+          <span className="text-sm">Carrier Gas</span>
         </div>
         <div className="flex items-center gap-2">
           <span
@@ -1469,7 +1563,11 @@ const ControllerPage = () => {
           <span className="text-sm">CO2 Laser</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-4 h-4 bg-red-500 rounded-full min-w-4"></span>
+          <span
+            className={`${
+              isPowerSupplyOpenState ? "bg-green-500" : "bg-red-500"
+            } w-4 h-4 bg-green-500 rounded-full min-w-4`}
+          />
           <span className="text-sm">Power supply</span>
         </div>
         <div className="flex items-center gap-2">
@@ -1544,7 +1642,7 @@ const ControllerPage = () => {
                   <ButtonComponent
                     label="閥門控制"
                     onClick={() => onMainGasClick("open")}
-                    isDisabled={!isMainGasOpenState}
+                    isDisabled={!isMainGasOpenState || mainGasDetail?.GATE_CONTROL === 1}
                     loading={onMainGasLoading}
                     isOpen={mainGasDetail?.GATE_CONTROL === 1}
                     gradientMonochrome="teal"
@@ -1552,7 +1650,7 @@ const ControllerPage = () => {
                   <ButtonComponent
                     label="閥門全開"
                     onClick={() => onMainGasClick("fullOpen")}
-                    isDisabled={!isMainGasOpenState}
+                    isDisabled={!isMainGasOpenState || mainGasDetail?.GATE_CONTROL === 2}
                     loading={onMainGasLoading}
                     isOpen={mainGasDetail?.GATE_CONTROL === 2}
                     gradientMonochrome="teal"
@@ -1560,7 +1658,7 @@ const ControllerPage = () => {
                   <ButtonComponent
                     label="閥門關閉"
                     onClick={() => onMainGasClick("close")}
-                    isDisabled={!isMainGasOpenState}
+                    isDisabled={!isMainGasOpenState || mainGasDetail?.GATE_CONTROL === 0}
                     loading={onMainGasLoading}
                     isOpen={mainGasDetail?.GATE_CONTROL === 0}
                     gradientMonochrome="teal"
@@ -1662,6 +1760,7 @@ const ControllerPage = () => {
                 onClick={onCarrierFlowSettingClick}
                 isDisabled={!isCarrierGasOpenState}
                 gradientMonochrome="lime"
+                loading={onCarrierGasLoading}
               />
               <div className="mb-2 flex justify-center items-center gap-2 flex-wrap mt-2">
                   <span className="text-sm w-40">目前流量設定值 (僅顯示)</span>
@@ -1836,8 +1935,21 @@ const ControllerPage = () => {
                 gradientMonochrome="failure"
                 onClick={clearPowerSupplyErrorCodeApi}
                 loading={onPowerSupplyLoading}
-                disabled={!isPowerSupplyOpenState}
+                isDisabled={!isPowerSupplyOpenState}
               />
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">目前設備狀態</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    className="p-1 border rounded bg-gray-50 w-32 font-bold"
+                    readOnly
+                    placeholder="Device status"
+                    value={"123456"}
+                  />
+                  <span className="text-sm w-4" />
+                </div>
+              </div>
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前DC1電壓值 (PV)</span>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1889,15 +2001,17 @@ const ControllerPage = () => {
                   label="DC1 升壓"
                   gradientMonochrome="teal"
                   onClick={setPowerSupplyDC1BoostApi}
-                  isDisabled={!isPowerSupplyOpenState}
+                  isDisabled={!isPowerSupplyOpenState || isDC1Boost || isPowerOpen}
                   loading={onPowerSupplyLoading}
+                  isOpen={isDC1Boost}
                 />
                 <ButtonComponent
                   label="DC1 降壓"
                   gradientMonochrome="teal"
                   onClick={setPowerSupplyDC1BuckApi}
-                  isDisabled={!isPowerSupplyOpenState}
+                  isDisabled={!isPowerSupplyOpenState || !isDC1Boost || isPowerOpen}
                   loading={onPowerSupplyLoading}
+                  isOpen={!isDC1Boost}
                 />
                 <div
                   className="flex justify-center items-center gap-2 flex-wrap"
@@ -1905,10 +2019,18 @@ const ControllerPage = () => {
                   <ButtonComponent
                     label="Power開啟"
                     gradientMonochrome="pink"
+                    onClick={setPowerSupplyPowerOnApi}
+                    isDisabled={!isPowerSupplyOpenState}
+                    loading={onPowerSupplyLoading}
+                    isOpen={isPowerOpen}
                   />
                   <ButtonComponent
                     label="Power關閉"
                     gradientMonochrome="pink"
+                    onClick={setPowerSupplyPowerOffApi}
+                    isDisabled={!isPowerSupplyOpenState}
+                    loading={onPowerSupplyLoading}
+                    isOpen={!isPowerOpen}
                   />
                 </div>
               </div>
