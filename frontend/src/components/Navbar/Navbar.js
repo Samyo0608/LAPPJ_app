@@ -220,7 +220,7 @@ const Navbar = () => {
                           alt="User avatar"
                         />
                       ) : (
-                        <svg className="h-8 w-8 rounded-full dark:text-white" fill="currentColor" viewBox="0 0 20 25">
+                        <svg className="h-8 w-8 rounded-full dark:text-white" fill="currentColor" viewBox="0 0 8 25">
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                         </svg>
                       )

@@ -58,10 +58,11 @@ const useHooks = () => {
   const [onUltrasonicLoading, setOnUltrasonicLoading] = useState(false);
   // 脈衝電源供應器
   const [onPowerSupplyLoading, setOnPowerSupplyLoading] = useState(false);
-  // const [powerSupplyDetail, setPowerSupplyDetail] = useState({});
+  const [powerSupplyDetail, setPowerSupplyDetail] = useState({});
   const [powerSupplyVoltage, setPowerSupplyVoltage] = useState(0);
   const [isDC1Boost, setIsDC1Boost] = useState(false);
   const [isPowerOpen, setIsPowerOpen] = useState(false);
+  const [powerSupplyDeviceStatus, setPowerSupplyDeviceStatus] = useState("");
   // 其他
   const [alertDetail, setAlertDetail] = React.useState({});
   const [onAutoStartLoading, setOnAutoStartLoading] = React.useState(false);
@@ -103,16 +104,6 @@ const useHooks = () => {
     history: [],
     labels: [],
   });
-  // 脈衝電源供應器電壓監測資料
-  // const [powerSupplyVoltageData, setPowerSupplyVoltageData] = useState({
-  //   history: [],
-  //   labels: [],
-  // });
-  // // 脈衝電源供應器電流監測資料
-  // const [powerSupplyCurrentData, setPowerSupplyCurrentData] = useState({
-  //   history: [],
-  //   labels: [],
-  // });
 
   // 取得主氣資料 API
   const getMainGasDataApi = React.useCallback(async () => {
@@ -969,9 +960,28 @@ const useHooks = () => {
   const clearPowerSupplyErrorCodeApi = async () => {
     try {
       setOnPowerSupplyLoading(true);
-      const response = await getApi("/power_supply/set_clear_error", "POST");
+      await getApi("/power_supply/set_clear_error", "POST");
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnPowerSupplyLoading(false);
+      getPowerSupplyStatusApi();
+    }
+  };
+
+  // 脈衝電源控制器狀態
+  const getPowerSupplyStatusApi = async() => {
+    try {
+      setOnPowerSupplyLoading(true);
+      const response = await getApi("/power_supply/status", "GET");
 
       if (response?.data?.status === "success") {
+        setPowerSupplyDetail(response.data.data);
         setAlertDetail({
           show: true,
           message: response.data.message,
@@ -1000,7 +1010,7 @@ const useHooks = () => {
         }));
       }, 2000);
     }
-  };
+  }; 
 
   // 取得Recipe資料 API
   const getRecipeDataApi = async () => {
@@ -1224,6 +1234,24 @@ const useHooks = () => {
     }
   };
 
+  // dc1_boost 更新
+  React.useEffect(() => {
+    if (powerSupplyDetail) {
+      if (powerSupplyDetail?.error) {
+        setPowerSupplyDeviceStatus("Error");
+        return;
+      }
+      if (powerSupplyDetail?.ready) {
+        setPowerSupplyDeviceStatus("Ready");
+        return;
+      }
+      setPowerSupplyDeviceStatus("Unknown Status");
+    }
+    if (powerSupplyDetail?.dc1_on) {
+      setIsDC1Boost(powerSupplyDetail?.dc1_on);
+    }
+  }, [powerSupplyDetail]);
+
   // 主氣流量監測，每3秒更新一次
   React.useEffect(() => {
     if (isMainGasOpenState) {
@@ -1438,8 +1466,11 @@ const useHooks = () => {
     if (isHeaterOpenState) {
       getHeaterDataApi();
     }
+    if (isPowerSupplyOpenState) {
+      getPowerSupplyStatusApi();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMainGasOpenState, isCarrierGasOpenState, isCo2LaserOpenState, isHeaterOpenState]);
+  }, [isMainGasOpenState, isCarrierGasOpenState, isCo2LaserOpenState, isHeaterOpenState, isPowerSupplyOpenState]);
 
   React.useEffect(() => {
     if (sessionStorage.getItem("firstEnterPage") === "true") return;
@@ -1483,6 +1514,8 @@ const useHooks = () => {
     powerSupplyVoltage,
     isPowerSupplyOpenState,
     onPowerSupplyLoading,
+    powerSupplyDetail,
+    powerSupplyDeviceStatus,
     isDC1Boost,
     isPowerOpen,
     alertDetail,
@@ -1521,7 +1554,7 @@ const ControllerPage = () => {
     isCarrierGasOpenState, carrierGasDetail, carrierGasFlowData, carrierGasFlowSetting, carrierGasPressureData, carrierGasTemperatureData, onCarrierGasLoading,
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
     alertDetail, temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, onUltrasonicLoading, isUltrasonicOpenState, ultrasonicOpenFlag,
-    onAutoStartLoading, powerSupplyVoltage, isPowerSupplyOpenState, onPowerSupplyLoading, isDC1Boost, isPowerOpen,
+    onAutoStartLoading, powerSupplyVoltage, isPowerSupplyOpenState, onPowerSupplyLoading, isDC1Boost, isPowerOpen, powerSupplyDetail, powerSupplyDeviceStatus,
     onMainGasClick, onMainGasFlowSettingChange, onMainGasFlowSettingClick, resetMainGasTotalFlowApi, onCarrierFlowSettingChange, onCarrierFlowSettingClick,
     onRecipeSelect, onRecipeApplyClick, setPowerSupplyDC1BoostApi, setPowerSupplyDC1BuckApi, setPowerSupplyPowerOnApi, setPowerSupplyPowerOffApi,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM, onPowerSupplyVoltageClick, setPowerSupplyVoltage, clearPowerSupplyErrorCodeApi,
@@ -1918,18 +1951,8 @@ const ControllerPage = () => {
             <div className="border p-4 border-green-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">脈衝電源控制器</h3>
               <h3 className="font-bold mb-2">(Power supply)</h3>
-              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
-                <span className="text-sm w-40">目前錯誤資訊</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <input
-                    type="text"
-                    className="p-1 border rounded bg-gray-50 w-32"
-                    readOnly
-                    placeholder="- -"
-                  />
-                  <span className="text-sm w-4" />
-                </div>
-              </div>
+              <h3 className="font-bold mb-2 text-red-500">無即時監控，且有時顯示會異常</h3>
+              <h3 className="font-bold mb-2 text-red-500">開啟功能可正常使用</h3>
               <ButtonComponent
                 label="清除錯誤"
                 otherCss="bg-green-500 mt-2"
@@ -1943,27 +1966,29 @@ const ControllerPage = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="text"
-                    className="p-1 border rounded bg-gray-50 w-32 font-bold"
+                    className={`p-1 border rounded bg-gray-50 w-32 font-bold ${powerSupplyDeviceStatus === "Error" ? "text-red-500" : "text-black"}`}
                     readOnly
                     placeholder="Device status"
+                    value={powerSupplyDeviceStatus}
                   />
                   <span className="text-sm w-4" />
                 </div>
               </div>
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
-                <span className="text-sm w-40">目前DC1電壓值 (PV)</span>
+                <span className="text-sm w-40">目前脈衝電壓值 (PV)</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="number"
                     placeholder="0"
                     className="p-1 border rounded bg-gray-50 w-32"
                     readOnly
+                    value={powerSupplyDetail.voltage || 0}
                   />
                   <span className="text-sm w-4">V</span>
                 </div>
               </div>
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
-                <span className="text-sm w-40">設定DC1電壓值 (SV)</span>
+                <span className="text-sm w-40">設定脈衝電壓值 (SV)</span>
                 <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="number"
@@ -1984,18 +2009,6 @@ const ControllerPage = () => {
                 isDisabled={!isPowerSupplyOpenState}
                 loading={onPowerSupplyLoading}
               />
-              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
-                <span className="text-sm w-40">目前DC1電流值 (PV)</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <input
-                    type="number"
-                    placeholder="0"
-                    className="p-1 border rounded bg-gray-50 w-32"
-                    readOnly
-                  />
-                  <span className="text-sm w-4">A</span>
-                </div>
-              </div>
               <div className="flex justify-center items-center gap-2 mt-2 flex-wrap">
                 <ButtonComponent
                   label="DC1 升壓"

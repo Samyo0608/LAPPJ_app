@@ -380,38 +380,27 @@ class SpikService:
         """
         # 讀取設定值
         voltage, voltage_status = await self.read_voltage()
-        current, current_status = await self.read_current()
-        
-        # 讀取實際輸出值
-        actual_voltage, actual_v_status = await asyncio.to_thread(self.spik_read, 20, (0,4000))
-        actual_current, actual_i_status = await asyncio.to_thread(self.spik_read, 21, (0,4000))
         
         # 讀取模式和狀態
-        mode_raw, mode_status = await self.read_mode()
-        status_raw, status_code = await asyncio.to_thread(self.spik_read, 0, (0,65535))
+        status_raw, status_code = await asyncio.to_thread(self.spik_read, 1, (32768,65535))
         
-        # 讀取錯誤資訊
-        error_code, error_code_status = await asyncio.to_thread(self.spik_read, 2, (0,65535))
-        
-        # 解析狀態位元
+        # 直接使用讀取到的狀態值進行解析
         if status_code == 1:
-            dc1_on = bool(status_raw & 0x0001)  # bit 0
-            power_on = bool(status_raw & 0x0002)  # bit 1
-            error = bool(status_raw & 0x0004)  # bit 2
-            ready = bool(status_raw & 0x0008)  # bit 3
+                # 將狀態值轉換為二進位字串，補足16位
+                binary_status = format(status_raw, '016b')
+                # 從右到左數，取出對應的位元
+                error = binary_status[-1] == '1'      # bit 0: Error
+                power_on = binary_status[-2] == '1'   # bit 1: Running On
+                ready = binary_status[-3] == '1'      # bit 2: Ready
+                dc1_on = binary_status[-7] == '1'     # bit 6: DC1 On
         else:
             dc1_on = power_on = error = ready = None
 
         status = {
-            "voltage": voltage * 0.2 if voltage_status == 1 else None,
-            "current": current * 0.001 if current_status == 1 else None,
-            "actual_voltage": actual_voltage * 0.2 if actual_v_status == 1 else None,
-            "actual_current": actual_current * 0.001 if actual_i_status == 1 else None,
-            "mode": mode_raw if mode_status == 1 else None,
+            "voltage": voltage if voltage_status == 1 else None,
             "dc1_on": dc1_on,
             "power_on": power_on,
             "error": error,
-            "error_code": error_code if error_code_status == 1 else None,
             "ready": ready
         }
         
