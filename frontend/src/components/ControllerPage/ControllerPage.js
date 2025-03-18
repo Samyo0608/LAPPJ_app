@@ -2014,7 +2014,8 @@ const ControllerPage = () => {
                   label="DC1 升壓"
                   gradientMonochrome="teal"
                   onClick={setPowerSupplyDC1BoostApi}
-                  isDisabled={!isPowerSupplyOpenState || isDC1Boost || isPowerOpen}
+                  // isDisabled={!isPowerSupplyOpenState || isDC1Boost || isPowerOpen}
+                  isDisabled={!isPowerSupplyOpenState}
                   loading={onPowerSupplyLoading}
                   isOpen={isDC1Boost}
                 />
@@ -2022,7 +2023,8 @@ const ControllerPage = () => {
                   label="DC1 降壓"
                   gradientMonochrome="teal"
                   onClick={setPowerSupplyDC1BuckApi}
-                  isDisabled={!isPowerSupplyOpenState || !isDC1Boost || isPowerOpen}
+                  // isDisabled={!isPowerSupplyOpenState || !isDC1Boost || isPowerOpen}
+                  isDisabled={!isPowerSupplyOpenState}
                   loading={onPowerSupplyLoading}
                   isOpen={!isDC1Boost}
                 />
@@ -2309,6 +2311,7 @@ const ControllerPage = () => {
             isCo2LaserConnected={isCo2LaserOpenState}
             isHeaterConnected={isHeaterOpenState}
             isUltrasonicConnected={isUltrasonicOpenState}
+            isPowerSupplyConnected={isPowerSupplyOpenState}
             isOpen={isCarrierGasOpenState || isMainGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState}
           />
         )

@@ -8,6 +8,8 @@ import { useAlicatContext } from '../../Contexts/AlicatContext';
 import { useCo2LaserContext } from '../../Contexts/Co2LaserContext';
 import { useHeaterContext } from '../../Contexts/HeaterContext';
 import { useAzbilContext } from '../../Contexts/AzbilContext';
+import { usePowerSupplyContext } from '../../Contexts/PowerSupplyContext';
+import { useUltrasonicContext } from '../../Contexts/UltrasonicContext';
 
 // 主氣參數轉換
 const mainGasParams = {
@@ -121,6 +123,8 @@ const useHooks = () => {
   const { setCo2LaserDetailState, isCo2LaserOpenState, setIsCo2LaserOpenState, co2LaserPortState, setCo2LaserPortState } = useCo2LaserContext();
   const { isHeaterOpenState, setIsHeaterOpenState, setHeaterPortAndAddressState, heaterPortAndAddressState, heaterDetailState, setHeaterDetailState } = useHeaterContext();
   const { mainGasDetailState, setMainGasDetailState, isMainGasOpenState, setIsMainGasOpenState, mainGasPortAndAddressState, setMainGasPortAndAddressState } = useAzbilContext();
+  const { isPowerSupplyOpenState, setIsPowerSupplyOpenState } = usePowerSupplyContext();
+  const { isUltrasonicOpenState, setIsUltrasonicOpenState } = useUltrasonicContext();
   // 單獨連線的項目整合
   const deviceList = [{
     title: '主氣流量控制器 - Main Gas',
@@ -1700,6 +1704,68 @@ const useHooks = () => {
       }));
     }
   }, [heaterPortAndAddressState]);
+
+  // 更新Power supply，如果讀取不到就將狀態改成false
+  React.useEffect(() => {
+    if (isPowerSupplyOpenState) {
+      try {
+        const response = getApi('/power_supply/status', 'GET');
+        if (response?.data?.status === 'success') {
+          setIsPowerSupplyOpenState(true);
+          setAlertDetail({
+            show: true,
+            message: 'Power supply 資料取得成功',
+            type: 'success'
+          });
+        } else {
+          setIsPowerSupplyOpenState(false);
+          setAlertDetail({
+            show: true,
+            message: 'Power supply 連線失敗',
+            type: 'failure'
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        setIsPowerSupplyOpenState(false);
+      } finally {
+        setTimeout(() => {
+          setAlertDetail((prev) => ({ ...prev, show: false }));
+        }, 2000);
+      }
+    }
+  }, [isPowerSupplyOpenState, setIsPowerSupplyOpenState]);
+
+  // 更新ultrasonic，如果讀取不到就將狀態改成false
+  React.useEffect(() => {
+    if (isUltrasonicOpenState) {
+      try {
+        const response = getApi('/ultrasonic/status', 'GET');
+        if (response?.data?.status === 'success') {
+          setIsUltrasonicOpenState(true);
+          setAlertDetail({
+            show: true,
+            message: 'Ultrasonic 資料取得成功',
+            type: 'success'
+          });
+        } else {
+          setIsUltrasonicOpenState(false);
+          setAlertDetail({
+            show: true,
+            message: 'Ultrasonic 連線失敗',
+            type: 'failure'
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        setIsUltrasonicOpenState(false);
+      } finally {
+        setTimeout(() => {
+          setAlertDetail((prev) => ({ ...prev, show: false }));
+        }, 2000);
+      }
+    }
+  }, [isUltrasonicOpenState, setIsUltrasonicOpenState]);
 
   // ---------------------------------heater function---------------------------------
 

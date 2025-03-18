@@ -15,6 +15,7 @@ const AutoConnectModal = ({
   isHeaterConnected = false,
   isCo2LaserConnected = false,
   isUltrasonicConnected = false,
+  isPowerSupplyConnected = false,
   isOpen = false,
 }) => {
   const [openModal, setOpenModal] = useState(isOpen);
@@ -78,6 +79,12 @@ const AutoConnectModal = ({
           setIsMainGasOpenState(true);
         }
       }
+      if (isPowerSupplyConnected) {
+        const response = await getApi('/power_supply/connect', 'POST', null, localStorage.getItem('token'));
+        if (response.status === 200) {
+          setIsMainGasOpenState(true);
+        }
+      }
     } catch {
       console.log("something connect failed.")
     } finally {
@@ -112,6 +119,7 @@ const AutoConnectModal = ({
             {isHeaterConnected && <span className="text-sm text-gray-500 dark:text-gray-400">加熱器</span>}
             {isCo2LaserConnected && <span className="text-sm text-gray-500 dark:text-gray-400">CO2雷射</span>}
             {isUltrasonicConnected && <span className="text-sm text-gray-500 dark:text-gray-400">霧化器</span>}
+            {isPowerSupplyConnected && <span className="text-sm text-gray-500 dark:text-gray-400">脈衝電源供應器</span>}
             {isLoading && <span className="text-md text-red-500 font-bold dark:text-red-400">連線等待中，請勿執行任何動作!</span>}
           </div>
           <div className="flex justify-center gap-4">

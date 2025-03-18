@@ -1,9 +1,9 @@
 {
-  "name": "electron",
+  "name": "lappj",
   "main": "main.js",
   "description": "LAPPJ system",
   "author": "LAB603-Samyo",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "scripts": {
     "start": "electron .",
     "dev": "concurrently --kill-others \"npm start --prefix ../frontend\" \"npm run electron-start\"",
