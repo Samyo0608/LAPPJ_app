@@ -192,6 +192,10 @@ const Navbar = () => {
                   href="/LabWeb"
                   title="Lab web"
                 />
+                <LinkContainer
+                  href="/mrRemotePage"
+                  title="MR Remote"
+                />
               </div>
             </div>
           </div>
@@ -273,6 +277,10 @@ const Navbar = () => {
         <LinkContainerForMobile
           href="/LabWeb"
           title="Lab web"
+        />
+        <LinkContainerForMobile
+          href="/mrRemotePage"
+          title="MR Remote"
         />
         </div>
       </div>

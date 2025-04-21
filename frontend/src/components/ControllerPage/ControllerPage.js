@@ -1946,13 +1946,13 @@ const ControllerPage = () => {
               </div>
             </div>
           </div>
-          <div className="space-y-4 mt-4">
+          <div className="space-y-4 mt-4 mb-4">
             {/* Power supply Section */}
             <div className="border p-4 border-green-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold mb-2">脈衝電源控制器</h3>
               <h3 className="font-bold mb-2">(Power supply)</h3>
-              <h3 className="font-bold mb-2 text-red-500">無即時監控，且有時顯示會異常</h3>
-              <h3 className="font-bold mb-2 text-red-500">開啟功能可正常使用</h3>
+              {/* <h3 className="font-bold mb-2 text-red-500">無即時監控，且有時顯示會異常</h3>
+              <h3 className="font-bold mb-2 text-red-500">開啟功能可正常使用</h3> */}
               <ButtonComponent
                 label="清除錯誤"
                 otherCss="bg-green-500 mt-2"
@@ -2051,6 +2051,64 @@ const ControllerPage = () => {
               </div>
             </div>
           </div>
+          <div className="space-y-4">
+            {/* Robot Control */}
+            <div className="border p-4 border-red-300 rounded shadow flex items-center justify-center flex-col">
+              <h3 className="font-bold">機械手臂控制</h3>
+              <h3 className="font-bold mb-2">(Robot control)</h3>
+              <p className="flex items-center gap-2 mb-2 text-sm">
+                目前機械手臂狀態: <span className='font-bold text-purple-500'>{ultrasonicOpenFlag ? "運作中" : "關閉"}</span>
+              </p>
+              <div className="flex justify-center items-center gap-2 mt-2">
+                <ButtonComponent
+                  label="開啟"
+                  onClick={setUltrasonicOpen}
+                  isOpen={ultrasonicOpenFlag}
+                  isDisabled={!isUltrasonicOpenState || ultrasonicOpenFlag}
+                  loading={onUltrasonicLoading}
+                  gradientMonochrome="teal"
+                />
+                <ButtonComponent
+                  label="關閉"
+                  onClick={setUltrasonicClose}
+                  isDisabled={!isUltrasonicOpenState || !ultrasonicOpenFlag}
+                  loading={onUltrasonicLoading}
+                  gradientMonochrome="teal"
+                />
+              </div>
+              <p className="flex items-center gap-2 mb-2 text-sm mt-4">
+                目前速度百分比: <span className='font-bold text-purple-500'> - - %</span>
+              </p>
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">目前實際速度 (mm/s)</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className="p-1 border rounded bg-gray-50 w-32"
+                    readOnly
+                  />
+                  <span className="text-sm w-4">mm/s</span>
+                </div>
+              </div>
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">速度百分比調整 (%)</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    className="p-1 border rounded w-32"
+                    placeholder="請輸入整數"
+                  />
+                  <span className="text-sm w-4">%</span>
+                </div>
+              </div>
+              <ButtonComponent
+                label="速度設定"
+                otherCss="bg-green-500 mt-2"
+                gradientMonochrome="teal"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Right Column*/}
@@ -2058,6 +2116,94 @@ const ControllerPage = () => {
           <h2 className="font-bold text-blue-800 text-center text-lg">
             UV laser & SC-300 Controller 預定
           </h2>
+          <div className="space-y-4">
+            {/* UV laser Control */}
+            <div className="border p-4 border-red-500 rounded shadow flex items-center justify-center flex-col">
+              <h3 className="font-bold">UV laser</h3>
+              <div className="flex justify-center items-center gap-2 mt-2">
+                <ButtonComponent
+                  label="開啟"
+                  onClick={setUltrasonicOpen}
+                  isOpen={ultrasonicOpenFlag}
+                  isDisabled={!isUltrasonicOpenState || ultrasonicOpenFlag}
+                  loading={onUltrasonicLoading}
+                  gradientMonochrome="teal"
+                />
+                <ButtonComponent
+                  label="關閉"
+                  onClick={setUltrasonicClose}
+                  isDisabled={!isUltrasonicOpenState || !ultrasonicOpenFlag}
+                  loading={onUltrasonicLoading}
+                  gradientMonochrome="teal"
+                />
+              </div>
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">Power factor</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className="p-1 border rounded w-32"
+                  />
+                  <span className="text-sm w-4" />
+                </div>
+              </div>
+              <ButtonComponent
+                label="Power factor設定"
+                otherCss="bg-green-500 mt-2"
+                gradientMonochrome="teal"
+              />
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">電流 (A)</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    className="p-1 border rounded w-32"
+                    placeholder="請輸入整數"
+                  />
+                  <span className="text-sm w-4">A</span>
+                </div>
+              </div>
+              <ButtonComponent
+                label="電流設定"
+                otherCss="bg-green-500 mt-2"
+                gradientMonochrome="teal"
+              />
+            </div>
+            {/* SC-300 Control */}
+            <div className="border p-4 border-blue-500 rounded shadow flex items-center justify-center flex-col">
+              <h3 className="font-bold">Z軸控制器</h3>
+              <h3 className="font-bold">(SC-300)</h3>
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">目前位移量</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className="p-1 border rounded bg-gray-50 w-32"
+                    readOnly
+                  />
+                  <span className="text-sm w-4" />
+                </div>
+              </div>
+              <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
+                <span className="text-sm w-40">位移量設定</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    type="number"
+                    className="p-1 border rounded w-32"
+                    placeholder="請輸入整數"
+                  />
+                  <span className="text-sm w-4" />
+                </div>
+              </div>
+              <ButtonComponent
+                label="位移量設定"
+                otherCss="bg-green-500 mt-2"
+                gradientMonochrome="teal"
+              />
+            </div>
+          </div>
         </div>
         {/* Recipe 調整 */}
         <div className="col-span-1 bg-gray-300 p-4 rounded shadow w-full">
