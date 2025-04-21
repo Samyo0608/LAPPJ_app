@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from services.recipe_services import RecipeService
 import traceback
+import uuid
 
 recipe_bp = Blueprint('recipe', __name__)
 recipe_service = RecipeService()
@@ -9,7 +10,24 @@ recipe_service = RecipeService()
 def get_recipes():
     try:
         recipes = recipe_service.get_all_recipes()
-        return jsonify({"status": "success", "data": recipes}), 200
+        
+        serializable_recipes = []
+        for recipe in recipes:
+            # 假設 recipe 是一個字典，其中某些值可能是 UUID
+            serializable_recipe = {}
+            for key, value in recipe.items():
+                if isinstance(value, uuid.UUID):
+                    serializable_recipe[key] = str(value)
+                else:
+                    serializable_recipe[key] = value
+            serializable_recipes.append(serializable_recipe)
+        
+        current_app.emit_device_status('recipe', 'success', {
+            "message": '取得recipe資料成功',
+            "recipes": serializable_recipes
+        })
+        
+        return jsonify({"status": "success", "data": serializable_recipes}), 200
     except Exception as e:
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
