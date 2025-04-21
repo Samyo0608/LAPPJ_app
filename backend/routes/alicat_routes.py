@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.connect_log_services import ConnectionLogService
 from models.alicat_model import FlowControllerModel
@@ -15,16 +15,20 @@ def connect():
     data = request.get_json()
     port = data.get('port')
     address = data.get('address', 'A')
-
+    
     if not port:
+        # 如果連接失敗，也發送 Socket 事件
+        current_app.emit_device_status('alicat', 'connect_failed', {
+            "message": "需要提供端口號"
+        })
         return jsonify({"status": "failure", "message": "需要提供端口號"}), 400
-
+    
     # 嘗試獲取用戶 ID，如果沒有則設為 None
     try:
         current_user_id = get_jwt_identity()
     except:
         current_user_id = None
-
+    
     try:
         # 斷開先前連接（如果有）
         if flow_controller:
@@ -33,7 +37,7 @@ def connect():
                 print(f"已關閉先前的連接 {flow_controller.port}")
             except Exception as e:
                 print(f"斷開先前連接時發生錯誤: {e}")
-
+        
         # 創建新連接
         flow_controller = FlowControllerModel(port, address)
         initial_status = flow_controller.connect()
@@ -49,13 +53,21 @@ def connect():
             created_by=current_user_id
         )
         
+        # 發送 Socket 事件
+        current_app.emit_device_status('alicat', 'connected', {
+            "message": f"Alicat 載氣MFC連接成功，端口: {port}",
+            "port": port,
+            "address": address,
+            "status_data": formatted_status
+        })
+        
         return jsonify({
             "message": f"Alicat 載氣MFC連接成功，端口: {port}",
             "port": port,
             "address": address,
             "status": "success"
         }), 200
-
+    
     except Exception as e:
         try:
             ConnectionLogService.create_log(
@@ -68,13 +80,21 @@ def connect():
             )
         except Exception as log_error:
             print(f"記錄連線日誌失敗: {log_error}")
-
+        
         try:
             if flow_controller:
                 flow_controller.disconnect()
         except:
             pass
+        
         flow_controller = None
+        
+        # 發送連接失敗的 Socket 事件
+        current_app.emit_device_status('alicat', 'connect_failed', {
+            "message": str(e),
+            "port": port,
+            "address": address
+        })
         
         return jsonify({
             "status": "failure", 
@@ -95,6 +115,9 @@ def disconnect():
     """斷開設備連接"""
     global flow_controller
     if not flow_controller:
+        current_app.emit_device_status('alicat', 'connected', {
+            "message": f"Alicat MFC 離線成功",
+        })
         return jsonify({"status": "failure", "message": "Device not connected"}), 400
     
     connected_port = flow_controller.port

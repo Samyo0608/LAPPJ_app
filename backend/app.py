@@ -24,6 +24,7 @@ import signal
 from database import db, jwt
 import tempfile
 import atexit
+from flask_socketio import SocketIO
 
 class UnbufferedStream:
     def __init__(self, stream, encoding="utf-8"):
@@ -61,6 +62,19 @@ atexit.register(cleanup_pid_file)
 def create_app():
     app = Flask(__name__, instance_path=os.path.dirname(os.path.abspath(__file__)))
     CORS(app, resources={r"/*": {"origins": "*"}})
+        # 初始化 SocketIO，允許所有來源
+    socketio = SocketIO(app, cors_allowed_origins="*")
+
+    # 全域函數用於發送 Socket 事件
+    def emit_device_status(device_type, status, data=None):
+        socketio.emit('device_status_update', {
+            'device_type': device_type,
+            'status': status,
+            'data': data or {}
+        })
+
+    # 將 emit_device_status 添加到 app 上下文
+    app.emit_device_status = emit_device_status
     app.config.from_object(Config)
 
     migrate = Migrate(app, db, directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'migrations'))
@@ -95,10 +109,36 @@ def create_app():
     app.register_blueprint(transmittance_bp, url_prefix='/api/transmittance_api')
     app.register_blueprint(power_supply_bp, url_prefix='/api/power_supply')
 
-    return app
+    return app, socketio
 
 # 創建應用程式實例
-app = create_app()
+app, socketio = create_app()
+
+@app.before_request
+def security_middleware():
+    # 1. 檢查IP地址是否允許訪問
+    client_ip = request.remote_addr
+    
+    # 只允許140.114開頭的IP和本地測試
+    if not (client_ip.startswith('140.114.') or client_ip == '127.0.0.1'):
+        print(f"🚫 拒絕來自非授權IP的請求: {client_ip}")
+        return jsonify({"error": "Access denied"}), 403
+    
+    # 2. 檢查是否有惡意請求頭或內容
+    try:
+        request_data = request.get_data().decode('utf-8', errors='ignore')
+        headers_str = str(request.headers)
+        
+        suspicious_patterns = ['CNXN', 'shell:exec', 'pkill', 'toybox', 'busybox wget']
+        for pattern in suspicious_patterns:
+            if pattern in request_data or pattern in headers_str:
+                print(f"❌ 檢測到惡意請求: {client_ip}, 模式: {pattern}")
+                return jsonify({"error": "Malicious request detected"}), 403
+    except Exception as e:
+        print(f"檢查請求時出錯: {e}")
+        
+    # 通過所有安全檢查
+    return None
 
 @app.route("/shutdown", methods=["POST"])
 def shutdown():
@@ -141,7 +181,13 @@ if hasattr(signal, 'SIGABRT'):
     signal.signal(signal.SIGABRT, handle_shutdown)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5555)
+    socketio.run(
+        app,
+        host='0.0.0.0',  # 允許外部訪問
+        port=5555,
+        debug=True,
+        allow_unsafe_werkzeug=True  # 新版 Socket.IO 需要這個參數
+    )
 
 # 啟動方式: source venv/Scripts/activate -> python backend/app.py
 
