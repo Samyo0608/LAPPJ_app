@@ -21,6 +21,7 @@ import io
 import os
 import sys
 import signal
+import json
 from database import db, jwt
 import tempfile
 import atexit
@@ -63,15 +64,27 @@ def create_app():
     app = Flask(__name__, instance_path=os.path.dirname(os.path.abspath(__file__)))
     CORS(app, resources={r"/*": {"origins": "*"}})
         # 初始化 SocketIO，允許所有來源
-    socketio = SocketIO(app, cors_allowed_origins="*")
+    socketio = SocketIO(
+        app, 
+        cors_allowed_origins="*",
+        # async_mode='gevent',
+    )
 
     # 全域函數用於發送 Socket 事件
     def emit_device_status(device_type, status, data=None):
-        socketio.emit('device_status_update', {
-            'device_type': device_type,
-            'status': status,
-            'data': data or {}
-        })
+        try:
+            # 處理 UUID 序列化問題
+            if data:
+                data = json.loads(json.dumps(data, default=str))
+            
+            socketio.emit('device_status_update', {
+                'device_type': device_type,
+                'status': status,
+                'data': data or {}
+            })
+            print(f"✅ Socket 事件已發送: {device_type} - {status}")
+        except Exception as e:
+            print(f"❌ Socket 事件發送失敗: {e}")
 
     # 將 emit_device_status 添加到 app 上下文
     app.emit_device_status = emit_device_status

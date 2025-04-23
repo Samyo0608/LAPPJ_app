@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 import asyncio
 from services.heater_services import ModbusService
 from models.heater_model import ModbusData
@@ -14,6 +14,10 @@ def connect():
     try:
         data = request.json
         if not data or "port" not in data or "address" not in data:
+            current_app.emit_device_status('heater', 'disconnected', {
+                "message": f"Heater缺少 port 或 address",
+                "status_data": 'disconnected'
+            })
             return jsonify({"status": "failure", "message": "缺少 port 或 address"}), 400
         
         try:
@@ -24,6 +28,12 @@ def connect():
         # 進行設備連線
         result, status_code = modbus_service.connect(data["port"], data["address"])
         
+        current_app.emit_device_status('heater', 'connected' if status_code == 200 else 'disconnected', {
+            "message": 'Heater連線成功' if status_code == 200 else 'Heater連線失敗',
+            "port": data["port"],
+            "address": data["address"],
+            "status_data": 'connected' if status_code == 200 else 'connected failed'
+        })
         # 記錄連線日誌
         ConnectionLogService.create_log(
             device_id='heater',
@@ -37,6 +47,12 @@ def connect():
         return jsonify(result), status_code
         
     except Exception as e:
+        current_app.emit_device_status('heater', 'disconnected', {
+            "message": f"Heater連線失敗，{data["port"]}",
+            "port": data["port"],
+            "address": data["address"],
+            "status_data": 'connected failed'
+        })
         ConnectionLogService.create_log(
             device_id='heater',
             device_name='加熱控制器',
@@ -54,6 +70,12 @@ def connect():
 def disconnect():
     data = request.json
     if not data or "port" not in data or "address" not in data:
+        current_app.emit_device_status('heater', 'connected', {
+            "message": f"Heater中斷連線失敗，{data["port"]}",
+            "port": data["port"],
+            "address": data["address"],
+            "status_data": 'disconnected failed'
+        })
         return jsonify({"status": "failure", "message": "缺少 port 或 address"}), 400
     
     try:
@@ -61,6 +83,13 @@ def disconnect():
     except:
         current_user_id = None
         
+    current_app.emit_device_status('heater', 'disconnected', {
+        "message": f"Heater中斷連線成功，{data["port"]}",
+        "port": data["port"],
+        "address": data["address"],
+        "status_data": 'disconnected'
+    })
+
     ConnectionLogService.create_log(
         device_id='heater',
         device_name='加熱控制器',
@@ -79,6 +108,9 @@ def get_modbus_data():
     """ 讀取所有 Modbus 數據 """
     try:
         if not modbus_service.client:
+            current_app.emit_device_status('heater', 'connected', {
+                "message": "Heater讀取失敗",
+            })
             return jsonify({
                 "status": "failure",
                 "message": "Modbus 未連接，請先建立連接"
@@ -86,10 +118,19 @@ def get_modbus_data():
             
         data = modbus_service.read_modbus_data()
         if data is None:
+            current_app.emit_device_status('heater', 'connected', {
+                "message": "Heater讀取失敗",
+            })
+
             return jsonify({
                 "status": "failure",
                 "message": "讀取數據失敗"
             }), 500
+        
+        current_app.emit_device_status('heater', 'connected', {
+            "message": "Heater讀取成功",
+            "data": data["data"]
+        })
             
         return jsonify({
             "status": "success",
@@ -110,6 +151,12 @@ def update_modbus_data():
         # 只傳入存在的參數
         modbus_data = ModbusData(**{k: v for k, v in data.items() if k in ModbusData.__annotations__})
         result = modbus_service.update_modbus_data(modbus_data)
+
+        current_app.emit_device_status('heater', 'connected', {
+            "message": "Heater修改成功",
+            "data": data["data"]
+        })
+
         return jsonify(result)
     except TypeError as e:
         return jsonify({

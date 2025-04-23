@@ -2,12 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Button } from "flowbite-react";
 import AlertComponent from "../ComponentTools/Alert";
 import { getApi } from "../../utils/getApi";
-import { useAlicatContext } from "../../Contexts/AlicatContext";
-import { useCo2LaserContext } from "../../Contexts/Co2LaserContext";
-import { useHeaterContext } from "../../Contexts/HeaterContext";
 import { useUltrasonicContext } from "../../Contexts/UltrasonicContext";
-import { useAzbilContext } from "../../Contexts/AzbilContext";
 import { usePowerSupplyContext } from "../../Contexts/PowerSupplyContext";
+import { useSocket } from "../../Contexts/SocketioContext";
+import azbil_code_detail from "../ControllerPage/azbil_code_detail.json"
 
 const ButtonComponent = ({ label, otherCss, onClick, isDisabled, loading = false, isOpen, gradientMonochrome }) => (
   <Button
@@ -71,12 +69,20 @@ const PredictionCard = ({ title, value, recommendations }) => (
 
 const MrRemotePage = () => {
   // Context hooks
-  const { isCarrierGasOpenState } = useAlicatContext();
-  const { isCo2LaserOpenState } = useCo2LaserContext();
-  const { isHeaterOpenState } = useHeaterContext();
   const { isUltrasonicOpenState, ultrasonicOpenFlag } = useUltrasonicContext();
-  const { isMainGasOpenState } = useAzbilContext();
   const { isPowerSupplyOpenState } = usePowerSupplyContext();
+  const { messages } = useSocket();
+  const [isMainGasOpenState, setIsMainGasOpenState] = useState(false);
+  const [isCarrierGasOpenState, setIsCarrierGasOpenState] = useState(false);
+  const [isCo2LaserOpenState, setIsCo2LaserOpenState] = useState(false);
+  const [isHeaterOpenState, setIsHeaterOpenState] =useState(false);
+
+  const apiCalledRef = React.useRef({
+    azbil: false,
+    alicat: false,
+    co2laser: false,
+    heater: false
+  });
 
   // Main Gas States
   const [mainGasDetail, setMainGasDetail] = useState({
@@ -144,7 +150,49 @@ const MrRemotePage = () => {
     try {
       const response = await getApi("/azbil_api/get_main_status", "GET");
       if (response?.data?.status === "success") {
-        setMainGasDetail(response.data.data);
+        // 比較response.data.data與azbil_code_detail的value，並轉換成azbil_code_detail內的value
+        const newMainGasDetail = response.data.data;
+        // 對PV_FLOW和SETTING_SP_FLOW進行小數點處理以及單位轉換
+        let newSettingSp = (Number(newMainGasDetail.SETTING_SP_FLOW) * 0.1).toFixed(Number(newMainGasDetail.FLOW_DECIMAL));
+        let newPvFlow = Number(newMainGasDetail.PV_FLOW) * 0.1;
+
+        switch (Number(newMainGasDetail.FLOW_UNIT)) {
+          case 0:
+            newSettingSp = newSettingSp * 1000;
+            newPvFlow = newPvFlow * 1000;
+            break;
+          case 2:
+            newSettingSp = newSettingSp * 0.06;
+            newPvFlow = newPvFlow * 0.06;
+            break;
+          default:
+            break;
+        }
+
+        // 對TOTAL_FLOW進行小數點處理以及單位轉換 0: mL, 1: L, 2: m^3
+        let newTotalFlow = (Number(newMainGasDetail.TOTAL_FLOW * 0.1 ).toFixed(newMainGasDetail.TOTAL_FLOW_DECIMAL));
+        switch (Number(newMainGasDetail.TOTAL_FLOW_UNIT)) {
+          case 0:
+            newTotalFlow = newTotalFlow * 1000;
+            break;
+          case 2:
+            newTotalFlow = newTotalFlow / 1000;
+            break;
+          default:
+            break;
+        }
+
+        const flowUnit = azbil_code_detail.FLOW_UNIT_MAP[newMainGasDetail.FLOW_UNIT];
+        const totalFlowUnit = azbil_code_detail.TOTAL_FLOW_UNIT_MAP[newMainGasDetail.TOTAL_FLOW_UNIT];
+        newMainGasDetail.FLOW_UNIT = flowUnit;
+        newMainGasDetail.TOTAL_FLOW_UNIT = totalFlowUnit;
+        newMainGasDetail.SETTING_SP_FLOW = newSettingSp;
+        newMainGasDetail.PV_FLOW = newPvFlow;
+        newMainGasDetail.TOTAL_FLOW = newTotalFlow;
+
+        setMainGasDetail(newMainGasDetail);
+      } else {
+        console.error(response?.data?.status);
       }
     } catch (error) {
       console.error(error);
@@ -199,37 +247,58 @@ const MrRemotePage = () => {
     }
   };
 
-  // Set Main Gas Flow API
-  const setMainGasFlowApi = async () => {
+  const setMainGasFlowApi = async (data) => {
     try {
+      // 修改回傳的值
+      // 規則和取得主氣資料一樣
+      let newSettingSp = mainGasFlowSetting || data;
+
+      switch (mainGasDetail.FLOW_UNIT) {
+        case "mL/min":
+          newSettingSp = Number(mainGasFlowSetting || data) / 100;
+          break;
+        case "L/min":
+          newSettingSp = Number(mainGasFlowSetting || data) * 10;
+          break;
+        case "m^3/h":
+          newSettingSp = Number(mainGasFlowSetting || data) / 0.06 * 10;
+          break;
+        default:
+          newSettingSp = Number(mainGasFlowSetting || data);
+          break;
+      }
+
       const response = await getApi("/azbil_api/set_flow", "POST", {
-        flow: Number(mainGasFlowSetting),
+        flow: newSettingSp,
       });
-      
+  
       if (response?.data?.status === "success") {
+        getMainGasDataApi();
         setAlertDetail({
           show: true,
-          message: "主氣流量設定成功",
-          type: "success"
+          message: response.data.message,
+          type: "success",
         });
-        getMainGasDataApi();
       } else {
         setAlertDetail({
           show: true,
-          message: "主氣流量設定失敗",
-          type: "failure"
+          message: response.data.message,
+          type: "failure",
         });
       }
     } catch (error) {
       console.error(error);
       setAlertDetail({
         show: true,
-        message: "設定過程發生錯誤",
-        type: "failure"
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
       });
     } finally {
       setTimeout(() => {
-        setAlertDetail(prev => ({ ...prev, show: false }));
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
       }, 2000);
     }
   };
@@ -439,43 +508,68 @@ const MrRemotePage = () => {
     setAlertDetail(prev => ({ ...prev, show: false }));
   };
 
-  // Get data on initial load and at intervals
   useEffect(() => {
-    // Initial load
-    if (isMainGasOpenState) getMainGasDataApi();
-    if (isCarrierGasOpenState) getCarrierGasDataApi();
-    if (isCo2LaserOpenState) getCo2LaserDataApi();
-    if (isHeaterOpenState) getHeaterDataApi();
-    if (isPowerSupplyOpenState) getPowerSupplyStatusApi();
+    // 遍歷訊息並檢查設備狀態變化
+    messages.forEach(socketData => {
+      const deviceType = socketData?.data?.device_type;
+      const status = socketData?.data?.status;
+      
+      if (status === "connected") {
+        switch (deviceType) {
+          case "azbil":
+            setIsMainGasOpenState(true);
+            // 只有在第一次連接時調用 API
+            if (!apiCalledRef.current.azbil) {
+              getMainGasDataApi();
+              apiCalledRef.current.azbil = true;
+            }
+            break;
+          case "alicat":
+            setIsCarrierGasOpenState(true);
+            if (!apiCalledRef.current.alicat) {
+              getCarrierGasDataApi();
+              apiCalledRef.current.alicat = true;
+            }
+            break;
+          case "co2laser":
+            setIsCo2LaserOpenState(true);
+            if (!apiCalledRef.current.co2laser) {
+              getCo2LaserDataApi();
+              apiCalledRef.current.co2laser = true;
+            }
+            break;
+          case "heater":
+            setIsHeaterOpenState(true);
+            if (!apiCalledRef.current.heater) {
+              getHeaterDataApi();
+              apiCalledRef.current.heater = true;
+            }
+            break;
+        }
+      } else if (status === "disconnected" || status === "connect_failed") {
+        switch (deviceType) {
+          case "azbil":
+            setIsMainGasOpenState(false);
+            // 設備斷開後，重置 API 調用狀態，這樣下次連接時會再次調用
+            apiCalledRef.current.azbil = false;
+            break;
+          case "alicat":
+            setIsCarrierGasOpenState(false);
+            apiCalledRef.current.alicat = false;
+            break;
+          case "co2laser":
+            setIsCo2LaserOpenState(false);
+            apiCalledRef.current.co2laser = false;
+            break;
+          case "heater":
+            setIsHeaterOpenState(false);
+            apiCalledRef.current.heater = false;
+            break;
+        }
+      }
+    });
     
-    // Set up polling intervals
-    const intervals = [];
-    
-    if (isMainGasOpenState) {
-      intervals.push(setInterval(getMainGasDataApi, 3000));
-    }
-    
-    if (isCarrierGasOpenState) {
-      intervals.push(setInterval(getCarrierGasDataApi, 3000));
-    }
-    
-    if (isCo2LaserOpenState) {
-      intervals.push(setInterval(getCo2LaserDataApi, 3000));
-    }
-    
-    if (isHeaterOpenState) {
-      intervals.push(setInterval(getHeaterDataApi, 3000));
-    }
-    
-    if (isPowerSupplyOpenState) {
-      intervals.push(setInterval(getPowerSupplyStatusApi, 3000));
-    }
-    
-    // Clean up intervals on unmount
-    return () => {
-      intervals.forEach(interval => clearInterval(interval));
-    };
-  }, [isMainGasOpenState, isCarrierGasOpenState, isCo2LaserOpenState, isHeaterOpenState, isPowerSupplyOpenState]);
+  }, [messages]);
 
   return (
     <div className="min-h-screen p-4 bg-gray-100">

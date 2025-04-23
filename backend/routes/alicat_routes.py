@@ -103,7 +103,6 @@ def connect():
 
 def is_port_available(port):
     """檢查指定的端口是否有效"""
-    import serial
     try:
         with serial.Serial(port, baudrate=19200, timeout=1) as ser:
             return True
@@ -115,8 +114,11 @@ def disconnect():
     """斷開設備連接"""
     global flow_controller
     if not flow_controller:
-        current_app.emit_device_status('alicat', 'connected', {
-            "message": f"Alicat MFC 離線成功",
+        current_app.emit_device_status('alicat', 'disconnected', {
+            "message": f"Alicat 沒有連線，端口: {connected_port}",
+            "port": connected_port,
+            "address": connected_address,
+            "status_data": 'disconnected'
         })
         return jsonify({"status": "failure", "message": "Device not connected"}), 400
     
@@ -132,6 +134,13 @@ def disconnect():
     try:
         flow_controller.disconnect()
         flow_controller = None
+
+        current_app.emit_device_status('alicat', 'disconnected', {
+            "message": f"Alicat 載氣MFC中斷連線成功，端口: {connected_port}",
+            "port": connected_port,
+            "address": connected_address,
+            "status_data": 'disconnected'
+        })
         
         # 記錄連線日誌
         ConnectionLogService.create_log(
@@ -143,8 +152,14 @@ def disconnect():
             created_by=current_user_id
         )
         
-        return jsonify({"status": "success", "message": "Disconnected"}), 200
+        return jsonify({"status": "success", "message": "disconnected"}), 200
     except Exception as e:
+        current_app.emit_device_status('alicat', 'connected', {
+            "message": f"Alicat 載氣MFC中斷連線失敗，端口: {connected_port}",
+            "port": connected_port,
+            "address": connected_address,
+            "status_data": 'disconnected failed'
+        })
         # 記錄連線日誌
         ConnectionLogService.create_log(
             device_id='carrierGas',
@@ -187,12 +202,15 @@ def set_flow_rate():
     try:
         flow_rate = float(flow_rate)
         flow_controller.set_flow_rate(flow_rate)
-        return jsonify({"status": "success", "message": f"Flow rate set to {flow_rate:.3f} slm"}), 200
+        current_app.emit_device_status('alicat', 'connected', {
+            "message": "載氣流量修改成功",
+            "data": flow_controller.read_status()
+        })
+        return jsonify({"status": "success", "message": f"{flow_rate:.3f} slm"}), 200
     except ValueError:
         return jsonify({"status": "failure", "message": "Invalid flow rate format"}), 400
     except Exception as e:
         return jsonify({"status": "failure", "message": str(e)}), 500
-
 
 @alicat_bp.route('/gases', methods=['GET'])
 def get_all_gases():

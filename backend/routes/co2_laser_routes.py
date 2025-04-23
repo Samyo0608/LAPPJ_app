@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from services.co2_laser_services import UC2000Service
 from services.connect_log_services import ConnectionLogService
 from flask_jwt_extended import get_jwt_identity
@@ -13,6 +13,11 @@ def connect():
     port = data.get('port')
 
     if not port:
+        current_app.emit_device_status('co2laser', 'disconnected', {
+            "message": f"CO2 laser連線失敗，{port}",
+            "port": port,
+            "status_data": 'connected failed'
+        })
         return jsonify({"status": "error", "message": "請提供 port"}), 400
 
     try:
@@ -25,6 +30,11 @@ def connect():
         result, status_code = controller_service.connect(port)
         
         if status_code == 200:
+            current_app.emit_device_status('co2laser', 'connected', {
+                "message": f"CO2 laser連線成功，{port}",
+                "port": port,
+                "status_data": 'connected'
+            })
             # 記錄連線日誌
             ConnectionLogService.create_log(
                 device_id='uc2000',
@@ -35,6 +45,11 @@ def connect():
                 created_by=current_user_id
             )
         else:
+            current_app.emit_device_status('co2laser', 'disconnected', {
+                "message": f"CO2 laser連線失敗，{port}",
+                "port": port,
+                "status_data": 'connected failed'
+            })
             ConnectionLogService.create_log(
                 device_id='uc2000',
                 device_name='UC-2000 CO2雷射控制器',
@@ -47,6 +62,11 @@ def connect():
         return jsonify(result), status_code
     
     except Exception as e:
+        current_app.emit_device_status('co2laser', 'disconnected', {
+            "message": f"CO2 laser連線失敗，{port}",
+            "port": port,
+            "status_data": 'connected failed'
+        })
         ConnectionLogService.create_log(
             device_id='uc2000',
             device_name='UC-2000 CO2雷射控制器',
@@ -67,6 +87,11 @@ def disconnect():
     port = data.get('port')
 
     if not port:
+        current_app.emit_device_status('co2laser', 'connected', {
+            "message": f"CO2 laser中斷連線失敗，{port}",
+            "port": port,
+            "status_data": 'disconnected failed'
+        })
         return jsonify({"status": "error", "message": "請提供 port"}), 400
     
     try:
@@ -78,6 +103,11 @@ def disconnect():
         result, status_code = controller_service.disconnect()
         
         if status_code == 200:
+            current_app.emit_device_status('co2laser', 'disconnected', {
+                "message": f"CO2 laser中斷連線成功，{port}",
+                "port": port,
+                "status_data": 'disconnected'
+            })
             # 記錄斷開連線日誌
             ConnectionLogService.create_log(
                 device_id='uc2000',
@@ -88,6 +118,11 @@ def disconnect():
                 created_by=current_user_id
             )
         else:
+            current_app.emit_device_status('co2laser', 'connected', {
+                "message": f"CO2 laser中斷連線失敗，{port}",
+                "port": port,
+                "status_data": 'disconnected failed'
+            })
             ConnectionLogService.create_log(
                 device_id='uc2000',
                 device_name='UC-2000 CO2雷射控制器',
@@ -100,6 +135,11 @@ def disconnect():
         return jsonify(result), status_code
     
     except Exception as e:
+        current_app.emit_device_status('co2laser', 'connected', {
+            "message": f"CO2 laser 中斷連線失敗，{port}",
+            "port": port,
+            "status_data": 'disconnected failed'
+        })
         ConnectionLogService.create_log(
             device_id='uc2000',
             device_name='UC-2000 CO2雷射控制器',
@@ -116,6 +156,10 @@ def disconnect():
 @uc2000_bp.route('/status', methods=['GET'])
 def get_status():
     """獲取 UC-2000 狀態"""
+    current_app.emit_device_status('co2laser', 'connected', {
+        "message": "Co2 laser 修改成功",
+        "status_data": 'disconnected failed'
+    })
     return controller_service.get_status()
 
 @uc2000_bp.route('/set_pwm_freq', methods=['POST'])

@@ -1,5 +1,4 @@
-// src/contexts/SocketContext.js
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
 // 創建 Context
@@ -13,20 +12,49 @@ export const SocketProvider = ({ children }) => {
   const [lastMessage, setLastMessage] = useState(null);
   const url = process.env.REACT_APP_PUBLIC_URL || 'http://localhost:5555';
   
-  console.log("REACT_APP_PUBLIC_URL", process.env.REACT_APP_PUBLIC_URL);
-
-  // 初始化 Socket 連接q
+  // 更新消息的回調函數 - 使用 useCallback 避免重新創建
+  const updateMessages = useCallback((data) => {
+    setLastMessage(data);
+    setMessages(prevMessages => {
+      // 檢查是否已有相同設備類型的消息
+      const existingIndex = prevMessages.findIndex(msg => 
+        msg.type === 'device_status' && msg.data.device_type === data.device_type
+      );
+      
+      if (existingIndex >= 0) {
+        // 如果已存在，創建新數組並更新該消息
+        const newMessages = [...prevMessages];
+        newMessages[existingIndex] = {
+          type: 'device_status',
+          data,
+          timestamp: new Date()
+        };
+        return newMessages;
+      } else {
+        // 如果不存在，添加新消息
+        return [...prevMessages, {
+          type: 'device_status',
+          data,
+          timestamp: new Date()
+        }];
+      }
+    });
+  }, []);
+  
+  // 初始化 Socket 連接 - 移除 messages 依賴
   useEffect(() => {
+    console.log('初始化 Socket.IO 連接到', url);
+    
     // 建立 Socket 實例
     const socketInstance = io(url, {
-      transports: ['websocket'],
-      autoConnect: true
+      transports: ['websocket', 'polling'], // 添加 polling 作為備選
+      autoConnect: true,
+      reconnection: true
     });
-
     
     // 設置連接事件處理程序
     socketInstance.on('connect', () => {
-      console.log('Socket.IO 已連接！');
+      console.log('Socket.IO 已連接！', socketInstance.id);
       setIsConnected(true);
     });
     
@@ -35,24 +63,14 @@ export const SocketProvider = ({ children }) => {
       setIsConnected(false);
     });
     
-    // 處理接收到的訊息
-    // 這裡以 'api_response' 為例，您可以添加更多不同類型的事件
-    socketInstance.on('api_response', (data) => {
-      console.log('收到 API 回應:', data);
-      setLastMessage(data);
-      setMessages(prev => [...prev, { type: 'api_response', data, timestamp: new Date() }]);
+    socketInstance.on('connect_error', (error) => {
+      console.error('Socket.IO 連接錯誤:', error);
     });
     
-    socketInstance.on('api_error', (data) => {
-      console.log('收到 API 錯誤:', data);
-      setLastMessage(data);
-      setMessages(prev => [...prev, { type: 'api_error', data, timestamp: new Date() }]);
-    });
-    
+    // 監聽設備狀態更新
     socketInstance.on('device_status_update', (data) => {
       console.log('收到設備狀態更新:', data);
-      setLastMessage(data);
-      setMessages(prev => [...prev, { type: 'device_status', data, timestamp: new Date() }]);
+      updateMessages(data);
     });
     
     // 保存 Socket 實例
@@ -60,9 +78,10 @@ export const SocketProvider = ({ children }) => {
     
     // 清理函數
     return () => {
+      console.log('清理 Socket.IO 連接');
       socketInstance.disconnect();
     };
-  }, []);
+  }, [url, updateMessages]); // 移除 messages 依賴
   
   // 提供給 Context 的值
   const contextValue = {
