@@ -10,6 +10,7 @@ import { UltrasonicProvider } from './Contexts/UltrasonicContext';
 import { AzbilProvider } from './Contexts/AzbilContext';
 import { PowerSupplyProvider } from './Contexts/PowerSupplyContext';
 import { SocketProvider } from './Contexts/SocketioContext';
+import { RobotArmProvider } from './Contexts/RobotArmContext';
 import ControllerPage from './components/ControllerPage/ControllerPage';
 import MfcLaserSetting from './components/MfcLaserSetting/MfcLaserSetting';
 import LabWeb from './components/LabWeb/LabWeb';
@@ -29,18 +30,20 @@ const App = () => {
                   <HeaterProvider>
                     <UltrasonicProvider>
                       <PowerSupplyProvider>
-                        <Navbar />
-                        <Routes>
-                            <Route index element={<ControllerPage />} />
-                            <Route path='/controllerPage' element={<ControllerPage />} />
-                            <Route path='/mfcLaserSetting' element={<MfcLaserSetting />} />
-                            <Route path='/transmittancePage' element={<TransmittancePage />} />
-                            <Route path='/LabWeb' element={<LabWeb />} />
-                            <Route path='/recipePage' element={<RecipePage />} />
-                            <Route path='/portAutoConnectPage' element={<PortAutoConnectPage />} />
-                            <Route path='/mrRemotePage' element={<MrRemotePage />} />
-                            {/* <Route path='*' element={<NoMatch />} /> */}
-                        </Routes>
+                        <RobotArmProvider>
+                          <Navbar />
+                          <Routes>
+                              <Route index element={<ControllerPage />} />
+                              <Route path='/controllerPage' element={<ControllerPage />} />
+                              <Route path='/mfcLaserSetting' element={<MfcLaserSetting />} />
+                              <Route path='/transmittancePage' element={<TransmittancePage />} />
+                              <Route path='/LabWeb' element={<LabWeb />} />
+                              <Route path='/recipePage' element={<RecipePage />} />
+                              <Route path='/portAutoConnectPage' element={<PortAutoConnectPage />} />
+                              <Route path='/mrRemotePage' element={<MrRemotePage />} />
+                              {/* <Route path='*' element={<NoMatch />} /> */}
+                          </Routes>
+                        </RobotArmProvider>
                       </PowerSupplyProvider>
                     </UltrasonicProvider>
                   </HeaterProvider>

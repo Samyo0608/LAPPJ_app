@@ -545,6 +545,8 @@ const MrRemotePage = () => {
               apiCalledRef.current.heater = true;
             }
             break;
+          default:
+            break;
         }
       } else if (status === "disconnected" || status === "connect_failed") {
         switch (deviceType) {
@@ -564,6 +566,8 @@ const MrRemotePage = () => {
           case "heater":
             setIsHeaterOpenState(false);
             apiCalledRef.current.heater = false;
+            break;
+          default:
             break;
         }
       }

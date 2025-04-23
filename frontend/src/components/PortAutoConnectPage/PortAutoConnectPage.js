@@ -9,6 +9,7 @@ import { useHeaterContext } from '../../Contexts/HeaterContext';
 import { useUltrasonicContext } from '../../Contexts/UltrasonicContext';
 import { useAzbilContext } from '../../Contexts/AzbilContext';
 import { usePowerSupplyContext } from '../../Contexts/PowerSupplyContext';
+import { useRobotArmContext } from '../../Contexts/RobotArmContext';
 
 const useHooks = () => {
   const deviceConnectedRef = React.useRef({});
@@ -30,6 +31,9 @@ const useHooks = () => {
   const {
     isPowerSupplyOpenState, setIsPowerSupplyOpenState, powerSupplyPortState, setPowerSupplyPortState
   } = usePowerSupplyContext();
+  const {
+    robotArmIpState, setRobotArmIpState, isRobotArmOpenState, setIsRobotArmOpenState
+  } = useRobotArmContext();
 
   // 設備列表
   const deviceList = React.useMemo(() => [
@@ -91,6 +95,7 @@ const useHooks = () => {
   });
 
   const [ipAddress, setIpAddress] = useState('');
+  const [onRobotConectLoading, setOnRobotConectLoading] = useState(false);
   const [isAutoConnecting, setIsAutoConnecting] = useState(false);
   const [connectionResults, setConnectionResults] = useState([]);
   const [usefulPorts, setUsefulPorts] = useState([]);
@@ -1361,6 +1366,57 @@ const useHooks = () => {
       }, 2000);
     }
   };
+
+  // 連線手臂ip
+  const connectRobotArmApi = async () => {
+    setOnRobotConectLoading(true);
+    try {
+      const response = await getApi('/robot_api/connect', 'POST', {ip_address: ipAddress}, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        setIsRobotArmOpenState(true);
+        setRobotArmIpState(ipAddress);
+        setAlertDetail({
+          show: true,
+          message: response.data.message || 'Robot Arm連線成功',
+          type: 'success'
+        });
+        
+        return response;
+      } else {
+        console.error(response?.data?.status);
+      }
+    } catch (error) {
+      console.error('Robot Arm 連線錯誤:', error);
+    } finally {
+      setOnRobotConectLoading(false);
+    };
+  };
+
+  // 取消連線手臂ip
+  const disconnectRobotArmApi = async () => {
+    setOnRobotConectLoading(true);
+    try {
+      const response = await getApi('/robot_api/disconnect', 'POST', {ip_address: ipAddress}, localStorage.getItem('token'));
+
+      if (response?.data?.status === 'success') {
+        setIsRobotArmOpenState(false);
+        setAlertDetail({
+          show: true,
+          message: response.data.message || 'Robot Arm取消連線成功',
+          type: 'success'
+        });
+        
+        return response;
+      } else {
+        console.error(response?.data?.status);
+      }
+    } catch (error) {
+      console.error('Robot Arm 取消連線錯誤:', error);
+    } finally {
+      setOnRobotConectLoading(false);
+    };
+  }
   
   // -------------------api function-------------------
 
@@ -1597,12 +1653,17 @@ const useHooks = () => {
     isUltrasonicOpenState,
     isMainGasOpenState,
     isPowerSupplyOpenState,
+    isRobotArmOpenState,
+    robotArmIpState,
+    onRobotConectLoading,
     setIpAddress,
     handleConnect,
     handleAutoConnect,
     toggleDeviceSelection,
     setAlertDetail,
-    onPortOrAddressChange
+    onPortOrAddressChange,
+    disconnectRobotArmApi,
+    connectRobotArmApi,
   };
 };
 
@@ -1610,9 +1671,9 @@ const useHooks = () => {
 const PortAutoConnectPage = () => {
   const {
     deviceList, devices, ipAddress, isAutoConnecting, connectionResults, usefulPorts, alertDetail, isCarrierGasOpenState, isCo2LaserOpenState,
-    isHeaterOpenState, isUltrasonicOpenState, isMainGasOpenState, isPowerSupplyOpenState,
+    isHeaterOpenState, isUltrasonicOpenState, isMainGasOpenState, isPowerSupplyOpenState, isRobotArmOpenState, robotArmIpState, onRobotConectLoading,
     setIpAddress, handleConnect, handleAutoConnect, toggleDeviceSelection, setAlertDetail,
-    onPortOrAddressChange
+    onPortOrAddressChange, disconnectRobotArmApi, connectRobotArmApi
   } = useHooks();
 
   return (
@@ -1624,20 +1685,31 @@ const PortAutoConnectPage = () => {
       >
         <Card className="bg-white">
           <h5 className="text-xl font-bold tracking-tight text-gray-900">
-            Port Connection (IP Address)
+            Port Connection for Robot arm (IP Address)
           </h5>
           <div>
             <TextInput
               placeholder="Enter IP Address"
-              value={ipAddress || ""}
+              value={ipAddress || robotArmIpState || ""}
               onChange={(e) => setIpAddress(e.target.value)}
               className="max-w-xs"
             />
           </div>
+          {console.log("robotArmIpState", robotArmIpState)}
           <Button
             className='max-w-48'
+            style={{ backgroundColor: isRobotArmOpenState ? '#dc3545' : '#66a8d8' }}
+            onClick={async () => {
+              if (isRobotArmOpenState) {
+                await disconnectRobotArmApi();
+              } else {
+                await connectRobotArmApi();
+              }
+            }}
+            loading={onRobotConectLoading}
+            disabled={onRobotConectLoading}
           >
-            IP Connect
+            {onRobotConectLoading ? "Connecting..." : isRobotArmOpenState ? "IP disconnect" : "IP Connect"}
           </Button>
         </Card>
         <Card>

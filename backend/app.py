@@ -15,6 +15,7 @@ from routes.ultrasonic_routes import modbus_bp
 from routes.azbil_MFC_routes import azbil_MFC_bp
 from routes.transmittance_routes import transmittance_bp
 from routes.power_supply_routes import power_supply_bp
+from routes.robot_arm_routes import robot_bp
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
@@ -121,6 +122,7 @@ def create_app():
     app.register_blueprint(azbil_MFC_bp, url_prefix='/api/azbil_api')
     app.register_blueprint(transmittance_bp, url_prefix='/api/transmittance_api')
     app.register_blueprint(power_supply_bp, url_prefix='/api/power_supply')
+    app.register_blueprint(robot_bp, url_prefix='/api/robot_api')
 
     return app, socketio
 

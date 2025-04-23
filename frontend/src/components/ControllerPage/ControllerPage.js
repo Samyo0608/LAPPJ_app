@@ -10,6 +10,7 @@ import { useHeaterContext } from "../../Contexts/HeaterContext";
 import { useUltrasonicContext } from "../../Contexts/UltrasonicContext";
 import { useAzbilContext } from "../../Contexts/AzbilContext";
 import { usePowerSupplyContext } from "../../Contexts/PowerSupplyContext";
+import { useRobotArmContext } from "../../Contexts/RobotArmContext";
 import azbil_code_detail from "./azbil_code_detail.json"
 import AutoConnectModal from "../AutoConnectModal/AutoConnectModal";
 
@@ -32,6 +33,7 @@ const useHooks = () => {
   const { isHeaterOpenState, heaterDetailState, setHeaterDetailState } = useHeaterContext();
   const { isUltrasonicOpenState, ultrasonicOpenFlag, setUltrasonicOpenFlag } = useUltrasonicContext();
   const { isMainGasOpenState, setMainGasDetailState, mainGasDetailState } = useAzbilContext();
+  const { isRobotArmOpenState, setRobotArmDetailState } = useRobotArmContext();
   const { isPowerSupplyOpenState } = usePowerSupplyContext();
   // const { isPowerSupplyOpenState, setPowerSupplyDetailState, powerSupplyDetailState } = usePowerSupplyContext();
   // 主氣資料
@@ -63,6 +65,10 @@ const useHooks = () => {
   const [isDC1Boost, setIsDC1Boost] = useState(false);
   const [isPowerOpen, setIsPowerOpen] = useState(false);
   const [powerSupplyDeviceStatus, setPowerSupplyDeviceStatus] = useState("");
+  // 機械手臂
+  const [robotArmDetail, setRobotArmDetail] = useState({});
+  const [onRobotArmLoading, setOnRobotArmLoading] = useState(false);
+  const [onRobotStart, setOnRobotStart] = useState(false);
   // 其他
   const [alertDetail, setAlertDetail] = React.useState({});
   const [onAutoStartLoading, setOnAutoStartLoading] = React.useState(false);
@@ -1012,6 +1018,138 @@ const useHooks = () => {
     }
   }; 
 
+  // 取得機械手臂資料 API
+  const getRobotArmDataApi = async () => {
+    try {
+      const response = await getApi("/robot_api/status", "GET");
+      if (response?.data?.status === "success") {
+        setRobotArmDetail(response.data.data);
+        setRobotArmDetailState(response.data.data);
+        setOnRobotStart(response.data.data.robot_status.is_started);
+      } else {
+        console.error(response?.data?.status);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // 修改機械手臂速度倍率 api
+  const setRobotArmSpeedApi = async (data) => {
+    try {
+      setOnRobotArmLoading(true);
+      const response = await getApi("/robot_api/speed", "POST", {
+        enabled: isRobotArmOpenState,
+        value: data,
+      });
+
+      if (response?.data?.status === "success") {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnRobotArmLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
+
+  // 開啟機械手臂 api
+  const setRobotArmOpenApi = async () => {
+    try {
+      setOnRobotArmLoading(true);
+      const response = await getApi("/robot_api/start", "POST");
+
+      if (response?.data?.status === "success") {
+        getRobotArmDataApi();
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnRobotArmLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
+
+  // 復歸機械手臂 api
+  const setRobotArmResetApi = async () => {
+    try {
+      setOnRobotArmLoading(true);
+      const response = await getApi("/robot_api/reset", "POST");
+
+      if (response?.data?.status === "success") {
+        getRobotArmDataApi();
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "success",
+        });
+      } else {
+        setAlertDetail({
+          show: true,
+          message: response.data.message,
+          type: "failure",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlertDetail({
+        show: true,
+        message: "發生錯誤，請稍後再試",
+        type: "failure",
+      });
+    } finally {
+      setOnRobotArmLoading(false);
+      setTimeout(() => {
+        setAlertDetail((prev) => ({
+          ...prev,
+          show: false,
+        }));
+      }, 2000);
+    }
+  };
+
   // 取得Recipe資料 API
   const getRecipeDataApi = async () => {
     const response = await getApi("/recipe_api/get_recipes", "GET");
@@ -1469,17 +1607,20 @@ const useHooks = () => {
     if (isPowerSupplyOpenState) {
       getPowerSupplyStatusApi();
     }
+    if (isRobotArmOpenState) {
+      getRobotArmDataApi();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMainGasOpenState, isCarrierGasOpenState, isCo2LaserOpenState, isHeaterOpenState, isPowerSupplyOpenState]);
+  }, [isMainGasOpenState, isCarrierGasOpenState, isCo2LaserOpenState, isHeaterOpenState, isPowerSupplyOpenState, isRobotArmOpenState]);
 
   React.useEffect(() => {
     if (sessionStorage.getItem("firstEnterPage") === "true") return;
-    if (isCarrierGasOpenState || isMainGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState) {
+    if (isCarrierGasOpenState || isMainGasOpenState || isCo2LaserOpenState || isHeaterOpenState || isUltrasonicOpenState || isRobotArmOpenState) {
       sessionStorage.setItem("firstEnterPage", false);
     } else{
       sessionStorage.setItem("firstEnterPage", true);
     }
-  }, [isCarrierGasOpenState, isMainGasOpenState, isCo2LaserOpenState, isHeaterOpenState, isUltrasonicOpenState]);
+  }, [isCarrierGasOpenState, isMainGasOpenState, isCo2LaserOpenState, isHeaterOpenState, isUltrasonicOpenState, isRobotArmOpenState]);
 
   return {
     isMainGasOpenState,
@@ -1518,6 +1659,10 @@ const useHooks = () => {
     powerSupplyDeviceStatus,
     isDC1Boost,
     isPowerOpen,
+    isRobotArmOpenState,
+    robotArmDetail,
+    onRobotStart,
+    onRobotArmLoading,
     alertDetail,
     onAutoStartLoading,
     onMainGasClick,
@@ -1543,6 +1688,9 @@ const useHooks = () => {
     setPowerSupplyDC1BuckApi,
     setPowerSupplyPowerOnApi,
     setPowerSupplyPowerOffApi,
+    setRobotArmSpeedApi,
+    setRobotArmOpenApi,
+    setRobotArmResetApi,
     onAutoStartClick,
     onAllCloseClick,
   };
@@ -1555,10 +1703,11 @@ const ControllerPage = () => {
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
     alertDetail, temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, onUltrasonicLoading, isUltrasonicOpenState, ultrasonicOpenFlag,
     onAutoStartLoading, powerSupplyVoltage, isPowerSupplyOpenState, onPowerSupplyLoading, isDC1Boost, isPowerOpen, powerSupplyDetail, powerSupplyDeviceStatus,
+    robotArmDetail, onRobotArmLoading, isRobotArmOpenState, onRobotStart,
     onMainGasClick, onMainGasFlowSettingChange, onMainGasFlowSettingClick, resetMainGasTotalFlowApi, onCarrierFlowSettingChange, onCarrierFlowSettingClick,
     onRecipeSelect, onRecipeApplyClick, setPowerSupplyDC1BoostApi, setPowerSupplyDC1BuckApi, setPowerSupplyPowerOnApi, setPowerSupplyPowerOffApi,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM, onPowerSupplyVoltageClick, setPowerSupplyVoltage, clearPowerSupplyErrorCodeApi,
-    onAlertClose, setTemperature, setHeaterTemperatureApi, setUltrasonicOpen, setUltrasonicClose,
+    onAlertClose, setTemperature, setHeaterTemperatureApi, setUltrasonicOpen, setUltrasonicClose, setRobotArmSpeedApi, setRobotArmOpenApi, setRobotArmResetApi,
     onAutoStartClick, onAllCloseClick,
   } = useHooks();
 
@@ -1618,6 +1767,14 @@ const ControllerPage = () => {
             } w-4 h-4 bg-green-500 rounded-full min-w-4`}
           />
           <span className="text-sm">Ultrasonic</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={`${
+              isRobotArmOpenState ? "bg-green-500" : "bg-red-500"
+            } w-4 h-4 bg-green-500 rounded-full min-w-4`}
+          />
+          <span className="text-sm">Robot arm</span>
         </div>
       </div>
       {/* Main Content */}
@@ -2055,33 +2212,32 @@ const ControllerPage = () => {
             {/* Robot Control */}
             <div className="border p-4 border-red-300 rounded shadow flex items-center justify-center flex-col">
               <h3 className="font-bold">機械手臂控制</h3>
-              <h3 className="font-bold mb-2">(Robot control)</h3>
+              <h3 className="font-bold mb-2">(Robot Arm)</h3>
               <p className="flex items-center gap-2 mb-2 text-sm">
-                目前機械手臂狀態: <span className='font-bold text-purple-500'>{ultrasonicOpenFlag ? "運作中" : "關閉"}</span>
+                目前機械手臂狀態: <span className='font-bold text-purple-500'>{onRobotStart ? "開啟" : "關閉"}</span>
               </p>
               <div className="flex justify-center items-center gap-2 mt-2">
                 <ButtonComponent
                   label="開啟"
-                  onClick={setUltrasonicOpen}
+                  onClick={setRobotArmOpenApi}
                   isOpen={ultrasonicOpenFlag}
-                  isDisabled={!isUltrasonicOpenState || ultrasonicOpenFlag}
-                  loading={onUltrasonicLoading}
+                  isDisabled={!isRobotArmOpenState || onRobotStart}
+                  loading={onRobotArmLoading}
                   gradientMonochrome="teal"
                 />
                 <ButtonComponent
-                  label="關閉"
-                  onClick={setUltrasonicClose}
-                  isDisabled={!isUltrasonicOpenState || !ultrasonicOpenFlag}
+                  label="狀態復歸"
+                  onClick={setRobotArmResetApi}
                   loading={onUltrasonicLoading}
                   gradientMonochrome="teal"
                 />
               </div>
               <p className="flex items-center gap-2 mb-2 text-sm mt-4">
-                目前速度百分比: <span className='font-bold text-purple-500'> - - %</span>
+                目前速度百分比: <span className='font-bold text-purple-500'> {robotArmDetail?.adjustment_rate?.value || 0} %</span>
               </p>
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">目前實際速度 (mm/s)</span>
-                <div className="flex items-center gap-2 flex-wrap">
+                {/* <div className="flex items-center gap-2 flex-wrap">
                   <input
                     type="number"
                     placeholder="0"
@@ -2089,7 +2245,7 @@ const ControllerPage = () => {
                     readOnly
                   />
                   <span className="text-sm w-4">mm/s</span>
-                </div>
+                </div> */}
               </div>
               <div className="flex justify-center items-center gap-2 flex-wrap mt-2">
                 <span className="text-sm w-40">速度百分比調整 (%)</span>
@@ -2098,6 +2254,7 @@ const ControllerPage = () => {
                     type="number"
                     className="p-1 border rounded w-32"
                     placeholder="請輸入整數"
+                    onChange={(e) => setRobotArmSpeedApi(e.target.value)}
                   />
                   <span className="text-sm w-4">%</span>
                 </div>
