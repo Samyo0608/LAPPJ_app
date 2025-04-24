@@ -69,13 +69,16 @@ const PredictionCard = ({ title, value, recommendations }) => (
 
 const MrRemotePage = () => {
   // Context hooks
-  const { isUltrasonicOpenState, ultrasonicOpenFlag } = useUltrasonicContext();
+  const { ultrasonicOpenFlag } = useUltrasonicContext();
   const { isPowerSupplyOpenState } = usePowerSupplyContext();
   const { messages } = useSocket();
-  const [isMainGasOpenState, setIsMainGasOpenState] = useState(false);
-  const [isCarrierGasOpenState, setIsCarrierGasOpenState] = useState(false);
-  const [isCo2LaserOpenState, setIsCo2LaserOpenState] = useState(false);
-  const [isHeaterOpenState, setIsHeaterOpenState] =useState(false);
+  const isMainGasOpenState = messages.filter(socket => socket.data.device_type === "azbil")[0]?.data?.status === "connected";
+  const isCarrierGasOpenState = messages.filter(socket => socket.data.device_type === "alicat")[0]?.data?.status === "connected";
+  const isHeaterOpenState = messages.filter(socket => socket.data.device_type === "heater")[0]?.data?.status === "connected";
+  const isCo2LaserOpenState = messages.filter(socket => socket.data.device_type === "co2laser")[0]?.data?.status === "connected";
+  const isUltrasonicOpenState = messages.filter(socket => socket.data.device_type === "ultrasonic")[0]?.data?.status === "connected";
+
+  console.log("isUltrasonicOpenState", isUltrasonicOpenState);
 
   const apiCalledRef = React.useRef({
     azbil: false,
@@ -517,7 +520,6 @@ const MrRemotePage = () => {
       if (status === "connected") {
         switch (deviceType) {
           case "azbil":
-            setIsMainGasOpenState(true);
             // 只有在第一次連接時調用 API
             if (!apiCalledRef.current.azbil) {
               getMainGasDataApi();
@@ -525,24 +527,26 @@ const MrRemotePage = () => {
             }
             break;
           case "alicat":
-            setIsCarrierGasOpenState(true);
             if (!apiCalledRef.current.alicat) {
               getCarrierGasDataApi();
               apiCalledRef.current.alicat = true;
             }
             break;
           case "co2laser":
-            setIsCo2LaserOpenState(true);
             if (!apiCalledRef.current.co2laser) {
               getCo2LaserDataApi();
               apiCalledRef.current.co2laser = true;
             }
             break;
           case "heater":
-            setIsHeaterOpenState(true);
             if (!apiCalledRef.current.heater) {
               getHeaterDataApi();
               apiCalledRef.current.heater = true;
+            }
+            break;
+          case "ultrasonic":
+            if (!apiCalledRef.current.ultrasonic) {
+              apiCalledRef.current.ultrasonic = true;
             }
             break;
           default:
@@ -551,21 +555,19 @@ const MrRemotePage = () => {
       } else if (status === "disconnected" || status === "connect_failed") {
         switch (deviceType) {
           case "azbil":
-            setIsMainGasOpenState(false);
-            // 設備斷開後，重置 API 調用狀態，這樣下次連接時會再次調用
             apiCalledRef.current.azbil = false;
             break;
           case "alicat":
-            setIsCarrierGasOpenState(false);
             apiCalledRef.current.alicat = false;
             break;
           case "co2laser":
-            setIsCo2LaserOpenState(false);
             apiCalledRef.current.co2laser = false;
             break;
           case "heater":
-            setIsHeaterOpenState(false);
             apiCalledRef.current.heater = false;
+            break;
+          case "ultrasonic":
+            apiCalledRef.current.ultrasonic = false;
             break;
           default:
             break;
@@ -592,7 +594,7 @@ const MrRemotePage = () => {
           <h2 className="text-lg font-semibold mb-3">連線狀態</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <StatusIndicator isConnected={isMainGasOpenState} label="主氣流量" />
-            <StatusIndicator isConnected={isCarrierGasOpenState} label="載氣流量" />
+            <StatusIndicator isConnected={messages.filter(socket => socket.data.device_type === "alicat")[0]?.data?.status === "connected"} label="載氣流量" />
             <StatusIndicator isConnected={isCo2LaserOpenState} label="CO2 雷射" />
             <StatusIndicator isConnected={isHeaterOpenState} label="溫度控制器" />
             <StatusIndicator isConnected={isUltrasonicOpenState} label="超音波震盪器" />

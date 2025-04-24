@@ -1384,12 +1384,23 @@ const useHooks = () => {
         
         return response;
       } else {
-        console.error(response?.data?.status);
+        setAlertDetail({
+          show: true,
+          message: 'Robot Arm連線失敗',
+          type: 'failure'
+        });
       }
     } catch (error) {
-      console.error('Robot Arm 連線錯誤:', error);
+      setAlertDetail({
+        show: true,
+        message: 'Robot Arm連線失敗',
+        type: 'failure'
+      });
     } finally {
       setOnRobotConectLoading(false);
+      setTimeout(() => {
+        setAlertDetail(prev => ({ ...prev, show: false }));
+      }, 2000);
     };
   };
 
@@ -1695,7 +1706,6 @@ const PortAutoConnectPage = () => {
               className="max-w-xs"
             />
           </div>
-          {console.log("robotArmIpState", robotArmIpState)}
           <Button
             className='max-w-48'
             style={{ backgroundColor: isRobotArmOpenState ? '#dc3545' : '#66a8d8' }}

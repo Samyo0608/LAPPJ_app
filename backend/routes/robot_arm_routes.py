@@ -19,9 +19,9 @@ def connect():
     success, message = robot_service.connect(ip_address, port, slave_id)
     
     return jsonify({
-        'success': success,
+        'status': 'success' if success else 'failure',
         'message': message
-    }), 200 if success else 400
+    }), 200
 
 @robot_bp.route('/disconnect', methods=['POST'])
 def disconnect():
@@ -29,9 +29,9 @@ def disconnect():
     success, message = robot_service.disconnect()
     
     return jsonify({
-        'success': success,
+        'status': 'success' if success else 'failure',
         'message': message
-    }), 200 if success else 400
+    }), 200
 
 @robot_bp.route('/status', methods=['GET'])
 def get_status():
@@ -39,14 +39,14 @@ def get_status():
     success, message, data = robot_service.read_status()
     
     response = {
-        'success': success,
+        'status': 'success' if success else 'failure',
         'message': message
     }
     
     if data:
         response['data'] = data
     
-    return jsonify(response), 200 if success else 400
+    return jsonify(response), 200
 
 @robot_bp.route('/start', methods=['POST'])
 def start_robot():
@@ -58,9 +58,9 @@ def start_robot():
     success, message = robot_service.start_robot(start)
     
     return jsonify({
-        'success': success,
+        'status': 'success' if success else 'failure',
         'message': message
-    }), 200 if success else 400
+    }), 200
 
 @robot_bp.route('/speed', methods=['POST'])
 def set_adjustment_rate():
@@ -73,9 +73,9 @@ def set_adjustment_rate():
     success, message = robot_service.set_adjustment_rate(enabled, value)
     
     return jsonify({
-        'success': success,
+        'status': 'success' if success else 'failure',
         'message': message
-    }), 200 if success else 400
+    }), 200
 
 @robot_bp.route('/gap_adjustment', methods=['POST'])
 def set_height_adjustment():
@@ -88,9 +88,9 @@ def set_height_adjustment():
     success, message = robot_service.set_height_adjustment(enabled, offset_value)
     
     return jsonify({
-        'success': success,
+        'status': 'success' if success else 'failure',
         'message': message
-    }), 200 if success else 400
+    }), 200
 
 @robot_bp.route('/times_adjustment', methods=['POST'])
 def set_count_adjustment():
@@ -103,30 +103,31 @@ def set_count_adjustment():
     success, message = robot_service.set_count_adjustment(enabled, count_value)
     
     return jsonify({
-        'success': success,
+        'status': 'success' if success else 'failure',
         'message': message
-    }), 200 if success else 400
+    }), 200
 
 @robot_bp.route('/history', methods=['GET'])
 def get_operation_history():
     """獲取操作歷史"""
     if robot_service.model:
         return jsonify({
-            'success': True,
+            'status': 'success',
+            'message': '成功獲取操作歷史',
             'data': robot_service.model.operation_history
         }), 200
     else:
         return jsonify({
-            'success': False,
+            'status': 'failure',
             'message': '服務未初始化'
-        }), 400
-        
+        }), 200
+
 @robot_bp.route('/reset', methods=['POST'])
 def reset_robot_signal():
     """歸零機械手臂啟動訊號"""
     success, message = robot_service.reset_robot_signal()
     
     return jsonify({
-        'success': success,
+        'status': 'success' if success else 'failure',
         'message': message
-    }), 200 if success else 400
+    }), 200

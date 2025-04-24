@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 import asyncio
 import traceback
 from services.power_supply_services import SpikService
@@ -20,10 +20,25 @@ async def connect_device():
         
         connected = await asyncio.to_thread(power_supply_service.connect)
         if connected:
+            current_app.emit_device_status('powersupply', 'connected', {
+                "message": f"脈衝電源控制器連線成功，{port}",
+                "port": port,
+                "status_data": 'connected'
+            })
             return jsonify({"status": "success", "message": f"已連線至 {port}"}), 200
         else:
+            current_app.emit_device_status('powersupply', 'disconnected', {
+                "message": f"脈衝電源控制器連線失敗，{port}",
+                "port": port,
+                "status_data": 'connected failed'
+            })
             return jsonify({"status": "failure", "message": "連線失敗"}), 400
     except Exception as e:
+        current_app.emit_device_status('powersupply', 'disconnected', {
+            "message": f"脈衝電源控制器連線失敗，{port}",
+            "port": port,
+            "status_data": 'connected failed'
+        })
         return jsonify({
             "status": "error", 
             "message": f"連線過程發生錯誤: {str(e)}",
@@ -35,10 +50,22 @@ async def disconnect_device():
     try:
         disconnected = await asyncio.to_thread(power_supply_service.disconnect)
         if disconnected:
+            current_app.emit_device_status('powersupply', 'disconnected', {
+                "message": f"脈衝電源控制器中斷連線成功",
+                "status_data": 'ㄋㄛconnected'
+            })
             return jsonify({"status": "success", "message": "已斷線"}), 200
         else:
+            current_app.emit_device_status('powersupply', 'connected', {
+                "message": f"脈衝電源控制器中斷連線失敗",
+                "status_data": 'disconnected failed'
+            })
             return jsonify({"status": "failure", "message": "斷線失敗"}), 400
     except Exception as e:
+        current_app.emit_device_status('powersupply', 'connected', {
+            "message": f"脈衝電源控制器中斷連線失敗",
+            "status_data": 'disconnected failed'
+        })
         return jsonify({
             "status": "error", 
             "message": f"斷線過程發生錯誤: {str(e)}",
@@ -85,7 +112,6 @@ async def write_current_route():
             "traceback": traceback.format_exc()
         }), 500
 
-# 其他路由（read_mode, read_voltage, read_current 等）保持原有邏輯
 @power_supply_bp.route("/read_mode", methods=["GET"])
 async def read_mode_route():
     mode, err = await power_supply_service.read_mode()
@@ -167,8 +193,17 @@ async def status():
     """
     try:
         status = await power_supply_service.read_status()
+        current_app.emit_device_status('powersupply', 'connected', {
+            "message": f"讀取脈衝電源供應器資料成功",
+            "data": status,
+            "status": "success"
+        })
         return jsonify({"status": "success", "data": status}), 200
     except Exception as e:
+        current_app.emit_device_status('powersupply', 'connected', {
+            "message": f"讀取脈衝電源供應器資料失敗",
+            "status": "failure"
+        })
         return jsonify({
             "status": "failure", 
             "message": f"讀取電源狀態失敗：{str(e)}",
