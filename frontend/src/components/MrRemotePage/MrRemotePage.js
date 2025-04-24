@@ -3,7 +3,6 @@ import { Button } from "flowbite-react";
 import AlertComponent from "../ComponentTools/Alert";
 import { getApi } from "../../utils/getApi";
 import { useUltrasonicContext } from "../../Contexts/UltrasonicContext";
-import { usePowerSupplyContext } from "../../Contexts/PowerSupplyContext";
 import { useSocket } from "../../Contexts/SocketioContext";
 import azbil_code_detail from "../ControllerPage/azbil_code_detail.json"
 
@@ -70,15 +69,14 @@ const PredictionCard = ({ title, value, recommendations }) => (
 const MrRemotePage = () => {
   // Context hooks
   const { ultrasonicOpenFlag } = useUltrasonicContext();
-  const { isPowerSupplyOpenState } = usePowerSupplyContext();
   const { messages } = useSocket();
   const isMainGasOpenState = messages.filter(socket => socket.data.device_type === "azbil")[0]?.data?.status === "connected";
   const isCarrierGasOpenState = messages.filter(socket => socket.data.device_type === "alicat")[0]?.data?.status === "connected";
   const isHeaterOpenState = messages.filter(socket => socket.data.device_type === "heater")[0]?.data?.status === "connected";
   const isCo2LaserOpenState = messages.filter(socket => socket.data.device_type === "co2laser")[0]?.data?.status === "connected";
   const isUltrasonicOpenState = messages.filter(socket => socket.data.device_type === "ultrasonic")[0]?.data?.status === "connected";
-
-  console.log("isUltrasonicOpenState", isUltrasonicOpenState);
+  const isPowerSupplyOpenState = messages.filter(socket => socket.data.device_type === "powersuppply")[0]?.data?.status === "connected";
+  const isRobotArmOpenState = messages.filter(socket => socket.data.device_type === "robotarm")[0]?.data?.status === "connected";
 
   const apiCalledRef = React.useRef({
     azbil: false,
@@ -594,11 +592,12 @@ const MrRemotePage = () => {
           <h2 className="text-lg font-semibold mb-3">連線狀態</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <StatusIndicator isConnected={isMainGasOpenState} label="主氣流量" />
-            <StatusIndicator isConnected={messages.filter(socket => socket.data.device_type === "alicat")[0]?.data?.status === "connected"} label="載氣流量" />
+            <StatusIndicator isConnected={isCarrierGasOpenState} label="載氣流量" />
             <StatusIndicator isConnected={isCo2LaserOpenState} label="CO2 雷射" />
             <StatusIndicator isConnected={isHeaterOpenState} label="溫度控制器" />
             <StatusIndicator isConnected={isUltrasonicOpenState} label="超音波震盪器" />
             <StatusIndicator isConnected={isPowerSupplyOpenState} label="脈衝電源控制器" />
+            <StatusIndicator isConnected={isRobotArmOpenState} label="機械手臂" />
           </div>
         </div>
         

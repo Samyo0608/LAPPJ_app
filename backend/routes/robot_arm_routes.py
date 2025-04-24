@@ -17,6 +17,19 @@ def connect():
     slave_id = data.get('slave_id', 5)
     
     success, message = robot_service.connect(ip_address, port, slave_id)
+
+    if success:
+        current_app.emit_device_status('robotarm', 'connected', {
+            "message": f"機械手臂連線成功，{ip_address}",
+            "address": ip_address,
+            "status_data": 'connected'
+        })
+    else:
+        current_app.emit_device_status('robotarm', 'disconnected', {
+            "message": f"機械手臂連線失敗，{ip_address}",
+            "address": ip_address,
+            "status_data": 'connected failed'
+        })
     
     return jsonify({
         'status': 'success' if success else 'failure',
@@ -27,6 +40,17 @@ def connect():
 def disconnect():
     """中斷連接"""
     success, message = robot_service.disconnect()
+
+    if success:
+        current_app.emit_device_status('robotarm', 'disconnected', {
+            "message": f"機械手臂中斷連線成功",
+            "status_data": 'disconnected'
+        })
+    else:
+        current_app.emit_device_status('robotarm', 'connected', {
+            "message": f"機械手臂中斷連線失敗",
+            "status_data": 'disconnected failed'
+        })
     
     return jsonify({
         'status': 'success' if success else 'failure',
@@ -45,6 +69,11 @@ def get_status():
     
     if data:
         response['data'] = data
+
+    current_app.emit_device_status('robotarm', 'connected', {
+        "message": f"機械手臂取得資料成功",
+        "data": data
+    })   
     
     return jsonify(response), 200
 
