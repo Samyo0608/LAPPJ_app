@@ -316,3 +316,41 @@ class RobotArmService:
             operation_details = f"重置啟動信號錯誤: {str(e)}"
             self.model.add_operation_record("重置啟動信號", operation_details, False)
             return False, f"重置啟動信號錯誤: {str(e)}"
+        
+    def start_robot(self, start=True):
+        """啟動或停止機械手臂
+        
+        Args:
+            start (bool): True 啟動機械手臂, False 停止機械手臂
+            
+        Returns:
+            tuple: (success, message)
+        """
+        if not self._check_connection():
+            return False, "未連接到設備"
+        
+        try:
+            # 設定啟動/停止狀態
+            result = self.client.write_register(
+                address=self.model.MODBUS_ADDRESSES["robot_start"],
+                value=1 if start else 0,
+                slave=self.model.slave_id
+            )
+            
+            success = not result.isError()
+            
+            if success:
+                self.model.is_robot_started = start
+                
+                operation_details = f"機械手臂 {'啟動' if start else '停止'}"
+                self.model.add_operation_record("控制機械手臂", operation_details, True)
+                return True, f"機械手臂{'啟動' if start else '停止'}成功"
+            else:
+                operation_details = f"機械手臂 {'啟動' if start else '停止'} 失敗"
+                self.model.add_operation_record("控制機械手臂", operation_details, False)
+                return False, f"機械手臂{'啟動' if start else '停止'}失敗"
+                
+        except Exception as e:
+            operation_details = f"控制機械手臂錯誤: {str(e)}"
+            self.model.add_operation_record("控制機械手臂", operation_details, False)
+            return False, f"控制機械手臂錯誤: {str(e)}"

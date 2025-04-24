@@ -152,10 +152,10 @@ def update_modbus_data():
         modbus_data = ModbusData(**{k: v for k, v in data.items() if k in ModbusData.__annotations__})
         result = modbus_service.update_modbus_data(modbus_data)
 
-        current_app.emit_device_status('heater', 'connected', {
-            "message": "Heater修改成功",
-            "data": data["data"]
-        })
+        # current_app.emit_device_status('heater', 'connected', {
+        #     "message": "Heater修改成功",
+        #     "data": data["data"]
+        # })
 
         return jsonify(result)
     except TypeError as e:
