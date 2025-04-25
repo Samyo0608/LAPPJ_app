@@ -16,7 +16,8 @@ def connect():
         current_app.emit_device_status('co2laser', 'disconnected', {
             "message": f"CO2 laser連線失敗，{port}",
             "port": port,
-            "status_data": 'connected failed'
+            "status_data": 'connected failed',
+            "data": {}
         })
         return jsonify({"status": "error", "message": "請提供 port"}), 400
 
@@ -29,11 +30,14 @@ def connect():
         # 進行設備連線
         result, status_code = controller_service.connect(port)
         
+        data, data_status_code = controller_service.get_status()
+        
         if status_code == 200:
             current_app.emit_device_status('co2laser', 'connected', {
                 "message": f"CO2 laser連線成功，{port}",
                 "port": port,
-                "status_data": 'connected'
+                "status_data": 'connected',
+                "data": data if data_status_code == 200 else {}
             })
             # 記錄連線日誌
             ConnectionLogService.create_log(
@@ -48,7 +52,8 @@ def connect():
             current_app.emit_device_status('co2laser', 'disconnected', {
                 "message": f"CO2 laser連線失敗，{port}",
                 "port": port,
-                "status_data": 'connected failed'
+                "status_data": 'connected failed',
+                "data": {}
             })
             ConnectionLogService.create_log(
                 device_id='uc2000',
@@ -65,7 +70,8 @@ def connect():
         current_app.emit_device_status('co2laser', 'disconnected', {
             "message": f"CO2 laser連線失敗，{port}",
             "port": port,
-            "status_data": 'connected failed'
+            "status_data": 'connected failed',
+            "data": {}
         })
         ConnectionLogService.create_log(
             device_id='uc2000',
@@ -85,12 +91,15 @@ def disconnect():
     """斷開 UC-2000 連線"""
     data = request.get_json()
     port = data.get('port')
+    
+    data, data_status_code = controller_service.get_status()
 
     if not port:
         current_app.emit_device_status('co2laser', 'connected', {
             "message": f"CO2 laser中斷連線失敗，{port}",
             "port": port,
-            "status_data": 'disconnected failed'
+            "status_data": 'disconnected failed',
+            "data": data if data_status_code == 200 else {}
         })
         return jsonify({"status": "error", "message": "請提供 port"}), 400
     
@@ -106,7 +115,8 @@ def disconnect():
             current_app.emit_device_status('co2laser', 'disconnected', {
                 "message": f"CO2 laser中斷連線成功，{port}",
                 "port": port,
-                "status_data": 'disconnected'
+                "status_data": 'disconnected',
+                data: {}
             })
             # 記錄斷開連線日誌
             ConnectionLogService.create_log(
@@ -121,7 +131,8 @@ def disconnect():
             current_app.emit_device_status('co2laser', 'connected', {
                 "message": f"CO2 laser中斷連線失敗，{port}",
                 "port": port,
-                "status_data": 'disconnected failed'
+                "status_data": 'disconnected failed',
+                "data": data if data_status_code == 200 else {}
             })
             ConnectionLogService.create_log(
                 device_id='uc2000',
@@ -138,7 +149,8 @@ def disconnect():
         current_app.emit_device_status('co2laser', 'connected', {
             "message": f"CO2 laser 中斷連線失敗，{port}",
             "port": port,
-            "status_data": 'disconnected failed'
+            "status_data": 'disconnected failed',
+            "data": data if data_status_code == 200 else {}
         })
         ConnectionLogService.create_log(
             device_id='uc2000',
@@ -156,34 +168,53 @@ def disconnect():
 @uc2000_bp.route('/status', methods=['GET'])
 def get_status():
     """獲取 UC-2000 狀態"""
+    data, data_status_code = controller_service.get_status()
+    
     current_app.emit_device_status('co2laser', 'connected', {
         "message": "Co2 laser 修改成功",
-        "status_data": 'disconnected failed'
+        "data": data if data_status_code == 200 else {}
     })
-    return controller_service.get_status()
+    return data
 
 @uc2000_bp.route('/set_pwm_freq', methods=['POST'])
 def set_pwm_frequency():
     """設定 PWM 頻率"""
-    data = request.get_json()
-    print("Received data:", data)  # 添加這行來看收到的數據
-    freq = data.get('freq')
+    input_data = request.get_json()
+
+    freq = input_data.get('freq')
     if freq is None:
         return jsonify({"status": "error", "message": "請提供 freq"}), 400
     
-    print("Frequency value:", freq)  # 添加這行來看處理後的值
     result = controller_service.set_pwm_frequency(freq)
-    print("Result:", result)  # 添加這行來看結果
+    
+    data, data_status_code = controller_service.get_status()
+    
+    current_app.emit_device_status('co2laser', 'connected', {
+        "message": "Co2 laser 修改成功",
+        "data": data if data_status_code == 200 else {}
+    })
+    
     return result
 
 @uc2000_bp.route('/set_laser', methods=['POST'])
 def set_laser():
     """啟動/關閉 雷射"""
-    data = request.get_json()
-    enable = data.get('enable')
+    input_data = request.get_json()
+    enable = input_data.get('enable')
+    
     if enable is None:
         return jsonify({"status": "error", "message": "請提供 enable"}), 400
-    return controller_service.set_laser_enabled(enable)
+    
+    start_data, start_status_code = controller_service.set_laser_enabled(enable)
+    
+    data, data_status_code = controller_service.get_status()
+    
+    current_app.emit_device_status('co2laser', 'connected', {
+        "message": "Co2 laser 修改成功",
+        "data": data if data_status_code == 200 else {}
+    })
+    
+    return start_data, start_status_code
 
 @uc2000_bp.route('/set_pwm', methods=['POST'])
 def set_pwm():
@@ -205,7 +236,16 @@ def set_pwm():
     if not (0 <= percentage <= 99):
         return jsonify({"status": "error", "message": "Percentage 必須在 0-99 之間"}), 400
     
-    return controller_service.set_pwm_percentage(percentage)
+    set_pwm_data, set_pwm_status_code = controller_service.set_pwm_percentage(percentage)
+    
+    data, data_status_code = controller_service.get_status()
+    
+    current_app.emit_device_status('co2laser', 'connected', {
+        "message": "Co2 laser 修改成功",
+        "data": data if data_status_code == 200 else {}
+    })
+    
+    return set_pwm_data, set_pwm_status_code
 
 @uc2000_bp.route('/set_mode', methods=['POST'])
 def set_mode():

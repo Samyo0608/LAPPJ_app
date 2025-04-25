@@ -52,7 +52,7 @@ async def disconnect_device():
         if disconnected:
             current_app.emit_device_status('powersupply', 'disconnected', {
                 "message": f"脈衝電源控制器中斷連線成功",
-                "status_data": 'ㄋㄛconnected'
+                "status_data": 'connected'
             })
             return jsonify({"status": "success", "message": "已斷線"}), 200
         else:

@@ -18,10 +18,10 @@ def connect():
     
     if not port:
         # 如果連接失敗，也發送 Socket 事件
-        current_app.emit_device_status('alicat', 'connect_failed', {
-            "message": "需要提供端口號"
+        current_app.emit_device_status('alicat', 'disconnected', {
+            "message": "需要提供port"
         })
-        return jsonify({"status": "failure", "message": "需要提供端口號"}), 400
+        return jsonify({"status": "failure", "message": "需要提供port"}), 400
     
     # 嘗試獲取用戶 ID，如果沒有則設為 None
     try:
@@ -55,14 +55,15 @@ def connect():
         
         # 發送 Socket 事件
         current_app.emit_device_status('alicat', 'connected', {
-            "message": f"Alicat 載氣MFC連接成功，端口: {port}",
+            "message": f"Alicat 載氣MFC連接成功，port: {port}",
             "port": port,
             "address": address,
-            "status_data": formatted_status
+            "status_data": formatted_status,
+            "data" : flow_controller.read_status()
         })
         
         return jsonify({
-            "message": f"Alicat 載氣MFC連接成功，端口: {port}",
+            "message": f"Alicat 載氣MFC連接成功，port: {port}",
             "port": port,
             "address": address,
             "status": "success"
@@ -70,6 +71,13 @@ def connect():
     
     except Exception as e:
         try:
+            current_app.emit_device_status('alicat', 'disconnected', {
+                "message": f"Alicat 載氣MFC連接失敗，port: {port}",
+                "port": port,
+                "address": address,
+                "status_data": formatted_status,
+                "data" : {}
+            })
             ConnectionLogService.create_log(
                 device_id='carrierGas',
                 device_name='Alicat 載氣MFC',
@@ -114,11 +122,12 @@ def disconnect():
     """斷開設備連接"""
     global flow_controller
     if not flow_controller:
-        current_app.emit_device_status('alicat', 'disconnected', {
-            "message": f"Alicat 沒有連線，端口: {connected_port}",
+        current_app.emit_device_status('alicat', 'connected', {
+            "message": f"Alicat 中斷連線失敗，port: {connected_port}",
             "port": connected_port,
             "address": connected_address,
-            "status_data": 'disconnected'
+            "status_data": 'disconnected',\
+            "data" : {}
         })
         return jsonify({"status": "failure", "message": "Device not connected"}), 400
     
@@ -136,10 +145,11 @@ def disconnect():
         flow_controller = None
 
         current_app.emit_device_status('alicat', 'disconnected', {
-            "message": f"Alicat 載氣MFC中斷連線成功，端口: {connected_port}",
+            "message": f"Alicat 載氣MFC中斷連線成功，port: {connected_port}",
             "port": connected_port,
             "address": connected_address,
-            "status_data": 'disconnected'
+            "status_data": 'disconnected',
+            "data" : {}
         })
         
         # 記錄連線日誌
@@ -155,10 +165,11 @@ def disconnect():
         return jsonify({"status": "success", "message": "disconnected"}), 200
     except Exception as e:
         current_app.emit_device_status('alicat', 'connected', {
-            "message": f"Alicat 載氣MFC中斷連線失敗，端口: {connected_port}",
+            "message": f"Alicat 載氣MFC中斷連線失敗，port: {connected_port}",
             "port": connected_port,
             "address": connected_address,
-            "status_data": 'disconnected failed'
+            "status_data": 'disconnected failed',
+            "data" : {}
         })
         # 記錄連線日誌
         ConnectionLogService.create_log(
@@ -180,6 +191,10 @@ def get_status():
 
     try:
         status = flow_controller.read_status()
+        current_app.emit_device_status('alicat', 'connected', {
+            "message": f"Alicat 載氣MFC取得資料成功",
+            "data": status
+        })
         return jsonify({
             "status": "success", 
             "data": status
@@ -191,12 +206,21 @@ def get_status():
 def set_flow_rate():
     """設定流量"""
     if not flow_controller:
+        current_app.emit_device_status('alicat', 'disconnected', {
+            "message": "Alicat 尚未連線",
+            "data": {},
+            "status_data": 'disconnected'
+        })
         return jsonify({"status": "failure", "message": "Device not connected"}), 400
 
     data = request.get_json()
     flow_rate = data.get('flow_rate')
 
     if flow_rate is None:
+        current_app.emit_device_status('alicat', 'connected', {
+            "message": "Flow rate is required",
+            "data": flow_controller.read_status()
+        })
         return jsonify({"status": "failure", "message": "Flow rate is required"}), 400
 
     try:

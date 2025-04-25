@@ -148,62 +148,69 @@ const MrRemotePage = () => {
     type: "success"
   });
 
+  // 將main gas flow的對應轉換方式獨立出來
+  const convertMainGasFlow = React.useCallback((value) => {
+    // 對PV_FLOW和SETTING_SP_FLOW進行小數點處理以及單位轉換
+    let newSettingSp = (Number(value.SETTING_SP_FLOW) * 0.1).toFixed(Number(value.FLOW_DECIMAL));
+    let newPvFlow = Number(value.PV_FLOW) * 0.1;
+
+    switch (Number(value.FLOW_UNIT)) {
+      case 0:
+        newSettingSp = newSettingSp * 1000;
+        newPvFlow = newPvFlow * 1000;
+        break;
+      case 2:
+        newSettingSp = newSettingSp * 0.06;
+        newPvFlow = newPvFlow * 0.06;
+        break;
+      default:
+        break;
+    }
+
+    // 對TOTAL_FLOW進行小數點處理以及單位轉換 0: mL, 1: L, 2: m^3
+    let newTotalFlow = (Number(value.TOTAL_FLOW * 0.1 ).toFixed(value.TOTAL_FLOW_DECIMAL));
+    switch (Number(value.TOTAL_FLOW_UNIT)) {
+      case 0:
+        newTotalFlow = newTotalFlow * 1000;
+        break;
+      case 2:
+        newTotalFlow = newTotalFlow / 1000;
+        break;
+      default:
+        break;
+    }
+
+    const flowUnit = azbil_code_detail.FLOW_UNIT_MAP[value.FLOW_UNIT];
+    const totalFlowUnit = azbil_code_detail.TOTAL_FLOW_UNIT_MAP[value.TOTAL_FLOW_UNIT];
+    value.FLOW_UNIT = flowUnit;
+    value.TOTAL_FLOW_UNIT = totalFlowUnit;
+    value.SETTING_SP_FLOW = newSettingSp;
+    value.PV_FLOW = newPvFlow;
+    value.TOTAL_FLOW = newTotalFlow;
+
+    return value;
+  }, []);
+
   // Get Main Gas Data API
-  const getMainGasDataApi = async () => {
+  const getMainGasDataApi = React.useCallback(async () => {
     try {
       const response = await getApi("/azbil_api/get_main_status", "GET");
       if (response?.data?.status === "success") {
         // 比較response.data.data與azbil_code_detail的value，並轉換成azbil_code_detail內的value
         const newMainGasDetail = response.data.data;
-        // 對PV_FLOW和SETTING_SP_FLOW進行小數點處理以及單位轉換
-        let newSettingSp = (Number(newMainGasDetail.SETTING_SP_FLOW) * 0.1).toFixed(Number(newMainGasDetail.FLOW_DECIMAL));
-        let newPvFlow = Number(newMainGasDetail.PV_FLOW) * 0.1;
+        const newMainGasDetailConverted = convertMainGasFlow(newMainGasDetail);
 
-        switch (Number(newMainGasDetail.FLOW_UNIT)) {
-          case 0:
-            newSettingSp = newSettingSp * 1000;
-            newPvFlow = newPvFlow * 1000;
-            break;
-          case 2:
-            newSettingSp = newSettingSp * 0.06;
-            newPvFlow = newPvFlow * 0.06;
-            break;
-          default:
-            break;
-        }
-
-        // 對TOTAL_FLOW進行小數點處理以及單位轉換 0: mL, 1: L, 2: m^3
-        let newTotalFlow = (Number(newMainGasDetail.TOTAL_FLOW * 0.1 ).toFixed(newMainGasDetail.TOTAL_FLOW_DECIMAL));
-        switch (Number(newMainGasDetail.TOTAL_FLOW_UNIT)) {
-          case 0:
-            newTotalFlow = newTotalFlow * 1000;
-            break;
-          case 2:
-            newTotalFlow = newTotalFlow / 1000;
-            break;
-          default:
-            break;
-        }
-
-        const flowUnit = azbil_code_detail.FLOW_UNIT_MAP[newMainGasDetail.FLOW_UNIT];
-        const totalFlowUnit = azbil_code_detail.TOTAL_FLOW_UNIT_MAP[newMainGasDetail.TOTAL_FLOW_UNIT];
-        newMainGasDetail.FLOW_UNIT = flowUnit;
-        newMainGasDetail.TOTAL_FLOW_UNIT = totalFlowUnit;
-        newMainGasDetail.SETTING_SP_FLOW = newSettingSp;
-        newMainGasDetail.PV_FLOW = newPvFlow;
-        newMainGasDetail.TOTAL_FLOW = newTotalFlow;
-
-        setMainGasDetail(newMainGasDetail);
+        setMainGasDetail(newMainGasDetailConverted);
       } else {
         console.error(response?.data?.status);
       }
     } catch (error) {
       console.error(error);
     }
-  };
+  }, [convertMainGasFlow]);
 
   // Get Carrier Gas Data API
-  const getCarrierGasDataApi = async () => {
+  const getCarrierGasDataApi = React.useCallback(async () => {
     try {
       const response = await getApi("/alicat_api/status", "GET");
       if (response?.data?.status === "success") {
@@ -212,10 +219,10 @@ const MrRemotePage = () => {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, []);
 
   // Get CO2 Laser Data API
-  const getCo2LaserDataApi = async () => {
+  const getCo2LaserDataApi = React.useCallback(async () => {
     try {
       const response = await getApi("/uc2000/status", "GET");
       if (response?.data?.status === "success") {
@@ -224,10 +231,10 @@ const MrRemotePage = () => {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, []);
 
   // Get Heater Data API
-  const getHeaterDataApi = async () => {
+  const getHeaterDataApi = React.useCallback(async () => {
     try {
       const response = await getApi("/heater/status", "GET");
       if (response?.data?.status === "success") {
@@ -236,10 +243,10 @@ const MrRemotePage = () => {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, []);
 
   // Get Power Supply Status API
-  const getPowerSupplyStatusApi = async () => {
+  const getPowerSupplyStatusApi = React.useCallback(async () => {
     try {
       const response = await getApi("/power_supply/status", "GET");
       if (response?.data?.status === "success") {
@@ -248,7 +255,7 @@ const MrRemotePage = () => {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, []);
 
   const setMainGasFlowApi = async (data) => {
     try {
@@ -575,7 +582,8 @@ const MrRemotePage = () => {
       }
     });
     
-  }, [messages]);
+  }, [messages, apiCalledRef, 
+    getMainGasDataApi, getCarrierGasDataApi, getCo2LaserDataApi, getHeaterDataApi, getPowerSupplyStatusApi]);
 
   return (
     <div className="min-h-screen p-4 bg-gray-100">

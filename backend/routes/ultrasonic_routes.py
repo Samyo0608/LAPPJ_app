@@ -28,11 +28,14 @@ def connect_modbus() -> Dict[str, Any]:
         
         if result["status"] == "success":
             
+            status_data = modbus_service.get_status()
+            
             current_app.emit_device_status('ultrasonic', 'connected', {
                 "message": f"霧化器連線成功，{port}: {device_id}",
                 "address": device_id,
                 "port": port,
-                "status_data": 'connected'
+                "status_data": 'connected',
+                "data": jsonify(status_data)
             })
             
             ConnectionLogService.create_log(
@@ -49,7 +52,8 @@ def connect_modbus() -> Dict[str, Any]:
                 "message": f"霧化器連線失敗，{port} : {device_id}",
                 "address": device_id,
                 "port": port,
-                "status_data": 'connected failed'
+                "status_data": 'connected failed',
+                "data": {}
             })
             
             ConnectionLogService.create_log(
@@ -68,7 +72,8 @@ def connect_modbus() -> Dict[str, Any]:
             "message": f"霧化器連線失敗，{port} : {device_id}",
             "address": device_id,
             "port": port,
-            "status_data": 'connected failed'
+            "status_data": 'connected failed',
+            "data": {}
         })
         
         ConnectionLogService.create_log(
@@ -86,7 +91,8 @@ def connect_modbus() -> Dict[str, Any]:
             "message": f"霧化器連線失敗，{port} : {device_id}",
             "address": device_id,
             "port": port,
-            "status_data": 'connected failed'
+            "status_data": 'connected failed',
+            "data": {}
         })
         
         ConnectionLogService.create_log(
@@ -118,7 +124,8 @@ def disconnect_modbus() -> Dict[str, Any]:
             "message": f"霧化器中斷連線成功，{port}: {device_id}",
             "address": device_id,
             "port": port,
-            "status_data": 'disconnected'
+            "status_data": 'disconnected',
+            "data": {}
         })
         
         ConnectionLogService.create_log(
@@ -130,16 +137,15 @@ def disconnect_modbus() -> Dict[str, Any]:
             created_by=current_user_id
         )
     else:
-        data = request.get_json()
-        port = data.get("port")
-        device_id = data.get("address")
-        current_user_id = get_jwt_identity()
+        status_data = modbus_service.get_status()
         
         current_app.emit_device_status('ultrasonic', 'connected', {
             "message": f"霧化器中斷連線失敗，{port} : {device_id}",
             "address": device_id,
             "port": port,
-            "status_data": 'disconnected failed'
+            "status_data": 'disconnected failed',
+            "data": jsonify(status_data)
+            
         })
         
         ConnectionLogService.create_log(
@@ -157,8 +163,12 @@ def disconnect_modbus() -> Dict[str, Any]:
 def turn_on_modbus() -> Dict[str, Any]:
     """API: 開啟霧化器"""
     result = modbus_service.turn_on()
+    
+    data = modbus_service.get_status()
+    
     current_app.emit_device_status('ultrasonic', 'connected', {
-        "data": result,
+        "message": "霧化器已開啟",
+        "data": jsonify(data),
     })
     return jsonify(result)
 
@@ -166,9 +176,14 @@ def turn_on_modbus() -> Dict[str, Any]:
 def turn_off_modbus() -> Dict[str, Any]:
     """API: 關閉霧化器"""
     result = modbus_service.turn_off()
+    
+    data = modbus_service.get_status()
+    
     current_app.emit_device_status('ultrasonic', 'connected', {
-        "data": result,
+        "message": "霧化器已開啟",
+        "data": jsonify(data),
     })
+    
     return jsonify(result)
 
 @modbus_bp.route("/status", methods=["GET"])

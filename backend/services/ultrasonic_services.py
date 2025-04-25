@@ -64,7 +64,7 @@ class ModbusService:
                 "status": "success",
                 "data": {
                     "raw_status": status_value,
-                    "is_running": bool(status_value & 0x0001)  # 假設最低位表示運行狀態
+                    "is_running": bool(status_value & 0x0001)
                 }
             }
         except Exception as e:

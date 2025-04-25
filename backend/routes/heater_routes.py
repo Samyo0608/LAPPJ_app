@@ -32,7 +32,8 @@ def connect():
             "message": 'Heater連線成功' if status_code == 200 else 'Heater連線失敗',
             "port": data["port"],
             "address": data["address"],
-            "status_data": 'connected' if status_code == 200 else 'connected failed'
+            "status_data": 'connected' if status_code == 200 else 'connected failed',
+            "data": modbus_service.read_modbus_data()["data"] if status_code == 200 else {}
         })
         # 記錄連線日誌
         ConnectionLogService.create_log(
@@ -51,7 +52,8 @@ def connect():
             "message": f"Heater連線失敗，{data["port"]}",
             "port": data["port"],
             "address": data["address"],
-            "status_data": 'connected failed'
+            "status_data": 'connected failed',
+            "data": {}
         })
         ConnectionLogService.create_log(
             device_id='heater',
@@ -74,7 +76,8 @@ def disconnect():
             "message": f"Heater中斷連線失敗，{data["port"]}",
             "port": data["port"],
             "address": data["address"],
-            "status_data": 'disconnected failed'
+            "status_data": 'disconnected failed',
+            "data": {}
         })
         return jsonify({"status": "failure", "message": "缺少 port 或 address"}), 400
     
@@ -87,7 +90,8 @@ def disconnect():
         "message": f"Heater中斷連線成功，{data["port"]}",
         "port": data["port"],
         "address": data["address"],
-        "status_data": 'disconnected'
+        "status_data": 'disconnected',
+        "data": {}
     })
 
     ConnectionLogService.create_log(
@@ -109,17 +113,19 @@ def get_modbus_data():
     try:
         if not modbus_service.client:
             current_app.emit_device_status('heater', 'connected', {
-                "message": "Heater讀取失敗",
+                "message": "Heater尚未連線",
+                "data": {}
             })
             return jsonify({
                 "status": "failure",
-                "message": "Modbus 未連接，請先建立連接"
+                "message": "Heater尚未連線"
             }), 400
             
         data = modbus_service.read_modbus_data()
         if data is None:
             current_app.emit_device_status('heater', 'connected', {
                 "message": "Heater讀取失敗",
+                "data": {}
             })
 
             return jsonify({
@@ -152,10 +158,10 @@ def update_modbus_data():
         modbus_data = ModbusData(**{k: v for k, v in data.items() if k in ModbusData.__annotations__})
         result = modbus_service.update_modbus_data(modbus_data)
 
-        # current_app.emit_device_status('heater', 'connected', {
-        #     "message": "Heater修改成功",
-        #     "data": data["data"]
-        # })
+        current_app.emit_device_status('heater', 'connected', {
+            "message": "Heater修改成功",
+            "data": modbus_service.read_modbus_data()["data"]
+        })
 
         return jsonify(result)
     except TypeError as e:

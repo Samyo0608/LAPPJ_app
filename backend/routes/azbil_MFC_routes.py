@@ -43,7 +43,7 @@ def connect_device():
     
     if not port:
         return jsonify({"status": "failure", "message": "請提供 port"}), 400
-      
+
     try:
         try:
             current_user_id = get_jwt_identity()
@@ -55,6 +55,10 @@ def connect_device():
             azbil_service.connect(port, baudrate, device_id)
         )
         
+        data, data_status_code = run_async_task(
+            azbil_service.get_main_status()
+        )
+        
         # 發送 Socket.IO 事件和記錄連接日誌
         if status_code == 200:
             print(f"✅ 準備發送 Socket 事件: azbil - connected")
@@ -64,7 +68,8 @@ def connect_device():
                     "message": f"Azbil主氣連線成功，{port} {device_id}",
                     "port": port,
                     "address": device_id,
-                    "status_data": 'connected'
+                    "status_data": 'connected',
+                    "data": data if data_status_code == 200 else {}
                 })
                 print(f"✅ Socket 事件已發送完成: azbil - connected")
             except Exception as e:
@@ -85,7 +90,8 @@ def connect_device():
                     "message": f"Azbil主氣連線失敗，{port} {device_id}",
                     "port": port,
                     "address": device_id,
-                    "status_data": 'connected failed'
+                    "status_data": 'connected failed',
+                    "data": {}
                 })
                 print(f"✅ Socket 事件已發送完成: azbil - connect_failed")
             except Exception as e:
@@ -111,7 +117,8 @@ def connect_device():
                 "port": port,
                 "address": device_id,
                 "status_data": 'connected failed',
-                "error": str(e)
+                "error": str(e),
+                "data": {}
             })
         except Exception as emit_error:
             print(f"❌ Socket 事件發送失敗: {str(emit_error)}")
@@ -139,12 +146,17 @@ def disconnect_device():
     
     if not port:
         return jsonify({"status": "failure", "message": "請提供 port"}), 400
-      
+
     try:
         try:
             current_user_id = get_jwt_identity()
         except:
             current_user_id = None
+        
+        # 取得資料，斷線失敗的時候還是要有資料
+        data, data_status_code = run_async_task(
+            azbil_service.get_main_status()
+        )
         
         # 在新線程中執行異步斷開連接操作
         result, status_code = run_async_task(azbil_service.disconnect())
@@ -155,7 +167,8 @@ def disconnect_device():
                     "message": f"Azbil主氣中斷連線成功，{port} {device_id}",
                     "port": port,
                     "address": device_id,
-                    "status_data": 'disconnected'
+                    "status_data": 'disconnected',
+                    "data": {}
                 })
                 print(f"✅ Socket 事件已發送完成: azbil - disconnected")
             except Exception as e:
@@ -172,11 +185,12 @@ def disconnect_device():
             )
         else:
             try:
-                current_app.emit_device_status('azbil', 'disconnect_failed', {
+                current_app.emit_device_status('azbil', 'connected', {
                     "message": f"Azbil主氣中斷連線失敗，{port} {device_id}",
                     "port": port,
                     "address": device_id,
-                    "status_data": 'disconnected failed'
+                    "status_data": 'disconnected failed',
+                    "data": data if data_status_code == 200 else {}
                 })
             except Exception as e:
                 print(f"❌ Socket 事件發送失敗: {str(e)}")
@@ -198,7 +212,8 @@ def disconnect_device():
                 "message": f"Azbil主氣中斷連線失敗，{port} {device_id}",
                 "port": port,
                 "address": device_id,
-                "status_data": 'disconnected failed'
+                "status_data": 'disconnected failed',
+                "data": data if data_status_code == 200 else {},
             })
         except Exception as emit_error:
             print(f"❌ Socket 事件發送失敗: {str(emit_error)}")
@@ -226,12 +241,17 @@ def set_flow():
     with write_lock:
         result, status_code = run_async_task(azbil_service.set_flow(flow_rate))
         
+        data, data_status_code = run_async_task(
+            azbil_service.get_main_status()
+        )
+        
         # 發送 Socket.IO 事件
         if status_code == 200:
             try:
                 current_app.emit_device_status('azbil', 'connected', {
                     "message": f"Azbil主氣流量設定成功: {flow_rate}",
-                    "flow_rate": flow_rate
+                    "flow_rate": flow_rate,
+                    "data": data if data_status_code == 200 else {}
                 })
             except Exception as e:
                 print(f"❌ Socket 事件發送失敗: {str(e)}")
@@ -275,10 +295,15 @@ def flow_turn_on():
     with write_lock:
         result, status_code = run_async_task(azbil_service.set_flow_turn_on())
         
+        data, data_status_code = run_async_task(
+            azbil_service.get_main_status()
+        )
+        
         if status_code == 200:
             try:
                 current_app.emit_device_status('azbil', 'connected', {
-                    "message": "Azbil主氣流量已開啟"
+                    "message": "Azbil主氣流量已開啟",
+                    "data": data if data_status_code == 200 else {}
                 })
             except Exception as e:
                 print(f"❌ Socket 事件發送失敗: {str(e)}")
@@ -291,10 +316,15 @@ def flow_turn_off():
     with write_lock:
         result, status_code = run_async_task(azbil_service.set_flow_turn_off())
         
+        data, data_status_code = run_async_task(
+            azbil_service.get_main_status()
+        )
+        
         if status_code == 200:
             try:
                 current_app.emit_device_status('azbil', 'connected', {
-                    "message": "Azbil主氣流量已關閉"
+                    "message": "Azbil主氣流量已關閉",
+                    "data": data if data_status_code == 200 else {}
                 })
             except Exception as e:
                 print(f"❌ Socket 事件發送失敗: {str(e)}")
@@ -307,10 +337,15 @@ def flow_turn_full():
     with write_lock:
         result, status_code = run_async_task(azbil_service.set_flow_turn_full())
         
+        data, data_status_code = run_async_task(
+            azbil_service.get_main_status()
+        )
+        
         if status_code == 200:
             try:
                 current_app.emit_device_status('azbil', 'connected', {
-                    "message": "Azbil主氣流量已設為最大"
+                    "message": "Azbil主氣流量已設為最大",
+                    "data": data if data_status_code == 200 else {}
                 })
             except Exception as e:
                 print(f"❌ Socket 事件發送失敗: {str(e)}")
