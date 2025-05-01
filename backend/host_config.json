@@ -1,0 +1,11 @@
+{
+  "host": "127.0.0.1",
+  "port": 5555,
+  "allow_remote": false,
+  "allowed_ips": [
+    "39.15.0.242"
+  ],
+  "allowed_prefixes": [
+    "140.114"
+  ]
+}
