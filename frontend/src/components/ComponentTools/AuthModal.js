@@ -153,12 +153,6 @@ const AuthModal = ({ isOpen, onClose }) => {
 
   return (
       <div className="fixed top-5 right-5 z-[60]">
-        <AlertComponent
-          show={alertDetail.show}
-          message={alertDetail.message}
-          onClose={onAlertClose}
-          type={alertDetail.type}
-        />
       {
         isOpen && (
           <div className="fixed top-0 left-0 right-0 z-50 w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-screen max-h-full bg-gray-900 bg-opacity-50 flex items-center justify-center">
@@ -324,6 +318,12 @@ const AuthModal = ({ isOpen, onClose }) => {
                 </div>
               </div>
             </div>
+            <AlertComponent
+              show={alertDetail.show}
+              message={alertDetail.message}
+              onClose={onAlertClose}
+              type={alertDetail.type}
+            />
           </div>
         )
       }
