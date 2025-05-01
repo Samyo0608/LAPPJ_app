@@ -69,6 +69,7 @@ const useHooks = () => {
   const [robotArmDetail, setRobotArmDetail] = useState({});
   const [onRobotArmLoading, setOnRobotArmLoading] = useState(false);
   const [onRobotStart, setOnRobotStart] = useState(false);
+  const [speedValue, setSpeedValue] = useState(0);
   // 其他
   const [alertDetail, setAlertDetail] = React.useState({});
   const [onAutoStartLoading, setOnAutoStartLoading] = React.useState(false);
@@ -1035,12 +1036,12 @@ const useHooks = () => {
   };
 
   // 修改機械手臂速度倍率 api
-  const setRobotArmSpeedApi = async (data) => {
+  const setRobotArmSpeedApi = async () => {
     try {
       setOnRobotArmLoading(true);
       const response = await getApi("/robot_api/speed", "POST", {
         enabled: isRobotArmOpenState,
-        value: data,
+        value: speedValue,
       });
 
       if (response?.data?.status === "success") {
@@ -1078,7 +1079,7 @@ const useHooks = () => {
   const setRobotArmOpenApi = async () => {
     try {
       setOnRobotArmLoading(true);
-      const response = await getApi("/robot_api/start", "POST");
+      const response = await getApi("/robot_api/start", "POST", {start: true});
 
       if (response?.data?.status === "success") {
         getRobotArmDataApi();
@@ -1663,6 +1664,7 @@ const useHooks = () => {
     robotArmDetail,
     onRobotStart,
     onRobotArmLoading,
+    speedValue,
     alertDetail,
     onAutoStartLoading,
     onMainGasClick,
@@ -1688,6 +1690,7 @@ const useHooks = () => {
     setPowerSupplyDC1BuckApi,
     setPowerSupplyPowerOnApi,
     setPowerSupplyPowerOffApi,
+    setSpeedValue,
     setRobotArmSpeedApi,
     setRobotArmOpenApi,
     setRobotArmResetApi,
@@ -1703,11 +1706,11 @@ const ControllerPage = () => {
     recipeDetail, recipeSelected, recipeSelectedDetail, isCo2LaserOpenState, co2LaserDetail, onLaserOpenLoading, co2LaserPWMData, laserPWM,
     alertDetail, temperature, heaterDetail, onHeaterSettingLoading, heaterTemperatureData, isHeaterOpenState, onUltrasonicLoading, isUltrasonicOpenState, ultrasonicOpenFlag,
     onAutoStartLoading, powerSupplyVoltage, isPowerSupplyOpenState, onPowerSupplyLoading, isDC1Boost, isPowerOpen, powerSupplyDetail, powerSupplyDeviceStatus,
-    robotArmDetail, onRobotArmLoading, isRobotArmOpenState, onRobotStart,
+    robotArmDetail, onRobotArmLoading, isRobotArmOpenState, onRobotStart, speedValue,
     onMainGasClick, onMainGasFlowSettingChange, onMainGasFlowSettingClick, resetMainGasTotalFlowApi, onCarrierFlowSettingChange, onCarrierFlowSettingClick,
     onRecipeSelect, onRecipeApplyClick, setPowerSupplyDC1BoostApi, setPowerSupplyDC1BuckApi, setPowerSupplyPowerOnApi, setPowerSupplyPowerOffApi,
     setCo2LaserOpenState, setCo2LaserPowerApi, setLaserPWM, onPowerSupplyVoltageClick, setPowerSupplyVoltage, clearPowerSupplyErrorCodeApi,
-    onAlertClose, setTemperature, setHeaterTemperatureApi, setUltrasonicOpen, setUltrasonicClose, setRobotArmSpeedApi, setRobotArmOpenApi, setRobotArmResetApi,
+    onAlertClose, setTemperature, setHeaterTemperatureApi, setUltrasonicOpen, setUltrasonicClose, setSpeedValue, setRobotArmSpeedApi, setRobotArmOpenApi, setRobotArmResetApi,
     onAutoStartClick, onAllCloseClick,
   } = useHooks();
 
@@ -2254,7 +2257,8 @@ const ControllerPage = () => {
                     type="number"
                     className="p-1 border rounded w-32"
                     placeholder="請輸入整數"
-                    onChange={(e) => setRobotArmSpeedApi(e.target.value)}
+                    onChange={(e) => setSpeedValue(e.target.value)}
+                    value={speedValue}
                   />
                   <span className="text-sm w-4">%</span>
                 </div>
@@ -2263,6 +2267,7 @@ const ControllerPage = () => {
                 label="速度設定"
                 otherCss="bg-green-500 mt-2"
                 gradientMonochrome="teal"
+                onClick={setRobotArmSpeedApi}
               />
             </div>
           </div>

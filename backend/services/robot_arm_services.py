@@ -57,44 +57,76 @@ class RobotArmService:
             return False, "未連接到設備"
         
         try:
-            # 設定啟用/禁用狀態
-            result1 = self.client.write_register(
+            # 先將啟用狀態設為 1
+            enable_result = self.client.write_register(
                 address=self.model.MODBUS_ADDRESSES["adjustment_rate_enabled"],
-                value=1 if enabled else 0,
+                value=1,
                 slave=self.model.slave_id
             )
             
-            success1 = not result1.isError()
+            enable_success = not enable_result.isError()
+            if not enable_success:
+                operation_details = "啟用調整倍率失敗"
+                self.model.add_operation_record("設定調整倍率", operation_details, False)
+                return False, "啟用調整倍率失敗"
             
-            # 如果有指定值且啟用，則設定調整倍率值
-            success2 = True
-            if enabled and value is not None:
-                result2 = self.client.write_register(
+            # 設定調整倍率值
+            value_success = True
+            if value is not None:
+                value_result = self.client.write_register(
                     address=self.model.MODBUS_ADDRESSES["adjustment_rate_value"],
                     value=int(value),
                     slave=self.model.slave_id
                 )
-                success2 = not result2.isError()
+                value_success = not value_result.isError()
             
-            if success1 and success2:
+            # 更新模型中的狀態
+            if value_success:
                 self.model.adjustment_rate_enabled = enabled
-                if enabled and value is not None:
+                if value is not None:
                     self.model.adjustment_rate_value = int(value)
                 
                 operation_details = f"調整倍率 {'啟用' if enabled else '禁用'}"
-                if enabled and value is not None:
+                if value is not None:
                     operation_details += f", 倍率值: {value}"
                 
                 self.model.add_operation_record("設定調整倍率", operation_details, True)
+                
+                # 無論成功與否，最後都將啟用狀態設為 0
+                self.client.write_register(
+                    address=self.model.MODBUS_ADDRESSES["adjustment_rate_enabled"],
+                    value=0,
+                    slave=self.model.slave_id
+                )
+                
                 return True, "設定調整倍率成功"
             else:
-                operation_details = f"設定調整倍率失敗"
+                operation_details = "設定調整倍率值失敗"
                 self.model.add_operation_record("設定調整倍率", operation_details, False)
-                return False, "設定調整倍率失敗"
+                
+                # 設定失敗也要將啟用狀態設為 0
+                self.client.write_register(
+                    address=self.model.MODBUS_ADDRESSES["adjustment_rate_enabled"],
+                    value=0,
+                    slave=self.model.slave_id
+                )
+                
+                return False, "設定調整倍率值失敗"
                 
         except Exception as e:
             operation_details = f"設定調整倍率錯誤: {str(e)}"
             self.model.add_operation_record("設定調整倍率", operation_details, False)
+            
+            # 發生例外時也要嘗試將啟用狀態設為 0
+            try:
+                self.client.write_register(
+                    address=self.model.MODBUS_ADDRESSES["adjustment_rate_enabled"],
+                    value=0,
+                    slave=self.model.slave_id
+                )
+            except:
+                pass  # 忽略在例外處理中可能發生的錯誤
+                
             return False, f"設定調整倍率錯誤: {str(e)}"
     
     def set_height_adjustment(self, enabled, offset_value=None):
@@ -200,6 +232,7 @@ class RobotArmService:
         
         try:
             self._read_current_settings()
+
             return True, "讀取狀態成功", self.model.to_dict()
         except Exception as e:
             operation_details = f"讀取狀態錯誤: {str(e)}"
@@ -315,7 +348,8 @@ class RobotArmService:
         except Exception as e:
             operation_details = f"重置啟動信號錯誤: {str(e)}"
             self.model.add_operation_record("重置啟動信號", operation_details, False)
-            return False, f"重置啟動信號錯誤: {str(e)}"
+            RobotArmService.connect(self, "192.168.0.5")
+            return True, f"重置啟動信號錯誤: {str(e)}, 已重新連線"
         
     def start_robot(self, start=True):
         """啟動或停止機械手臂
@@ -353,4 +387,5 @@ class RobotArmService:
         except Exception as e:
             operation_details = f"控制機械手臂錯誤: {str(e)}"
             self.model.add_operation_record("控制機械手臂", operation_details, False)
-            return False, f"控制機械手臂錯誤: {str(e)}"
+            RobotArmService.connect(self, "192.168.0.5")
+            return True, f"控制機械手臂錯誤: {str(e)}, 已重新連線"

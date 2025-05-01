@@ -1,9 +1,12 @@
 from typing import Dict, Any, Optional
 from models.ultrasonic_model import ModbusDevice
+import time
 
 class ModbusService:
     def __init__(self):
         self.device: Optional[ModbusDevice] = None
+        self.last_command = None  # 用於記錄最後發送的命令
+        self.is_device_running = False  # 用於記錄設備運行狀態
 
     def connect(self, port: str, baudrate: int, device_id: int) -> Dict[str, Any]:
         """連接霧化器"""
@@ -25,10 +28,11 @@ class ModbusService:
             return {"status": "failure", "message": "霧化器未連接"}
         
         try:
-            # 0x0100 + 7 = 0x0107 開啟命令
             command = 0x0107
             result = self.device.write_command(command)
             if result["status"] == "success":
+                # 記錄最後一次命令
+                self.last_command = command
                 return {"status": "success", "message": "霧化器已開啟"}
             return result
         except Exception as e:
@@ -40,10 +44,11 @@ class ModbusService:
             return {"status": "failure", "message": "霧化器未連接"}
         
         try:
-            # 0x0100 + 8 = 0x0108 關閉命令
             command = 0x0108
             result = self.device.write_command(command)
             if result["status"] == "success":
+                # 記錄最後一次命令
+                self.last_command = command
                 return {"status": "success", "message": "霧化器已關閉"}
             return result
         except Exception as e:
@@ -59,12 +64,24 @@ class ModbusService:
             if status_result["status"] != "success":
                 return status_result
                 
-            status_value = status_result["data"]
+            status_data = status_result["data"]
+            if not isinstance(status_data, dict):
+                return {"status": "failure", "message": "狀態資料格式錯誤"}
+            
+            # 我們可以使用一個內部記錄來跟踪最後一次發送的命令
+            # 這裡假設我們已經在turn_on/turn_off時設置了self.last_command
+            if hasattr(self, 'last_command'):
+                is_running = self.last_command == 0x0107  # 開啟命令
+            else:
+                # 如果沒有記錄，默認使用之前的邏輯
+                status_register = status_data.get("status_register")
+                is_running = bool(status_register & 0x0200) if status_register is not None else None
+            
             return {
                 "status": "success",
                 "data": {
-                    "raw_status": status_value,
-                    "is_running": bool(status_value & 0x0001)
+                    **status_data,  # 保留所有原始狀態數據
+                    "is_running": is_running  # 使用我們的邏輯判斷
                 }
             }
         except Exception as e:

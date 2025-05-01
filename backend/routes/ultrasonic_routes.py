@@ -35,7 +35,7 @@ def connect_modbus() -> Dict[str, Any]:
                 "address": device_id,
                 "port": port,
                 "status_data": 'connected',
-                "data": jsonify(status_data)
+                "data": status_data
             })
             
             ConnectionLogService.create_log(
@@ -65,7 +65,7 @@ def connect_modbus() -> Dict[str, Any]:
                 created_by=current_user_id
             )
         
-        return jsonify(result)
+        return result
     except ValueError as e:
         
         current_app.emit_device_status('ultrasonic', 'disconnected', {
@@ -144,7 +144,7 @@ def disconnect_modbus() -> Dict[str, Any]:
             "address": device_id,
             "port": port,
             "status_data": 'disconnected failed',
-            "data": jsonify(status_data)
+            "data": status_data
             
         })
         
@@ -157,7 +157,7 @@ def disconnect_modbus() -> Dict[str, Any]:
             created_by=current_user_id
         )
     
-    return jsonify(result)
+    return result
 
 @modbus_bp.route("/turn_on", methods=["POST"])
 def turn_on_modbus() -> Dict[str, Any]:
@@ -168,9 +168,9 @@ def turn_on_modbus() -> Dict[str, Any]:
     
     current_app.emit_device_status('ultrasonic', 'connected', {
         "message": "霧化器已開啟",
-        "data": jsonify(data),
+        "data": data,
     })
-    return jsonify(result)
+    return result
 
 @modbus_bp.route("/turn_off", methods=["POST"])
 def turn_off_modbus() -> Dict[str, Any]:
@@ -180,14 +180,14 @@ def turn_off_modbus() -> Dict[str, Any]:
     data = modbus_service.get_status()
     
     current_app.emit_device_status('ultrasonic', 'connected', {
-        "message": "霧化器已開啟",
-        "data": jsonify(data),
+        "message": "霧化器已關閉",
+        "data": data,
     })
     
-    return jsonify(result)
+    return result
 
 @modbus_bp.route("/status", methods=["GET"])
 def get_modbus_status() -> Dict[str, Any]:
     """API: 讀取霧化器狀態"""
     result = modbus_service.get_status()
-    return jsonify(result)
+    return result

@@ -116,7 +116,7 @@ def disconnect():
                 "message": f"CO2 laser中斷連線成功，{port}",
                 "port": port,
                 "status_data": 'disconnected',
-                data: {}
+                "data": {}
             })
             # 記錄斷開連線日誌
             ConnectionLogService.create_log(

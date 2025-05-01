@@ -94,7 +94,7 @@ const useHooks = () => {
     return initialDevices;
   });
 
-  const [ipAddress, setIpAddress] = useState('');
+  const [ipAddress, setIpAddress] = useState(robotArmIpState);
   const [onRobotConectLoading, setOnRobotConectLoading] = useState(false);
   const [isAutoConnecting, setIsAutoConnecting] = useState(false);
   const [connectionResults, setConnectionResults] = useState([]);
@@ -1034,6 +1034,8 @@ const useHooks = () => {
 
       const response = await getApi('/uc2000/disconnect', 'POST', data, localStorage.getItem('token'));
 
+      console.log("data", data)
+
       if (response?.data?.status === 'success') {
         setAlertDetail({
           show: true,
@@ -1702,7 +1704,7 @@ const PortAutoConnectPage = () => {
             <TextInput
               placeholder="Enter IP Address"
               value={ipAddress || robotArmIpState || ""}
-              onChange={(e) => setIpAddress(e.target.value)}
+              onChange={(e) => setIpAddress(e.target.value || robotArmIpState)}
               className="max-w-xs"
             />
           </div>

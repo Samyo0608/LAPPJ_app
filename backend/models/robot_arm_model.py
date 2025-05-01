@@ -14,6 +14,8 @@ class RobotArmModel:
         # 調整倍率相關
         self.adjustment_rate_enabled = False  # R20001: 1 調整倍率/ 0 關閉調整倍率串口
         self.adjustment_rate_value = 0       # R20002: 0~100 調整倍率數字
+        self.adjustment_rate_value_R16 = 0       # R16: 0~100 調整倍率數字
+        self.adjustment_rate_value_R17 = 0       # R17: 0~100 調整倍率數字
         
         # 調整間距高度相關
         self.height_adjustment_enabled = False  # R20004: 調整間距高度 1/開 0/關
@@ -78,4 +80,6 @@ class RobotArmModel:
         "actual_count_value": 0x9C4F,        # R20007: 次數調整數字(機器讀取用)
         "count_adjustment_enabled": 0x9C51,   # R20008: 次數調整開關 (1/開 0/關)
         "count_adjustment_value": 0x9C53,    # R20009: 次數調整數字(實際調整用)
+        "adjustment_rate_value_R16": 0x0020,     # R20002: 調整倍率數字
+        "adjustment_rate_value_R17": 0x0021,     # R20002: 調整倍率數字
     }

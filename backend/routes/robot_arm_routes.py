@@ -38,7 +38,7 @@ def connect():
             "message": f"機械手臂連線成功，ip_address: {ip_address}",
             "ip_address": ip_address,
             "status_data": 'connected',
-            "data" : jsonify({
+            "data" : ({
               "satus": 'success' if data_success else 'failure',
               "message": data_message,
               "data": data if data_success else {}
@@ -84,7 +84,7 @@ def disconnect():
         current_app.emit_device_status('robotarm', 'connected', {
             "message": "機械手臂中斷連線失敗",
             "status_data": 'disconnected failed',
-            "data" : jsonify({
+            "data" : ({
               "satus": 'success' if data_success else 'failure',
               "message": data_message,
               "data": data if data_success else {}
@@ -109,10 +109,10 @@ def get_status():
     
     current_app.emit_device_status('robotarm', 'connected', {
         "message": "機械手臂讀取資料成功",
-        "data" : jsonify(response)
+        "data" : response
     })
     
-    return jsonify(response), 200
+    return response, 200
 
 @robot_bp.route('/start', methods=['POST'])
 def start_robot():
@@ -122,6 +122,9 @@ def start_robot():
     start = input_data.get('start', True)
     
     success, message = robot_service.start_robot(start)
+
+    print("success", success)
+    print("message", message)
     
     if success:
         data_success, data_message, data = robot_service.read_status()
@@ -129,7 +132,7 @@ def start_robot():
         current_app.emit_device_status('robotarm', 'connected', {
             "message": "機械手臂啟動成功" if start else "機械手臂停止成功",
             "status_data": 'connected',
-            "data" : jsonify({
+            "data" : ({
               "satus": 'success' if data_success else 'failure',
               "message": data_message,
               "data": data if data_success else {}
@@ -156,7 +159,7 @@ def set_adjustment_rate():
         
         current_app.emit_device_status('robotarm', 'connected', {
             "message": "機械手臂倍率調整成功" if success else "機械手臂倍率調整失敗",
-            "data" : jsonify({
+            "data" : ({
               "satus": 'success' if data_success else 'failure',
               "message": data_message,
               "data": data if data_success else {}
@@ -183,7 +186,7 @@ def set_height_adjustment():
         
         current_app.emit_device_status('robotarm', 'connected', {
             "message": "機械手臂調整間距成功" if success else "機械手臂調整間距失敗",
-            "data" : jsonify({
+            "data" : ({
               "satus": 'success' if data_success else 'failure',
               "message": data_message,
               "data": data if data_success else {}
@@ -210,7 +213,7 @@ def set_count_adjustment():
         
         current_app.emit_device_status('robotarm', 'connected', {
             "message": "機械手臂調整次數成功" if success else "機械手臂調整次數失敗",
-            "data" : jsonify({
+            "data" : ({
               "satus": 'success' if data_success else 'failure',
               "message": data_message,
               "data": data if data_success else {}
@@ -247,7 +250,7 @@ def reset_robot_signal():
         
         current_app.emit_device_status('robotarm', 'connected', {
             "message": "機械手臂復歸成功" if success else "機械手臂復歸失敗",
-            "data" : jsonify({
+            "data" : ({
               "satus": 'success' if data_success else 'failure',
               "message": data_message,
               "data": data if data_success else {}

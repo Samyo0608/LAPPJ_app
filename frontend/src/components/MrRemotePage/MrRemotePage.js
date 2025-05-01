@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Button } from "flowbite-react";
 import AlertComponent from "../ComponentTools/Alert";
 import { getApi } from "../../utils/getApi";
-import { useUltrasonicContext } from "../../Contexts/UltrasonicContext";
 import { useSocket } from "../../Contexts/SocketioContext";
 import azbil_code_detail from "../ControllerPage/azbil_code_detail.json"
 
@@ -67,22 +66,22 @@ const PredictionCard = ({ title, value, recommendations }) => (
 );
 
 const MrRemotePage = () => {
-  // Context hooks
-  const { ultrasonicOpenFlag } = useUltrasonicContext();
   const { messages } = useSocket();
   const isMainGasOpenState = messages.filter(socket => socket.data.device_type === "azbil")[0]?.data?.status === "connected";
   const isCarrierGasOpenState = messages.filter(socket => socket.data.device_type === "alicat")[0]?.data?.status === "connected";
   const isHeaterOpenState = messages.filter(socket => socket.data.device_type === "heater")[0]?.data?.status === "connected";
   const isCo2LaserOpenState = messages.filter(socket => socket.data.device_type === "co2laser")[0]?.data?.status === "connected";
   const isUltrasonicOpenState = messages.filter(socket => socket.data.device_type === "ultrasonic")[0]?.data?.status === "connected";
-  const isPowerSupplyOpenState = messages.filter(socket => socket.data.device_type === "powersuppply")[0]?.data?.status === "connected";
+  const isPowerSupplyOpenState = messages.filter(socket => socket.data.device_type === "powersupply")[0]?.data?.status === "connected";
   const isRobotArmOpenState = messages.filter(socket => socket.data.device_type === "robotarm")[0]?.data?.status === "connected";
 
   const apiCalledRef = React.useRef({
     azbil: false,
     alicat: false,
     co2laser: false,
-    heater: false
+    heater: false,
+    powersupply: false,
+    ultrasonic: false
   });
 
   // Main Gas States
@@ -129,14 +128,24 @@ const MrRemotePage = () => {
   });
   const [powerSupplyVoltage, setPowerSupplyVoltage] = useState(0);
 
+  // Ultrasonic State
+  const [ultrasonicDetail, setUltrasonicDetail] = useState({
+    di_register: 0,
+    is_running: false,
+    status_register: 0
+  });
   // Prediction States
-  const predictedResistance = "8.5 kΩ";
+  const predictedResistance = "- -";
 
   const recommendations = [
-    { name: "主氣流量", value: "15.2", unit: "slm" },
-    { name: "載氣流量", value: "0.25", unit: "slm" },
-    { name: "CO2雷射功率", value: "32", unit: "%" },
-    { name: "電壓", value: "500", unit: "V" }
+    { name: "主氣流量", value: "- -", unit: "slm" },
+    { name: "載氣流量", value: "- -", unit: "slm" },
+    { name: "噴頭溫度", value: "- -", unit: "℃" },
+    { name: "製程速度", value: "- -", unit: "mm/s" },
+    { name: "製程次數", value: "- -", unit: "" },
+    { name: "製程間距", value: "- -", unit: "mm" },
+    { name: "CO2雷射功率", value: "- -", unit: "%" },
+    { name: "電壓", value: "- -", unit: "V" }
   ];
 
   // Alert State
@@ -249,6 +258,18 @@ const MrRemotePage = () => {
       const response = await getApi("/power_supply/status", "GET");
       if (response?.data?.status === "success") {
         setPowerSupplyDetail(response.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
+  // get Ultrasonic API
+  const getUltrasonicStatusApi = React.useCallback(async () => {
+    try {
+      const response = await getApi("/ultrasonic/status", "GET");
+      if (response?.data?.status === "success") {
+        setUltrasonicDetail(response.data.data);
       }
     } catch (error) {
       console.error(error);
@@ -551,7 +572,14 @@ const MrRemotePage = () => {
             break;
           case "ultrasonic":
             if (!apiCalledRef.current.ultrasonic) {
+              getUltrasonicStatusApi();
               apiCalledRef.current.ultrasonic = true;
+            }
+            break;
+          case "powersupply":
+            if(!apiCalledRef.current.powersupply){
+              getPowerSupplyStatusApi();
+              apiCalledRef.current.powersupply = true;
             }
             break;
           default:
@@ -581,7 +609,7 @@ const MrRemotePage = () => {
     });
     
   }, [messages, apiCalledRef, 
-    getMainGasDataApi, getCarrierGasDataApi, getCo2LaserDataApi, getHeaterDataApi, getPowerSupplyStatusApi]);
+    getMainGasDataApi, getCarrierGasDataApi, getCo2LaserDataApi, getHeaterDataApi, getPowerSupplyStatusApi, getUltrasonicStatusApi]);
 
   return (
     <div className="min-h-screen p-4 bg-gray-100">
@@ -713,8 +741,8 @@ const MrRemotePage = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-center mb-4">
                 <span className="text-sm mr-4">震盪器狀態:</span>
-                <span className={`font-bold ${ultrasonicOpenFlag ? "text-green-600" : "text-red-600"}`}>
-                  {ultrasonicOpenFlag ? "開啟" : "關閉"}
+                <span className={`font-bold ${ultrasonicDetail.is_running ? "text-green-600" : "text-red-600"}`}>
+                  {ultrasonicDetail.is_running ? "開啟" : "關閉"}
                 </span>
               </div>
             </div>
@@ -746,7 +774,7 @@ const MrRemotePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-4">
                 <PredictionCard 
-                  title="預測電阻值"
+                  title="預測結果"
                   value={predictedResistance}
                   recommendations={recommendations}
                 />
@@ -768,22 +796,10 @@ const MrRemotePage = () => {
                 <h3 className="font-semibold mb-2 text-center">預測訊息</h3>
                 <div className="h-60 overflow-y-auto text-sm">
                   <div className="space-y-2">
-                    <div className="border-b pb-1">
-                      <p className="text-gray-600">2025-04-16 14:32:15</p>
-                      <p>預測電阻值: 8.5 kΩ, 建議調整主氣流量至 15.2 slm</p>
-                    </div>
-                    <div className="border-b pb-1">
-                      <p className="text-gray-600">2025-04-16 14:18:45</p>
-                      <p>預測電阻值: 7.8 kΩ, 建議調整雷射功率至 28%</p>
-                    </div>
-                    <div className="border-b pb-1">
-                      <p className="text-gray-600">2025-04-16 14:05:21</p>
-                      <p>預測電阻值: 10.3 kΩ, 建議調整載氣流量至 0.22 slm</p>
-                    </div>
-                    <div className="border-b pb-1">
-                      <p className="text-gray-600">2025-04-16 13:58:36</p>
-                      <p>預測電阻值: 8.9 kΩ, 建議調整電壓至 480 V</p>
-                    </div>
+                    {/* <div className="border-b pb-1">
+                      <p className="text-gray-600">YYYY-MM-DD HH:mm:ss</p>
+                      <p>預測電阻值: - - kΩ, 建議調整主氣流量至 - - slm</p>
+                    </div> */}
                   </div>
                 </div>
               </div>
