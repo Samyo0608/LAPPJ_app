@@ -3,7 +3,8 @@
   "port": 5555,
   "allow_remote": false,
   "allowed_ips": [
-    "39.15.0.242"
+    "39.15.0.242",
+    "169.254.212.95"
   ],
   "allowed_prefixes": [
     "140.114"

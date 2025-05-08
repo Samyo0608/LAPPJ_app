@@ -6,6 +6,7 @@ import { useAuthContext } from "../../Contexts/AuthContext";
 import UserSettingsModal from "../ComponentTools/UserSettingsModal";
 import { HiLogout } from "react-icons/hi";
 import ControllerSettingModal from "../ControllerSettingModal/ControllerSettingModal";
+import RemoteLocalSettingModal from "../RemoteLocalSettingModal/RemoteLocalSettingModal";
 
 const useHooks = () => {
   // 預設為當前的location
@@ -17,6 +18,7 @@ const useHooks = () => {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [userPhoto, setUserPhoto] = useState("");
   const [isControllerSettingModalOpen, setIsControllerSettingModalOpen] = useState(false);
+  const [isRemoteLocalSettingModalOpen, setIsRemoteLocalSettingModalOpen] = useState(false);
 
   // 開啟或關閉手機版選單
   const onMobileMenuClick = () => {
@@ -60,6 +62,11 @@ const useHooks = () => {
   // 開啟或關閉ControllerSettingModal
   const onControllerSettingModalClick = () => {
     setIsControllerSettingModalOpen(!isControllerSettingModalOpen);
+  };
+
+  // 開啟或關閉RemoteLocalSettingModal
+  const onRemoteLocalSettingModalClick = () => {
+    setIsRemoteLocalSettingModalOpen(!isRemoteLocalSettingModalOpen);
   };
 
   // 正常視窗的連結
@@ -106,6 +113,7 @@ const useHooks = () => {
     authDetail,
     isSettingsModalOpen,
     isControllerSettingModalOpen,
+    isRemoteLocalSettingModalOpen,
     userPhoto,
     LinkContainer,
     onMobileMenuClick,
@@ -114,14 +122,15 @@ const useHooks = () => {
     onSignOutClick,
     onCloseSettingsModal,
     handleSettingsClick,
-    onControllerSettingModalClick
+    onControllerSettingModalClick,
+    onRemoteLocalSettingModalClick
   };
 };
 
 const Navbar = () => {
-  const { isMobileMenuOpen, isAuthModalOpen, isAuth, authDetail, isSettingsModalOpen, userPhoto, isControllerSettingModalOpen,
+  const { isMobileMenuOpen, isAuthModalOpen, isAuth, authDetail, isSettingsModalOpen, userPhoto, isControllerSettingModalOpen, isRemoteLocalSettingModalOpen,
     LinkContainer, onMobileMenuClick, LinkContainerForMobile, onAuthModalClick, onSignOutClick, onCloseSettingsModal, handleSettingsClick,
-    onControllerSettingModalClick
+    onControllerSettingModalClick, onRemoteLocalSettingModalClick
   } = useHooks();
 
   return (
@@ -232,6 +241,7 @@ const Navbar = () => {
                   </button>
                   <Dropdown label="登出/設定" size="sm" color="purple">
                     <Dropdown.Item onClick={onControllerSettingModalClick}>自動控制設置</Dropdown.Item>
+                    <Dropdown.Item onClick={onRemoteLocalSettingModalClick}>遠端/本地及ip設定</Dropdown.Item>
                     <Dropdown.Divider />
                     <Dropdown.Item onClick={onSignOutClick} icon={HiLogout}>Sign out</Dropdown.Item>
                   </Dropdown>
@@ -287,6 +297,10 @@ const Navbar = () => {
       <ControllerSettingModal
         show={isControllerSettingModalOpen}
         onClose={onControllerSettingModalClick}
+      />
+      <RemoteLocalSettingModal
+        show={isRemoteLocalSettingModalOpen}
+        onClose={onRemoteLocalSettingModalClick}
       />
     </nav>
   );

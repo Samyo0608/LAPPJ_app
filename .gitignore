@@ -24,6 +24,7 @@ env/
 dist/
 database.db
 recipes.xlsx
+host_config.json
 
 
 # Electron

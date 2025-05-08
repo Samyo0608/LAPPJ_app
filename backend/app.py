@@ -232,7 +232,7 @@ def create_app():
         current_config = load_config()
         
         # 更新全局變數，以防配置文件被手動修改
-        HOST = current_config.get("host", "127.0.0.1")
+        HOST = current_config.get("host", "0.0.0.0")
         PORT = current_config.get("port", 5555)
         ALLOWED_IPS = current_config.get("allowed_ips", [])
         ALLOWED_PREFIXES = current_config.get("allowed_prefixes", ["140.114"])
