@@ -58,4 +58,10 @@
 
 ![image](https://github.com/user-attachments/assets/6238d608-0d0f-4206-9bee-54ae31277e66)
 
+---
+
+## 自動控制流程
+
+![自動控制流程](https://github.com/user-attachments/assets/956bf5bc-0710-48ad-9911-b180cc41582c)
+
 
